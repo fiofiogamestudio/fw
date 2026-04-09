@@ -10,7 +10,7 @@ func init(context: Variant) -> void:
 	var logic = GameLogicScript.new()
 	_context.state.logic = logic
 	logic.attach_forms(_context.args.form_manager)
-	logic.enter(GameFormScene, _context.args.mode_context)
+	logic.enter(GameFormScene, _context.args.context)
 
 
 func shutdown() -> void:

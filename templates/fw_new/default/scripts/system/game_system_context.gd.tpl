@@ -1,4 +1,4 @@
-class_name GameContext
+class_name GameSystemContext
 extends RefCounted
 
 
@@ -8,7 +8,7 @@ class Refs extends RefCounted:
 
 class Args extends RefCounted:
 	var form_manager: Variant = null
-	var mode_context: Variant = null
+	var context: Variant = null
 
 
 class State extends RefCounted:

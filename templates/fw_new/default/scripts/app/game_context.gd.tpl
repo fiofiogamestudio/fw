@@ -1,4 +1,4 @@
-class_name GameModeContext
+class_name GameContext
 extends RefCounted
 
 
