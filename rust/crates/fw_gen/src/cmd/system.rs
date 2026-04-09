@@ -1,0 +1,176 @@
+use std::collections::HashSet;
+use std::path::Path;
+
+use anyhow::{bail, Context, Result};
+
+use crate::support::util::{read_utf8, write_utf8};
+
+struct SystemGraph {
+    systems: Vec<SystemNode>,
+}
+
+struct SystemNode {
+    id: String,
+    refs: Vec<SystemRef>,
+}
+
+struct SystemRef {
+    field: String,
+    target: String,
+}
+
+pub fn generate(_root: &Path, schema: &Path, gd_out: &Path) -> Result<()> {
+    let graph = parse_graph(schema)?;
+    write_utf8(gd_out, &render_gd(&graph))
+}
+
+fn parse_graph(path: &Path) -> Result<SystemGraph> {
+    let source =
+        read_utf8(path).with_context(|| format!("read system graph {}", path.display()))?;
+    let mut systems: Vec<SystemNode> = Vec::new();
+    let mut system_ids = HashSet::new();
+    let mut current: Option<usize> = None;
+
+    for (line_idx, raw_line) in source.lines().enumerate() {
+        let line_no = line_idx + 1;
+        let line = raw_line.split('#').next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line.starts_with('[') && line.ends_with(']') {
+            let id = line.trim_start_matches('[').trim_end_matches(']').trim();
+            validate_name(id, "system id", line_no)?;
+            if !system_ids.insert(id.to_string()) {
+                bail!("{}:{} duplicate system `{}`", path.display(), line_no, id);
+            }
+            systems.push(SystemNode {
+                id: id.to_string(),
+                refs: Vec::new(),
+            });
+            current = Some(systems.len() - 1);
+            continue;
+        }
+
+        let Some(system_idx) = current else {
+            bail!(
+                "{}:{} ref mapping must appear under a system section",
+                path.display(),
+                line_no
+            );
+        };
+
+        let Some((field, target_raw)) = line.split_once('=') else {
+            bail!(
+                "{}:{} expected `field = \"target\"`",
+                path.display(),
+                line_no
+            );
+        };
+        let field = field.trim();
+        validate_name(field, "ref field", line_no)?;
+
+        let target = parse_quoted(target_raw.trim(), path, line_no)?;
+        validate_name(&target, "ref target", line_no)?;
+
+        if systems[system_idx]
+            .refs
+            .iter()
+            .any(|existing| existing.field == field)
+        {
+            bail!(
+                "{}:{} duplicate ref `{}` in system `{}`",
+                path.display(),
+                line_no,
+                field,
+                systems[system_idx].id
+            );
+        }
+
+        systems[system_idx].refs.push(SystemRef {
+            field: field.to_string(),
+            target,
+        });
+    }
+
+    if systems.is_empty() {
+        bail!("{}: system graph is empty", path.display());
+    }
+
+    for system in &systems {
+        for system_ref in &system.refs {
+            if !system_ids.contains(&system_ref.target) {
+                bail!(
+                    "{}: system `{}` refs `{}` points to missing system `{}`",
+                    path.display(),
+                    system.id,
+                    system_ref.field,
+                    system_ref.target
+                );
+            }
+        }
+    }
+
+    Ok(SystemGraph { systems })
+}
+
+fn parse_quoted(value: &str, path: &Path, line_no: usize) -> Result<String> {
+    if !value.starts_with('"') || !value.ends_with('"') || value.len() < 2 {
+        bail!("{}:{} ref target must be quoted", path.display(), line_no);
+    }
+    let inner = &value[1..value.len() - 1];
+    if inner.starts_with('$') {
+        bail!(
+            "{}:{} system refs can only point to systems, not external values",
+            path.display(),
+            line_no
+        );
+    }
+    Ok(inner.to_string())
+}
+
+fn validate_name(value: &str, label: &str, line_no: usize) -> Result<()> {
+    let mut chars = value.chars();
+    let Some(first) = chars.next() else {
+        bail!("line {}: empty {}", line_no, label);
+    };
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        bail!("line {}: invalid {} `{}`", line_no, label, value);
+    }
+    if chars.any(|ch| !(ch.is_ascii_alphanumeric() || ch == '_')) {
+        bail!("line {}: invalid {} `{}`", line_no, label, value);
+    }
+    Ok(())
+}
+
+fn render_gd(graph: &SystemGraph) -> String {
+    let mut system_entries = Vec::new();
+    for system in &graph.systems {
+        if system.refs.is_empty() {
+            system_entries.push(format!("\t\t&\"{}\": {{}}", system.id));
+            continue;
+        }
+
+        let refs = system
+            .refs
+            .iter()
+            .map(|system_ref| {
+                format!(
+                    "\t\t\t&\"{}\": &\"{}\"",
+                    system_ref.field, system_ref.target
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",\n");
+        system_entries.push(format!("\t\t&\"{}\": {{\n{}\n\t\t}}", system.id, refs));
+    }
+
+    format!(
+        "# @generated by fw_gen system. Do not edit.\n\
+class_name SystemGraph\n\
+extends RefCounted\n\n\
+static func refs() -> Dictionary:\n\
+\treturn {{\n{}\n\t}}\n",
+        system_entries.join(",\n")
+    )
+}
