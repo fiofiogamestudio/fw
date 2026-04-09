@@ -25,6 +25,15 @@
 
 如果你的项目接受这些约束，就可以直接使用 `fw/`。
 
+## 你会得到什么
+
+接入后，`fw/` 会提供这些通用能力：
+
+- Godot 运行时骨架：`AppRoot -> BaseMode -> SystemManager`
+- Godot UI 子框架：`FForm + xxx_logic.gd`
+- Rust 通用运行时、数学和流程能力
+- `fw new`、`fw gen`、`fw build` 这一套工具链
+
 ## 目录要求
 
 先准备好：
@@ -41,7 +50,15 @@
   project.godot
 ```
 
-## 初始化
+## 快速开始
+
+推荐顺序只有三步：
+
+1. 把 `fw/` 放到工程根目录
+2. 运行 `fw new`
+3. 再运行生成和构建
+
+## 初始化骨架
 
 在游戏工程根目录执行：
 
@@ -77,6 +94,23 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 
 这一步不会改动 `fw/` 本身，只会在当前游戏工程里补齐接入层和最小内容层。
 
+## 生成与构建
+
+完成 `fw new` 后，通常继续执行：
+
+```powershell
+.\fw\tools\gen.ps1 system
+.\fw\tools\gen.ps1 bridge
+.\fw\tools\gen.ps1 config
+.\fw\tools\build.ps1
+```
+
+如果你使用 `just`，通常也可以直接执行：
+
+```powershell
+just build
+```
+
 ## 常用命令
 
 生成：
@@ -99,9 +133,17 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 just build
 ```
 
-## 你需要自己写什么
+## 哪些是框架，哪些是游戏
 
-`fw/` 只提供框架和工具。真正属于游戏自己的内容，仍然需要你自己补：
+`fw/` 只提供框架和工具。真正属于游戏自己的内容，仍然需要你自己写。
+
+框架负责：
+
+- Godot 运行时与 UI 子框架
+- Rust 通用运行时
+- 生成器、工具脚本、模板
+
+游戏负责：
 
 - `schema/bridge/*`
 - `schema/config/*`
@@ -112,7 +154,24 @@ just build
 - `xxx_form.tscn`
 - `xxx_logic.gd`
 
-## 维护说明去哪看
+## 接入后默认结构
+
+接入后的最小工程通常会长成：
+
+```text
+<game_root>/
+  fw/
+  fw.toml
+  justfile
+  scenes/
+  scripts/app/
+  scripts/system/
+  prefabs/ui/
+  schema/
+  rust/
+```
+
+## 本地维护说明去哪看
 
 如果你不是在“接入新工程”，而是在当前宿主仓库里维护、升级或调整 `fw/`，请不要继续看这里，直接看：
 
