@@ -442,7 +442,7 @@ fn render_rs_event(variants: &[VariantDef], enums: &BTreeMap<String, Vec<String>
                 lines.push(format!(
                     "            let _ = d.insert(\"{}\", {});",
                     field.name,
-                    rs_encode_expr(field, &field.name, enums)
+                    rs_encode_borrowed_expr(field, &field.name, enums)
                 ));
             }
             lines.push("        }".to_owned());
@@ -594,6 +594,24 @@ fn rs_encode_expr(field: &ProtoField, expr: &str, enums: &BTreeMap<String, Vec<S
         "Vec2i" => format!("Vector2i::new({expr}.x, {expr}.y).to_variant()"),
         other if enums.contains_key(other) => {
             format!("Variant::from(encode_{}({expr}))", snake(other))
+        }
+        _ => format!("Variant::nil() /* unsupported {} */", field.ty),
+    }
+}
+
+fn rs_encode_borrowed_expr(
+    field: &ProtoField,
+    expr: &str,
+    enums: &BTreeMap<String, Vec<String>>,
+) -> String {
+    match field.ty.as_str() {
+        "int32" | "int64" | "uint32" | "uint64" => format!("Variant::from(*{expr} as i64)"),
+        "bool" => format!("Variant::from(*{expr})"),
+        "string" => format!("Variant::from({expr}.clone())"),
+        "PlayerId" | "EntityId" => format!("Variant::from({expr}.0 as i64)"),
+        "Vec2i" => format!("Vector2i::new({expr}.x, {expr}.y).to_variant()"),
+        other if enums.contains_key(other) => {
+            format!("Variant::from(encode_{}(*{expr}))", snake(other))
         }
         _ => format!("Variant::nil() /* unsupported {} */", field.ty),
     }
