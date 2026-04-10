@@ -2,7 +2,7 @@ class_name FForm
 extends Control
 
 const FBindingScript = preload("../_binding.gd")
-const FUiEventScript = preload("../_ui_event.gd")
+const FUIEventScript = preload("../_ui_event.gd")
 
 var _context: Variant = null
 var _form_id: StringName = &""
@@ -13,7 +13,7 @@ var _ui_event: Variant
 
 func init(context: Variant) -> void:
 	_context = context
-	_ui_event = FUiEventScript.new()
+	_ui_event = FUIEventScript.new()
 
 
 func tick(_dt: float) -> void:

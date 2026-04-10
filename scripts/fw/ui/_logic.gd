@@ -1,4 +1,4 @@
-class_name FUiLogic
+class_name FUILogic
 extends RefCounted
 
 const FBindingScript = preload("_binding.gd")
@@ -18,7 +18,7 @@ func detach_forms() -> void:
 
 func open_form(id: StringName, packed_scene: PackedScene, context: Variant = null) -> Variant:
 	if _forms == null:
-		push_error("FUiLogic requires a valid FormManager.")
+		push_error("FUILogic requires a valid FormManager.")
 		return null
 	close_form()
 	_form = _forms.open(id, packed_scene, context)
@@ -52,7 +52,7 @@ func ui_event() -> Variant:
 
 func require_node(path: NodePath) -> Node:
 	if _form == null:
-		push_error("FUiLogic has no active form.")
+		push_error("FUILogic has no active form.")
 		return null
 	return _form.require_node(path)
 

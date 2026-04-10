@@ -17,7 +17,7 @@ func _ready() -> void:
 	add_child(_mode_host)
 
 	_ui_root = CanvasLayer.new()
-	_ui_root.name = "UiRoot"
+	_ui_root.name = "UIRoot"
 	add_child(_ui_root)
 
 	_form_manager = FormManagerScript.new()

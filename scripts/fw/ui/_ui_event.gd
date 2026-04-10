@@ -1,4 +1,4 @@
-class_name FUiEvent
+class_name FUIEvent
 extends RefCounted
 
 signal emitted(kind: StringName, payload: Variant)
