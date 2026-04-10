@@ -1,12 +1,12 @@
-# Fw
+# fw
 
-`fw/` 是一套放到 Godot 工程根目录即可接入的 Rust + Godot 框架。
+`fw/` 是一套放到 Godot 工程根目录即可接入的 `Rust + Godot` 框架。
 
 这个目录只保留这一份 `README.md`，只回答一件事：
 
 - 怎么把 `fw/` 接到一个新的游戏工程里
 
-如果你是在宿主仓库里维护这套框架，不在这里看维护说明，而去看宿主仓库里的：
+如果你是在宿主仓库里维护这套框架，不在这里看维护说明，而是去看宿主仓库里的：
 
 - `docs/fw/rule.md`
 - `docs/fw/spec.md`
@@ -22,17 +22,25 @@
 - Rust gameplay 统一走 `system-context`
 - 跨端边界只走 `action / snapshot / event`
 - 主 UI 统一走 `xxx_form.tscn + FForm + xxx_logic.gd`
-
-如果你的项目接受这些约束，就可以直接使用 `fw/`。
+- system 是黑盒，只保留 `refs / config / state`
+- scene / camera / pool / form manager 这类宿主依赖统一放在 host 层
 
 ## 你会得到什么
 
-接入后，`fw/` 会提供这些通用能力：
+接入后，`fw/` 会提供：
 
-- Godot 运行时骨架：`AppRoot -> BaseMode -> SystemManager`
-- Godot UI 子框架：`FForm + xxx_logic.gd`
+- Godot 运行时骨架
+  - `AppRoot`
+  - `BaseMode`
+  - `SystemManager`
+- Godot UI 子框架
+  - `FForm`
+  - `FUILogic`
+  - `FormManager`
 - Rust 通用运行时、数学和流程能力
-- `fw new`、`fw gen`、`fw build` 这一套工具链
+- `fw new`
+- `fw gen`
+- `fw build`
 
 ## 目录要求
 
@@ -66,7 +74,7 @@
 powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\fw\tools\new.ps1 -ProjectRoot . -Name MyGame
 ```
 
-或：
+或者：
 
 ```bash
 ./fw/tools/new.sh --project-root . --name MyGame
@@ -92,7 +100,11 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 - `rust/crates/core`
 - `rust/crates/bridge`
 
-这一步不会改动 `fw/` 本身，只会在当前游戏工程里补齐接入层和最小内容层。
+当前默认模板也遵守框架黑盒规则：
+
+- system 不依赖 scene / UI 宿主对象
+- host 负责接触 `FormManager` 和场景对象
+- UI 统一走 `form + logic`
 
 ## 生成与构建
 
@@ -102,28 +114,6 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 .\fw\tools\gen.ps1 system
 .\fw\tools\gen.ps1 bridge
 .\fw\tools\gen.ps1 config
-.\fw\tools\build.ps1
-```
-
-如果你使用 `just`，通常也可以直接执行：
-
-```powershell
-just build
-```
-
-## 常用命令
-
-生成：
-
-```powershell
-.\fw\tools\gen.ps1 system
-.\fw\tools\gen.ps1 bridge
-.\fw\tools\gen.ps1 config
-```
-
-构建：
-
-```powershell
 .\fw\tools\build.ps1
 ```
 
@@ -153,28 +143,3 @@ just build
 - Godot presentation systems
 - `xxx_form.tscn`
 - `xxx_logic.gd`
-
-## 接入后默认结构
-
-接入后的最小工程通常会长成：
-
-```text
-<game_root>/
-  fw/
-  fw.toml
-  justfile
-  scenes/
-  scripts/app/
-  scripts/system/
-  prefabs/ui/
-  schema/
-  rust/
-```
-
-## 本地维护说明去哪看
-
-如果你不是在“接入新工程”，而是在当前宿主仓库里维护、升级或调整 `fw/`，请不要继续看这里，直接看：
-
-- `docs/fw/rule.md`
-- `docs/fw/spec.md`
-- `docs/fw/use.md`

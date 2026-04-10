@@ -6,15 +6,16 @@ class Refs extends RefCounted:
 	pass
 
 
-class Args extends RefCounted:
-	var form_manager: Variant = null
-	var context: Variant = null
+class Config extends RefCounted:
+	var project_name: String = ""
+	var subtitle: String = ""
+	var status_message: String = ""
 
 
 class State extends RefCounted:
-	var logic: RefCounted = null
+	var press_count: int = 0
 
 
 var refs: Refs = Refs.new()
-var args: Args = Args.new()
+var config: Config = Config.new()
 var state: State = State.new()
