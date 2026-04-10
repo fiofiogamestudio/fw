@@ -1,8 +1,8 @@
 class_name AppRoot
 extends Node
 
-const FormManagerScript = preload("../../ui/form/_forms.gd")
-const PoolManagerScript = preload("../pool/_pool.gd")
+const FormManagerScript = preload("../../ui/form/_form_manager.gd")
+const PoolManagerScript = preload("../pool/_pool_manager.gd")
 
 var _mode_host: Node
 var _ui_root: CanvasLayer

@@ -1,7 +1,7 @@
 class_name BaseMode
 extends RefCounted
 
-const SystemManagerScript = preload("_systems.gd")
+const SystemManagerScript = preload("_system_manager.gd")
 
 var _root: Variant
 var _context: Variant = null

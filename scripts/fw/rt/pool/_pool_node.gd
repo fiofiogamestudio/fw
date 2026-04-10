@@ -1,2 +1,2 @@
 class_name NodePool
-extends "./_pool.gd"
+extends "./_pool_manager.gd"

@@ -1,5 +1,5 @@
 class_name GameLogic
-extends "res://fw/scripts/fw/ui/_logic.gd"
+extends "res://fw/scripts/fw/ui/_ui_logic.gd"
 
 const FORM_ID: StringName = &"game_form"
 

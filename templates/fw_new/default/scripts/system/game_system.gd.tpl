@@ -1,4 +1,4 @@
-extends "res://fw/scripts/fw/rt/system/_system.gd"
+extends "res://fw/scripts/fw/rt/system/_base_system.gd"
 
 const GameLogicScript = preload("res://scripts/app/game_logic.gd")
 const GameFormScene = preload("res://prefabs/ui/game_form.tscn")

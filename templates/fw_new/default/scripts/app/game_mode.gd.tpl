@@ -1,4 +1,4 @@
-extends "res://fw/scripts/fw/rt/system/_mode.gd"
+extends "res://fw/scripts/fw/rt/system/_base_mode.gd"
 
 const GameSystemScript = preload("res://scripts/system/game_system.gd")
 const GameSystemContextScript = preload("res://scripts/system/game_system_context.gd")
