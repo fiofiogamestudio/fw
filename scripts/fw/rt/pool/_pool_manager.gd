@@ -1,7 +1,7 @@
 class_name PoolManager
 extends RefCounted
 
-var _scenes: Dictionary = {}
+var _prefabs: Dictionary = {}
 var _free: Dictionary = {}
 var _default_parent: Node = null
 
@@ -10,8 +10,8 @@ func setup(default_parent: Node) -> void:
 	_default_parent = default_parent
 
 
-func register_scene(key: String, packed_scene: PackedScene, warmup: int = 0) -> void:
-	_scenes[key] = packed_scene
+func register_prefab(key: String, packed_scene: PackedScene, warmup: int = 0) -> void:
+	_prefabs[key] = packed_scene
 	if not _free.has(key):
 		_free[key] = []
 	for _i in range(warmup):
@@ -20,8 +20,8 @@ func register_scene(key: String, packed_scene: PackedScene, warmup: int = 0) -> 
 
 
 func spawn(key: String, parent: Node = null) -> Node:
-	if not _scenes.has(key):
-		push_error("PoolManager missing scene for key: %s" % key)
+	if not _prefabs.has(key):
+		push_error("PoolManager missing prefab for key: %s" % key)
 		return null
 
 	var bucket: Array = _free.get(key, [])
@@ -63,7 +63,7 @@ func clear(key: String = "") -> void:
 
 
 func _instantiate(key: String) -> Node:
-	var packed_scene: PackedScene = _scenes[key]
+	var packed_scene: PackedScene = _prefabs[key]
 	var node := packed_scene.instantiate()
 	node.set_meta("_pool_key", key)
 	return node
