@@ -93,8 +93,8 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 - `fw.toml`
 - `justfile`
 - `scenes/main.tscn`
-- `scripts/app/*`
-- `scripts/system/*`
+- `scripts/app/main_app.gd`
+- `scripts/mode/game/*`
 - `prefabs/ui/game_form.tscn`
 - `schema/*`
 - `rust/crates/core`

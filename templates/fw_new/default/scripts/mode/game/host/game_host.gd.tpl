@@ -1,7 +1,7 @@
 class_name GameHost
 extends RefCounted
 
-const GameLogicScript = preload("res://scripts/app/game_logic.gd")
+const GameLogicScript = preload("res://scripts/mode/game/feature/game_logic.gd")
 const GameFormScene = preload("res://prefabs/ui/game_form.tscn")
 
 var _logic: Variant = null

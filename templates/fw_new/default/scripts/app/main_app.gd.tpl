@@ -1,7 +1,7 @@
 extends "res://fw/scripts/fw/rt/system/_app_root.gd"
 
-const GameModeScript = preload("res://scripts/app/game_mode.gd")
-const GameContextScript = preload("res://scripts/app/game_context.gd")
+const GameModeScript = preload("res://scripts/mode/game/game_mode.gd")
+const GameContextScript = preload("res://scripts/mode/game/game_context.gd")
 
 
 func on_app_ready() -> void:

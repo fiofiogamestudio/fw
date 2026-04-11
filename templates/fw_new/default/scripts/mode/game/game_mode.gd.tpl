@@ -1,8 +1,8 @@
 extends "res://fw/scripts/fw/rt/system/_base_mode.gd"
 
-const GameHostScript = preload("res://scripts/app/game_host.gd")
-const GameSystemScript = preload("res://scripts/system/game_system.gd")
-const GameSystemContextScript = preload("res://scripts/system/game_system_context.gd")
+const GameHostScript = preload("res://scripts/mode/game/host/game_host.gd")
+const GameSystemScript = preload("res://scripts/mode/game/system/game_system.gd")
+const GameSystemContextScript = preload("res://scripts/mode/game/system/game_system_context.gd")
 const GraphScript = preload("res://scripts/gen/_graph.gd")
 
 var _game_host: Variant = null
