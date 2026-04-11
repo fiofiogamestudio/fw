@@ -34,7 +34,7 @@ func _physics_process(delta: float) -> void:
 		_active_mode.tick(delta)
 
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	if _active_mode and _active_mode.has_method("handle_input"):
 		_active_mode.handle_input(event)
 
