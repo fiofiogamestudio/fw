@@ -1,11 +1,12 @@
 extends "res://fw/scripts/fw/rt/system/_base_mode.gd"
 
-const GameHostScript = preload("res://scripts/mode/game/host/game_host.gd")
+const GameLogicScript = preload("res://scripts/mode/game/feature/game_logic.gd")
+const GameFormScene = preload("res://prefabs/ui/game_form.tscn")
 const GameSystemScript = preload("res://scripts/mode/game/system/game_system.gd")
 const GameSystemContextScript = preload("res://scripts/mode/game/system/game_system_context.gd")
 const GraphScript = preload("res://scripts/gen/_graph.gd")
 
-var _game_host: Variant = null
+var _game_logic: Variant = null
 var _game_system: Variant = null
 
 
@@ -24,19 +25,20 @@ func enter(root: Variant, context: Variant = null) -> void:
 		return
 	init_systems()
 
-	_game_host = GameHostScript.new()
-	_game_host.enter(form_manager(), context, _game_system)
+	_game_logic = GameLogicScript.new()
+	_game_logic.attach_ui(ui())
+	_game_logic.enter(GameFormScene, context, _game_system)
 
 
 func tick(dt: float) -> void:
 	super.tick(dt)
-	if _game_host:
-		_game_host.tick(dt)
+	if _game_logic:
+		_game_logic.tick(dt)
 
 
 func exit() -> void:
-	if _game_host:
-		_game_host.shutdown()
-	_game_host = null
+	if _game_logic:
+		_game_logic.exit()
+	_game_logic = null
 	_game_system = null
 	super.exit()

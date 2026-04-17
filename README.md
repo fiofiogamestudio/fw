@@ -23,7 +23,7 @@
 - 跨端边界只走 `action / snapshot / event`
 - 主 UI 统一走 `xxx_form.tscn + FForm + xxx_logic.gd`
 - system 是黑盒，只保留 `refs / config / state`
-- scene / camera / pool / form manager 这类宿主依赖统一放在 host 层
+- scene / camera / pool / FUI 这类表现层依赖不进入 system context，由 mode、logic 和 view 显式装配
 
 ## 你会得到什么
 
@@ -34,9 +34,17 @@
   - `BaseMode`
   - `SystemManager`
 - Godot UI 子框架
+  - 表现层主目录位于 `fw/scripts/fw/vu`
+  - `FUI`
   - `FForm`
-  - `FUILogic`
-  - `FormManager`
+  - `FWidget`
+  - `FView`
+  - `FFormLogic`
+  - `FRefs`
+  - `FProps`
+  - `FBinding`
+  - `FViewModel`
+  - `FList / FListItem / FSelection / FTabs / FDialog / FToast / FTooltip / FBusy`
 - Rust 通用运行时、数学和流程能力
 - `fw new`
 - `fw gen`
@@ -103,8 +111,8 @@ cargo run --manifest-path fw/rust/Cargo.toml -p fw_gen -- --root <project_root> 
 当前默认模板也遵守框架黑盒规则：
 
 - system 不依赖 scene / UI 宿主对象
-- host 负责接触 `FormManager` 和场景对象
-- UI 统一走 `form + logic`
+- mode、logic 和 view 显式接触 `FUI` 和场景对象
+- UI 统一走 `FUI + FForm/FWidget + FRefs/FProps/FBinding/FViewModel`
 
 ## 生成与构建
 

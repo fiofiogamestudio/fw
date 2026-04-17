@@ -24,6 +24,10 @@ func bind_vm(vm: Variant, callable: Callable, immediate: bool = true) -> void:
 		callable.call(&"")
 
 
+func bind_view_model(vm: Variant, callable: Callable, immediate: bool = true) -> void:
+	bind_vm(vm, callable, immediate)
+
+
 func unbind() -> void:
 	for entry in _connections:
 		var emitter: Object = entry.get("emitter", null)
@@ -32,3 +36,7 @@ func unbind() -> void:
 		if emitter != null and callable.is_valid() and emitter.is_connected(signal_name, callable):
 			emitter.disconnect(signal_name, callable)
 	_connections.clear()
+
+
+func clear() -> void:
+	unbind()

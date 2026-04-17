@@ -7,6 +7,7 @@ pub mod flow;
 pub mod math;
 pub mod prelude;
 pub mod rt;
+pub mod sync;
 
 pub use flow::fsm::*;
 pub use math::fixed::*;
@@ -16,5 +17,9 @@ pub use rt::event::*;
 pub use rt::pool::*;
 pub use rt::system::app::*;
 pub use rt::system::system::*;
-pub use serde;
 pub use rt::time::*;
+pub use serde;
+pub use sync::aoi::*;
+pub use sync::diff::*;
+pub use sync::peer::*;
+pub use sync::scope::*;

@@ -1,7 +1,7 @@
 class_name FViewModel
 extends RefCounted
 
-signal changed(key: String)
+signal changed(key: StringName)
 
 var _values: Dictionary = {}
 
@@ -10,7 +10,7 @@ func set_value(key: StringName, value: Variant) -> void:
 	if _values.has(key) and _values[key] == value:
 		return
 	_values[key] = value
-	notify_changed(String(key))
+	notify_changed(key)
 
 
 func get_value(key: StringName, fallback: Variant = null) -> Variant:
@@ -26,8 +26,8 @@ func clear_values() -> void:
 	if _values.is_empty():
 		return
 	_values.clear()
-	notify_changed("")
+	notify_changed(&"")
 
 
-func notify_changed(key: String) -> void:
+func notify_changed(key: StringName) -> void:
 	changed.emit(key)

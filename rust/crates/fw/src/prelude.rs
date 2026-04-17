@@ -7,3 +7,7 @@ pub use crate::rt::pool::ObjectPool;
 pub use crate::rt::system::app::App;
 pub use crate::rt::system::system::System;
 pub use crate::rt::time::{TICK_RATE, TickTimer};
+pub use crate::sync::aoi::AoiGrid;
+pub use crate::sync::diff::{SyncKeyDelta, SyncValueDelta, build_key_delta, build_value_delta};
+pub use crate::sync::peer::{PeerSyncState, PeerValueState};
+pub use crate::sync::scope::SyncScope;

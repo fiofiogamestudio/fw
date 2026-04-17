@@ -50,12 +50,18 @@ func init_systems() -> void:
 		_system_manager.init_all()
 
 
-func open_form(id: StringName, packed_scene: PackedScene, context: Variant = null) -> Variant:
-	return _root.form_manager().open(id, packed_scene, context)
+func open_form(
+	layer: StringName,
+	id: StringName,
+	packed_scene: PackedScene,
+	context: Variant = null,
+	props: Dictionary = {}
+) -> Variant:
+	return _root.ui().open(layer, id, packed_scene, context, props)
 
 
 func close_form(id: StringName) -> void:
-	_root.form_manager().close(id)
+	_root.ui().close(id)
 
 
 func mode_host() -> Node:
@@ -71,4 +77,12 @@ func pool_manager() -> Variant:
 
 
 func form_manager() -> Variant:
-	return _root.form_manager()
+	return _root.ui()
+
+
+func forms() -> Variant:
+	return _root.ui()
+
+
+func ui() -> Variant:
+	return _root.ui()

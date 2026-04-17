@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://fw/scripts/fw/ui/form/_form.gd" id="1_script"]
+[ext_resource type="Script" path="res://fw/scripts/fw/vu/ui/form/_form.gd" id="1_script"]
 
 [node name="GameForm" type="Control"]
 layout_mode = 3
@@ -10,6 +10,14 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
+refs = {
+"title_label": NodePath("Center/Panel/Margin/VBox/TitleLabel"),
+"subtitle_label": NodePath("Center/Panel/Margin/VBox/SubtitleLabel"),
+"status_label": NodePath("Center/Panel/Margin/VBox/StatusLabel"),
+"counter_label": NodePath("Center/Panel/Margin/VBox/CounterLabel"),
+"refresh_button": NodePath("Center/Panel/Margin/VBox/RefreshButton")
+}
+props = Dictionary[String, Variant]({})
 
 [node name="Bg" type="ColorRect" parent="."]
 layout_mode = 1

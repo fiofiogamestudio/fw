@@ -14,6 +14,13 @@ enum SourceKind {
     Tree,
 }
 
+fn source_ext(kind: SourceKind) -> &'static str {
+    match kind {
+        SourceKind::Table => "csv.txt",
+        SourceKind::Tree => "json",
+    }
+}
+
 #[derive(Clone, Debug)]
 struct RootConfig {
     name: String,
@@ -145,15 +152,11 @@ fn build_model(schema: &ProtoSchema) -> Result<ConfigModel> {
             .map(|field| field.name.clone())
             .collect::<BTreeSet<_>>();
         let kind = infer_source_kind(schema, &root_names, &message)?;
-        let ext = match kind {
-            SourceKind::Table => "csv",
-            SourceKind::Tree => "json",
-        };
         roots.push(RootConfig {
             name: root_name.clone(),
             module: module.clone(),
             kind,
-            source: format!("data/config/{}.{}", module, ext),
+            source: format!("data/config/{}.{}", module, source_ext(kind)),
             message,
             ref_fields,
         });
@@ -316,14 +319,7 @@ fn display_rel(project_root: &Path, path: &Path) -> String {
 
 fn ensure_source_templates(data_root: &Path, model: &ConfigModel) -> Result<()> {
     for root in &model.roots {
-        let path = data_root.join(format!(
-            "{}.{}",
-            root.module,
-            match root.kind {
-                SourceKind::Table => "csv",
-                SourceKind::Tree => "json",
-            }
-        ));
+        let path = data_root.join(format!("{}.{}", root.module, source_ext(root.kind)));
         if path.exists() {
             continue;
         }
@@ -422,7 +418,7 @@ fn load_table_root_entries(
     loaded: &BTreeMap<String, Vec<RawEntry>>,
     root: &RootConfig,
 ) -> Result<Vec<RawEntry>> {
-    let path = data_root.join(format!("{}.csv", root.module));
+    let path = data_root.join(format!("{}.{}", root.module, source_ext(root.kind)));
     let mut reader = csv::Reader::from_path(&path)
         .with_context(|| format!("failed to read csv {}", path.display()))?;
     let headers = reader
@@ -1092,7 +1088,7 @@ fn render_gd_reader(model: &ConfigModel) -> String {
 extends RefCounted
 class_name _config
 
-const PACK_MAGIC: PackedByteArray = PackedByteArray([87, 67, 70, 71])
+const PACK_MAGIC: Array[int] = [87, 67, 70, 71]
 const FIXED_SCALE: float = 256.0
 
 static func _normalize_csv_header(header: String, index: int) -> String:
@@ -1278,7 +1274,10 @@ static func _clone_all(entries: Array) -> Array:
 	var out: Array = []
 	for item in entries:
 		var entry: Dictionary = _as_dictionary(item, "entry")
-		out.append(_clone_value(entry.get("value", {})))
+		out.append({
+			"key": str(entry.get("key", "")),
+			"value": _clone_value(entry.get("value", {})),
+		})
 	return out
 "#,
     );

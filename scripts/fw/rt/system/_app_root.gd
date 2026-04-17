@@ -1,12 +1,12 @@
 class_name AppRoot
 extends Node
 
-const FormManagerScript = preload("../../ui/form/_form_manager.gd")
+const FUIScript = preload("../../vu/ui/_ui.gd")
 const PoolManagerScript = preload("../pool/_pool_manager.gd")
 
 var _mode_host: Node
 var _ui_root: CanvasLayer
-var _form_manager: RefCounted
+var _ui: RefCounted
 var _pool_manager: RefCounted
 var _active_mode: Variant = null
 
@@ -20,8 +20,8 @@ func _ready() -> void:
 	_ui_root.name = "UIRoot"
 	add_child(_ui_root)
 
-	_form_manager = FormManagerScript.new()
-	_form_manager.setup(_ui_root)
+	_ui = FUIScript.new()
+	_ui.setup(_ui_root)
 
 	_pool_manager = PoolManagerScript.new()
 	_pool_manager.setup(_mode_host)
@@ -47,7 +47,7 @@ func switch_mode(mode: Variant, context: Variant = null) -> Variant:
 	if _active_mode:
 		_active_mode.exit()
 		_active_mode = null
-	_form_manager.close_all()
+	_ui.close_all()
 	_pool_manager.clear()
 	for child in _mode_host.get_children():
 		child.queue_free()
@@ -66,7 +66,15 @@ func ui_root() -> CanvasLayer:
 
 
 func form_manager() -> Variant:
-	return _form_manager
+	return _ui
+
+
+func forms() -> Variant:
+	return _ui
+
+
+func ui() -> Variant:
+	return _ui
 
 
 func pool_manager() -> Variant:

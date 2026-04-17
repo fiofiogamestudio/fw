@@ -98,11 +98,17 @@ fn resolve_project_name(project_root: &Path, input: Option<&str>) -> Result<Stri
     }
 
     let Some(name) = project_root.file_name().and_then(|value| value.to_str()) else {
-        bail!("failed to infer project name from {}", project_root.display());
+        bail!(
+            "failed to infer project name from {}",
+            project_root.display()
+        );
     };
     let trimmed = name.trim();
     if trimmed.is_empty() {
-        bail!("failed to infer project name from {}", project_root.display());
+        bail!(
+            "failed to infer project name from {}",
+            project_root.display()
+        );
     }
     Ok(trimmed.to_owned())
 }
