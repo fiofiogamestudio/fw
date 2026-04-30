@@ -1,13 +1,13 @@
 class_name AppRoot
 extends Node
 
-const FUIScript = preload("../../vu/ui/_ui.gd")
 const PoolManagerScript = preload("../pool/_pool_manager.gd")
+const FUIScript = preload("../../vu/ui/_ui.gd")
 
 var _mode_host: Node
+var _pool_manager: RefCounted
 var _ui_root: CanvasLayer
 var _ui: RefCounted
-var _pool_manager: RefCounted
 var _active_mode: Variant = null
 
 
@@ -16,6 +16,9 @@ func _ready() -> void:
 	_mode_host.name = "ModeHost"
 	add_child(_mode_host)
 
+	_pool_manager = PoolManagerScript.new()
+	_pool_manager.setup(_mode_host)
+
 	_ui_root = CanvasLayer.new()
 	_ui_root.name = "UIRoot"
 	add_child(_ui_root)
@@ -23,15 +26,12 @@ func _ready() -> void:
 	_ui = FUIScript.new()
 	_ui.setup(_ui_root)
 
-	_pool_manager = PoolManagerScript.new()
-	_pool_manager.setup(_mode_host)
-
 	on_app_ready()
 
 
-func _physics_process(delta: float) -> void:
+func _physics_process(dt: float) -> void:
 	if _active_mode:
-		_active_mode.tick(delta)
+		_active_mode.tick(dt)
 
 
 func _input(event: InputEvent) -> void:
@@ -61,21 +61,13 @@ func mode_host() -> Node:
 	return _mode_host
 
 
+func pool_manager() -> Variant:
+	return _pool_manager
+
+
 func ui_root() -> CanvasLayer:
 	return _ui_root
 
 
-func form_manager() -> Variant:
-	return _ui
-
-
-func forms() -> Variant:
-	return _ui
-
-
 func ui() -> Variant:
 	return _ui
-
-
-func pool_manager() -> Variant:
-	return _pool_manager

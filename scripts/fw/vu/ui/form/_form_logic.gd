@@ -181,11 +181,3 @@ func view_model() -> Variant:
 
 func ui() -> Variant:
 	return _ui
-
-
-func attach_forms(forms: Variant) -> void:
-	attach_ui(forms)
-
-
-func detach_forms() -> void:
-	detach_ui()

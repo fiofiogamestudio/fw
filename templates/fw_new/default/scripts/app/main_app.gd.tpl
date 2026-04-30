@@ -8,5 +8,5 @@ func on_app_ready() -> void:
 	var context = GameContextScript.new()
 	context.config.project_name = "__PROJECT_NAME_PASCAL__"
 	context.config.subtitle = "Fw New Scaffold"
-	context.config.status_message = "当前项目已经接上 fw。"
+	context.config.status_message = "Project is now wired to fw."
 	switch_mode(GameModeScript.new(), context)

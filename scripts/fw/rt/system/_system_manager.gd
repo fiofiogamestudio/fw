@@ -5,21 +5,13 @@ var _entries: Array[Dictionary] = []
 var _entries_by_id: Dictionary = {}
 
 
-func add_system(arg0: Variant, arg1: Variant = null, arg2: Variant = null) -> void:
-	var id: StringName = &""
-	var system = arg0
-	var context = arg1
-
-	if typeof(arg0) == TYPE_STRING_NAME or typeof(arg0) == TYPE_STRING:
-		id = StringName(arg0)
-		system = arg1
-		context = arg2
-		if id == &"":
-			push_error("System id cannot be empty.")
-			return
-		if _entries_by_id.has(id):
-			push_error("Duplicate system id: %s" % id)
-			return
+func add_system(id: StringName, system: Variant, context: Variant = null) -> void:
+	if id == &"":
+		push_error("System id cannot be empty.")
+		return
+	if _entries_by_id.has(id):
+		push_error("Duplicate system id: %s" % id)
+		return
 
 	var entry := {
 		"id": id,
@@ -27,8 +19,7 @@ func add_system(arg0: Variant, arg1: Variant = null, arg2: Variant = null) -> vo
 		"context": context,
 	}
 	_entries.append(entry)
-	if id != &"":
-		_entries_by_id[id] = entry
+	_entries_by_id[id] = entry
 
 
 func remove_system(system: Variant) -> bool:

@@ -2,15 +2,15 @@
 
 `fw/` 是一套放到 Godot 工程根目录即可接入的 `Rust + Godot` 框架。
 
-这个目录只保留这一份 `README.md`，只回答一件事：
+这份 `README.md` 只回答一件事：
 
 - 怎么把 `fw/` 接到一个新的游戏工程里
 
-如果你是在宿主仓库里维护这套框架，不在这里看维护说明，而是去看宿主仓库里的：
+如果你在维护这套框架，继续看：
 
-- `docs/fw/rule.md`
-- `docs/fw/spec.md`
-- `docs/fw/use.md`
+- `fw/docs/rule.md`
+- `fw/docs/spec.md`
+- `fw/docs/use.md`
 
 ## 适用前提
 
@@ -39,6 +39,7 @@
   - `FForm`
   - `FWidget`
   - `FView`
+  - `FViewRoot`
   - `FFormLogic`
   - `FRefs`
   - `FProps`

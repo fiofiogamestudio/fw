@@ -2,6 +2,7 @@ class_name BaseMode
 extends RefCounted
 
 const SystemManagerScript = preload("_system_manager.gd")
+const SystemGraphScript = preload("res://scripts/gen/_graph.gd")
 
 var _root: Variant
 var _context: Variant = null
@@ -38,10 +39,12 @@ func add_system(id: StringName, system: Variant, context: Variant = null) -> voi
 	_system_manager.add_system(id, system, context)
 
 
-func bind_system_refs(graph_refs: Dictionary) -> bool:
+func bind_system_refs(graph_refs: Variant = null) -> bool:
 	if _system_manager == null:
 		push_error("Mode system manager is not ready.")
 		return false
+	if graph_refs == null:
+		graph_refs = SystemGraphScript.refs()
 	return _system_manager.bind_refs(graph_refs)
 
 
@@ -74,14 +77,6 @@ func ui_root() -> Node:
 
 func pool_manager() -> Variant:
 	return _root.pool_manager()
-
-
-func form_manager() -> Variant:
-	return _root.ui()
-
-
-func forms() -> Variant:
-	return _root.ui()
 
 
 func ui() -> Variant:
