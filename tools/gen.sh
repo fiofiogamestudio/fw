@@ -3,10 +3,10 @@ set -euo pipefail
 
 COMMAND="${1:?missing fw_gen command}"
 shift
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="${SCRIPT_DIR}/../.."
-GENERATOR_MANIFEST=""
-PACKAGE="fw_gen"
+GENERATOR_PROJECT=""
 EXTRA_ARGS=()
 
 get_fw_toml_value() {
@@ -33,16 +33,15 @@ get_fw_toml_value() {
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --project-root)
+    --project-root|--root)
       PROJECT_ROOT="$2"
       shift 2
       ;;
-    --generator-manifest)
-      GENERATOR_MANIFEST="$2"
+    --generator-project)
+      GENERATOR_PROJECT="$2"
       shift 2
       ;;
-    --package)
-      PACKAGE="$2"
+    --generator-manifest|--package)
       shift 2
       ;;
     --)
@@ -58,24 +57,15 @@ while [[ $# -gt 0 ]]; do
 done
 
 PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
-if [[ -z "${GENERATOR_MANIFEST}" ]]; then
-  CONFIGURED_GENERATOR_MANIFEST="$(get_fw_toml_value "${PROJECT_ROOT}" "rust" "generator_manifest" || true)"
-  CONFIGURED_CARGO_MANIFEST="$(get_fw_toml_value "${PROJECT_ROOT}" "rust" "workspace" || true)"
-  if [[ -n "${CONFIGURED_GENERATOR_MANIFEST}" ]]; then
-    GENERATOR_MANIFEST="${PROJECT_ROOT}/${CONFIGURED_GENERATOR_MANIFEST}"
-  elif [[ -n "${CONFIGURED_CARGO_MANIFEST}" ]]; then
-    GENERATOR_MANIFEST="${PROJECT_ROOT}/${CONFIGURED_CARGO_MANIFEST}"
+if [[ -z "${GENERATOR_PROJECT}" ]]; then
+  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "generator" "project" || true)"
+  if [[ -n "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
+    GENERATOR_PROJECT="${PROJECT_ROOT}/${CONFIGURED_GENERATOR_PROJECT}"
   else
-    GENERATOR_MANIFEST="${PROJECT_ROOT}/rust/Cargo.toml"
-  fi
-fi
-if [[ "${PACKAGE}" == "fw_gen" ]]; then
-  CONFIGURED_PACKAGE="$(get_fw_toml_value "${PROJECT_ROOT}" "rust" "generator_package" || true)"
-  if [[ -n "${CONFIGURED_PACKAGE}" ]]; then
-    PACKAGE="${CONFIGURED_PACKAGE}"
+    GENERATOR_PROJECT="${PROJECT_ROOT}/fw/csharp/FwGen/FwGen.csproj"
   fi
 fi
 
 pushd "${PROJECT_ROOT}" >/dev/null
-cargo run --manifest-path "${GENERATOR_MANIFEST}" -p "${PACKAGE}" -- --root "${PROJECT_ROOT}" "${COMMAND}" "${EXTRA_ARGS[@]}"
+dotnet run --project "${GENERATOR_PROJECT}" -- --root "${PROJECT_ROOT}" "${COMMAND}" "${EXTRA_ARGS[@]}"
 popd >/dev/null

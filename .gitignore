@@ -1,1 +1,4 @@
-rust/target/
+bin/
+obj/
+**/bin/
+**/obj/

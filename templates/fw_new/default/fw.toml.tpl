@@ -5,13 +5,13 @@ name = "__PROJECT_NAME__"
 main_scene = "scenes/main.tscn"
 app_script = "scripts/app/main_app.gd"
 
-[rust]
-workspace = "rust/Cargo.toml"
-generator_manifest = "fw/rust/Cargo.toml"
-generator_package = "fw_gen"
-library_package = "bridge"
-library_name = "__LIB_NAME__"
-bin_dir = "bin"
+[csharp]
+project = "__PROJECT_NAME__.csproj"
+core_dir = "csharp/core"
+bridge_dir = "csharp/bridge"
+
+[generator]
+project = "fw/csharp/FwGen/FwGen.csproj"
 
 [schema]
 bridge = "schema/bridge"
@@ -22,9 +22,5 @@ data_config = "data/config"
 [gen]
 gd_dir = "scripts/gen"
 graph_gd = "scripts/gen/_graph.gd"
-bridge_rust_out = "rust/crates/bridge/_gen"
-core_rust_out = "rust/crates/core/src/_gen"
 config_gd = "scripts/gen/_config.gd"
-config_rust_reader = "rust/crates/core/src/_gen/_config.rs"
-config_rust_types = "rust/crates/core/src/_gen/_config_types.rs"
 config_pack_dir = "data/gen/config"

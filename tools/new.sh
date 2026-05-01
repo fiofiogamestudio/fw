@@ -3,8 +3,7 @@ set -euo pipefail
 
 NAME=""
 PROJECT_ROOT=""
-GENERATOR_MANIFEST=""
-PACKAGE="fw_gen"
+GENERATOR_PROJECT=""
 FORCE=0
 
 while [[ $# -gt 0 ]]; do
@@ -13,16 +12,12 @@ while [[ $# -gt 0 ]]; do
       NAME="$2"
       shift 2
       ;;
-    --project-root)
+    --project-root|--root)
       PROJECT_ROOT="$2"
       shift 2
       ;;
-    --generator-manifest)
-      GENERATOR_MANIFEST="$2"
-      shift 2
-      ;;
-    --package)
-      PACKAGE="$2"
+    --generator-project)
+      GENERATOR_PROJECT="$2"
       shift 2
       ;;
     --force)
@@ -39,16 +34,16 @@ done
 if [[ -z "$PROJECT_ROOT" ]]; then
   PROJECT_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
+PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
 
-if [[ -z "$GENERATOR_MANIFEST" ]]; then
-  GENERATOR_MANIFEST="$PROJECT_ROOT/fw/rust/Cargo.toml"
+if [[ -z "$GENERATOR_PROJECT" ]]; then
+  GENERATOR_PROJECT="$PROJECT_ROOT/fw/csharp/FwGen/FwGen.csproj"
 fi
 
 pushd "$PROJECT_ROOT" >/dev/null
 ARGS=(
   run
-  --manifest-path "$GENERATOR_MANIFEST"
-  -p "$PACKAGE"
+  --project "$GENERATOR_PROJECT"
   --
   --root "$PROJECT_ROOT"
   craft
@@ -60,5 +55,5 @@ fi
 if [[ "$FORCE" -eq 1 ]]; then
   ARGS+=(--force)
 fi
-cargo "${ARGS[@]}"
+dotnet "${ARGS[@]}"
 popd >/dev/null

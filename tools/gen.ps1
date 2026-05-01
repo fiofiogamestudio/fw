@@ -5,9 +5,11 @@ param(
 
     [string]$ProjectRoot = "",
 
+    [string]$GeneratorProject = "",
+
     [string]$GeneratorManifest = "",
 
-    [string]$Package = "fw_gen",
+    [string]$Package = "",
 
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArgs
@@ -49,54 +51,38 @@ function Get-FwTomlValue {
 }
 
 $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
-    Resolve-Path (Join-Path $PSScriptRoot "..\..")
+    (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
-    Resolve-Path $ProjectRoot
+    (Resolve-Path $ProjectRoot).Path
 }
 
-$ConfiguredGeneratorManifest = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "generator_manifest"
-$ConfiguredCargoManifest = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "workspace"
-$ConfiguredPackage = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "generator_package"
-
-$ResolvedGeneratorManifest = if ([string]::IsNullOrWhiteSpace($GeneratorManifest)) {
-    if (-not [string]::IsNullOrWhiteSpace($ConfiguredGeneratorManifest)) {
-        Join-Path $ResolvedProjectRoot $ConfiguredGeneratorManifest
-    } elseif ([string]::IsNullOrWhiteSpace($ConfiguredCargoManifest)) {
-        Join-Path $ResolvedProjectRoot "rust\Cargo.toml"
+$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
+$ResolvedGeneratorProject = if ([string]::IsNullOrWhiteSpace($GeneratorProject)) {
+    if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+        Join-Path $ResolvedProjectRoot "fw\csharp\FwGen\FwGen.csproj"
     } else {
-        Join-Path $ResolvedProjectRoot $ConfiguredCargoManifest
+        Join-Path $ResolvedProjectRoot $ConfiguredGeneratorProject
     }
 } else {
-    $GeneratorManifest
-}
-
-if ($Package -eq "fw_gen" -and -not [string]::IsNullOrWhiteSpace($ConfiguredPackage)) {
-    $Package = $ConfiguredPackage
-}
-
-$Subcommand = switch ($Command) {
-    "system" { "system" }
-    "bridge" { "bridge" }
-    "config" { "config" }
-    "check-config" { "check-config" }
-    "pak-config" { "pak-config" }
-    default { throw "Unsupported fw_gen command: $Command" }
+    $GeneratorProject
 }
 
 Push-Location $ResolvedProjectRoot
 try {
-    $CargoArgs = @(
+    $DotnetArgs = @(
         "run",
-        "--manifest-path", $ResolvedGeneratorManifest,
-        "-p", $Package,
+        "--project", $ResolvedGeneratorProject,
         "--",
         "--root", $ResolvedProjectRoot,
-        $Subcommand
+        $Command
     )
     if ($RemainingArgs) {
-        $CargoArgs += $RemainingArgs
+        $DotnetArgs += $RemainingArgs
     }
-    & cargo @CargoArgs
+    & dotnet @DotnetArgs
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 finally {
     Pop-Location

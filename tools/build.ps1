@@ -3,17 +3,9 @@ param(
 
     [string]$ProjectRoot = "",
 
-    [string]$CargoManifest = "",
+    [string]$CSharpProject = "",
 
-    [string]$GeneratorManifest = "",
-
-    [string]$GeneratorPackage = "fw_gen",
-
-    [string]$LibraryPackage = "bridge",
-
-    [string]$LibraryName = "bridge",
-
-    [string]$BinDir = "",
+    [string]$GeneratorProject = "",
 
     [string[]]$GenCommands = @("system", "bridge", "config"),
 
@@ -56,62 +48,35 @@ function Get-FwTomlValue {
 }
 
 $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
-    Resolve-Path (Join-Path $PSScriptRoot "..\..")
+    (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
-    Resolve-Path $ProjectRoot
+    (Resolve-Path $ProjectRoot).Path
 }
 
-$ConfiguredGeneratorManifest = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "generator_manifest"
-$ConfiguredCargoManifest = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "workspace"
-$ConfiguredGeneratorPackage = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "generator_package"
-$ConfiguredLibraryPackage = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "library_package"
-$ConfiguredLibraryName = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "library_name"
-$ConfiguredBinDir = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "rust" -Key "bin_dir"
+$ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "csharp" -Key "project"
+$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
 
-$ResolvedGeneratorManifest = if ([string]::IsNullOrWhiteSpace($GeneratorManifest)) {
-    if (-not [string]::IsNullOrWhiteSpace($ConfiguredGeneratorManifest)) {
-        Join-Path $ResolvedProjectRoot $ConfiguredGeneratorManifest
-    } elseif ([string]::IsNullOrWhiteSpace($ConfiguredCargoManifest)) {
-        Join-Path $ResolvedProjectRoot "rust\\Cargo.toml"
+$ResolvedCSharpProject = if ([string]::IsNullOrWhiteSpace($CSharpProject)) {
+    if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
+        Join-Path $ResolvedProjectRoot "wdc.csproj"
     } else {
-        Join-Path $ResolvedProjectRoot $ConfiguredCargoManifest
+        Join-Path $ResolvedProjectRoot $ConfiguredCSharpProject
     }
 } else {
-    $GeneratorManifest
+    $CSharpProject
 }
 
-$ResolvedCargoManifest = if ([string]::IsNullOrWhiteSpace($CargoManifest)) {
-    if ([string]::IsNullOrWhiteSpace($ConfiguredCargoManifest)) {
-        Join-Path $ResolvedProjectRoot "rust\Cargo.toml"
+$ResolvedGeneratorProject = if ([string]::IsNullOrWhiteSpace($GeneratorProject)) {
+    if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+        Join-Path $ResolvedProjectRoot "fw\csharp\FwGen\FwGen.csproj"
     } else {
-        Join-Path $ResolvedProjectRoot $ConfiguredCargoManifest
+        Join-Path $ResolvedProjectRoot $ConfiguredGeneratorProject
     }
 } else {
-    $CargoManifest
+    $GeneratorProject
 }
 
-$ResolvedBinDir = if ([string]::IsNullOrWhiteSpace($BinDir)) {
-    if ([string]::IsNullOrWhiteSpace($ConfiguredBinDir)) {
-        Join-Path $ResolvedProjectRoot "bin"
-    } else {
-        Join-Path $ResolvedProjectRoot $ConfiguredBinDir
-    }
-} else {
-    $BinDir
-}
-
-if ($GeneratorPackage -eq "fw_gen" -and -not [string]::IsNullOrWhiteSpace($ConfiguredGeneratorPackage)) {
-    $GeneratorPackage = $ConfiguredGeneratorPackage
-}
-if ($LibraryPackage -eq "bridge" -and -not [string]::IsNullOrWhiteSpace($ConfiguredLibraryPackage)) {
-    $LibraryPackage = $ConfiguredLibraryPackage
-}
-if ($LibraryName -eq "bridge" -and -not [string]::IsNullOrWhiteSpace($ConfiguredLibraryName)) {
-    $LibraryName = $ConfiguredLibraryName
-}
-
-$RustRoot = Split-Path -Parent $ResolvedCargoManifest
-$Profile = if ($Release) { "release" } else { "debug" }
+$Configuration = if ($Release) { "Release" } else { "Debug" }
 
 Push-Location $ResolvedProjectRoot
 try {
@@ -119,41 +84,26 @@ try {
     foreach ($Command in $GenCommands) {
         & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $GenScript $Command `
             -ProjectRoot $ResolvedProjectRoot `
-            -GeneratorManifest $ResolvedGeneratorManifest `
-            -Package $GeneratorPackage
+            -GeneratorProject $ResolvedGeneratorProject
+        if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+        }
     }
 
     if ($Release) {
         foreach ($Command in $ReleaseGenCommands) {
             & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File $GenScript $Command `
                 -ProjectRoot $ResolvedProjectRoot `
-                -GeneratorManifest $ResolvedGeneratorManifest `
-                -Package $GeneratorPackage
+                -GeneratorProject $ResolvedGeneratorProject
+            if ($LASTEXITCODE -ne 0) {
+                exit $LASTEXITCODE
+            }
         }
     }
 
-    $CargoArgs = @(
-        "build",
-        "--manifest-path", $ResolvedCargoManifest,
-        "-p", $LibraryPackage
-    )
-    if ($Release) {
-        $CargoArgs += "--release"
-    }
-    & cargo @CargoArgs
-
-    New-Item -ItemType Directory -Force $ResolvedBinDir | Out-Null
-
-    $DllSource = Join-Path $RustRoot "target\$Profile\$LibraryName.dll"
-    if (-not (Test-Path $DllSource)) {
-        throw "Built library not found: $DllSource"
-    }
-
-    Copy-Item $DllSource (Join-Path $ResolvedBinDir "$LibraryName.dll") -Force
-
-    $PdbSource = Join-Path $RustRoot "target\$Profile\$LibraryName.pdb"
-    if (Test-Path $PdbSource) {
-        Copy-Item $PdbSource (Join-Path $ResolvedBinDir "$LibraryName.pdb") -Force
+    & dotnet build $ResolvedCSharpProject -c $Configuration
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
     }
 }
 finally {

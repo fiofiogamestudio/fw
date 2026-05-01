@@ -3,9 +3,7 @@ param(
 
     [string]$ProjectRoot = "",
 
-    [string]$GeneratorManifest = "",
-
-    [string]$Package = "fw_gen",
+    [string]$GeneratorProject = "",
 
     [switch]$Force
 )
@@ -18,30 +16,32 @@ $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path $ProjectRoot).Path
 }
 
-$ResolvedGeneratorManifest = if ([string]::IsNullOrWhiteSpace($GeneratorManifest)) {
-    (Join-Path $ResolvedProjectRoot "fw\rust\Cargo.toml")
+$ResolvedGeneratorProject = if ([string]::IsNullOrWhiteSpace($GeneratorProject)) {
+    Join-Path $ResolvedProjectRoot "fw\csharp\FwGen\FwGen.csproj"
 } else {
-    $GeneratorManifest
+    $GeneratorProject
 }
 
 Push-Location $ResolvedProjectRoot
 try {
-    $CargoArgs = @(
+    $DotnetArgs = @(
         "run",
-        "--manifest-path", $ResolvedGeneratorManifest,
-        "-p", $Package,
+        "--project", $ResolvedGeneratorProject,
         "--",
         "--root", $ResolvedProjectRoot,
         "craft",
         "fw-new"
     )
     if (-not [string]::IsNullOrWhiteSpace($Name)) {
-        $CargoArgs += @("--name", $Name)
+        $DotnetArgs += @("--name", $Name)
     }
     if ($Force) {
-        $CargoArgs += "--force"
+        $DotnetArgs += "--force"
     }
-    & cargo @CargoArgs
+    & dotnet @DotnetArgs
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 finally {
     Pop-Location
