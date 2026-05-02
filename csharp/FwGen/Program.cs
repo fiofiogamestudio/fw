@@ -656,8 +656,7 @@ static class Craft
         foreach (var source in Directory.GetFiles(templateRoot, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(templateRoot, source);
-            if (relative.StartsWith("rust" + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-                || relative.StartsWith("extension" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            if (relative.StartsWith("extension" + Path.DirectorySeparatorChar, StringComparison.Ordinal))
             {
                 continue;
             }

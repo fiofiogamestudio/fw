@@ -15,7 +15,7 @@
 ## 原理
 - Godot 运行时仍然由 GDScript 承担，因为它直接服务 scene tree、UI、View、Mode 和 System 生命周期。
 - 游戏核心逻辑由宿主项目的 C# 项目承担。
-- 框架工具链不再依赖 Rust / cargo。
+- 框架工具链由 C# 生成器承担。
 - `fw/tools/gen.*` 调用 `fw/csharp/FwGen/FwGen.csproj`。
 - `fw/tools/build.*` 先执行生成命令，再执行宿主 C# 项目的 `dotnet build`。
 
@@ -32,7 +32,7 @@
 - `bridge`
   从 `schema/bridge/*.proto` 生成 GDScript action/event/snapshot 包装。
 - `config`
-  保留或创建 `scripts/gen/_config.gd`。当前游戏的 C# core 直接读取 `data/config`，不再生成 Rust reader。
+  保留或创建 `scripts/gen/_config.gd`。当前游戏的 C# core 直接读取 `data/config`。
 - `check-config`
   校验配置 schema 和数据目录存在。
 - `pak-config`
@@ -47,7 +47,4 @@
 - `csharp/core`
 - `csharp/bridge`
 
-模板不再生成：
-- `rust/`
-- GDExtension 描述文件
-- native bridge DLL 配置
+模板只生成 C# core / bridge 和 Godot 表现层骨架，不再生成 native bridge 配置。
