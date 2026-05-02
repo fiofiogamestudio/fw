@@ -3,7 +3,7 @@ using __PROJECT_NAME__.Core;
 
 namespace __PROJECT_NAME__.Bridge;
 
-public partial class CsGameBridge : RefCounted
+public partial class GameBridge : RefCounted
 {
     private readonly GameCore _core = new();
 

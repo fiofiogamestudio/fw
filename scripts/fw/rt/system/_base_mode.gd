@@ -32,11 +32,18 @@ func exit() -> void:
 	_root = null
 
 
-func add_system(id: StringName, system: Variant, context: Variant = null) -> void:
+func add_system(id: StringName, system: Variant, context: Variant = null, phase: StringName = &"") -> void:
 	if _system_manager == null:
 		push_error("Mode system manager is not ready.")
 		return
-	_system_manager.add_system(id, system, context)
+	_system_manager.add_system(id, system, context, phase)
+
+
+func set_system_phase_order(order: Array) -> void:
+	if _system_manager == null:
+		push_error("Mode system manager is not ready.")
+		return
+	_system_manager.set_phase_order(order)
 
 
 func bind_system_refs(graph_refs: Variant = null) -> bool:
@@ -44,6 +51,7 @@ func bind_system_refs(graph_refs: Variant = null) -> bool:
 		push_error("Mode system manager is not ready.")
 		return false
 	if graph_refs == null:
+		set_system_phase_order(SystemGraphScript.phase_order())
 		graph_refs = SystemGraphScript.refs()
 	return _system_manager.bind_refs(graph_refs)
 

@@ -1,55 +1,47 @@
 # Fw Use
 
-## 用户
-- 维护 `fw/` 框架的人。
-- 在 Godot 工程里接入 `fw/` 的人。
+## 新建项目
+```powershell
+.\fw\tools\new.ps1 --name MyGame
+```
 
-## 操作
-常用生成：
+生成后检查：
+```powershell
+.\fw\tools\build.ps1
+godot --headless --path . --quit-after 3
+```
 
+## 生成
 ```powershell
 .\fw\tools\gen.ps1 system
 .\fw\tools\gen.ps1 bridge
 .\fw\tools\gen.ps1 config
 ```
 
-常用构建：
+生成内容：
+- `system`：生成 GD system graph/register，并在存在 `schema/core_system.toml` 时生成 C# core system 注册表和 phase 常量。
+- `bridge`：生成 GD bridge wrapper 和 C# bridge 合同，合同包含字段、事件、输入和网络包类型常量。
+- `config`：生成 C# typed config 和配置字段常量，并保留现有 GD config 入口。
+
+## 修改模板
+- 改规范文档模板：`fw/templates/fw_new/default/docs/fw/*.md.tpl`
+- 改 Godot 模板：`fw/templates/fw_new/default/scripts`
+- 改 C# 模板：`fw/templates/fw_new/default/csharp`
+
+## 提交前同步模板
+`fw/hooks/pre-commit` 会在提交 `fw` 仓库时自动同步：
+
+- 宿主 `docs/fw/*.md` -> `fw/templates/fw_new/default/docs/fw/*.md.tpl`
+
+`fw/tools/build.*`、`fw/tools/gen.*` 和 `fw/tools/new.*` 会自动设置：
 
 ```powershell
-.\fw\tools\build.ps1
-```
-
-Release 构建：
-
-```powershell
-.\fw\tools\build.ps1 -Release
-```
-
-新项目骨架：
-
-```powershell
-.\fw\tools\new.ps1 -ProjectRoot . -Name MyGame
-```
-
-## 配置
-宿主项目通过 `fw.toml` 指定 C# 项目和生成器：
-
-```toml
-[csharp]
-project = "wdc.csproj"
-core_dir = "csharp/core"
-bridge_dir = "csharp/bridge"
-
-[generator]
-project = "fw/csharp/FwGen/FwGen.csproj"
+git -C fw config core.hooksPath hooks
 ```
 
 ## 验证
-框架或工具链改完后，优先执行：
-
 ```powershell
 dotnet build .\fw\csharp\FwGen\FwGen.csproj
-.\fw\tools\gen.ps1 system
 .\fw\tools\build.ps1
 godot --headless --path . --quit-after 3
 ```

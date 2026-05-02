@@ -1,50 +1,42 @@
 # Fw Spec
 
 ## 结构
-- `fw/scripts/fw`
-  Godot 运行时和 UI / View 子框架。
-- `fw/csharp/FwGen`
-  框架生成器入口，使用 `dotnet run` 执行。
-- `fw/tools`
-  跨平台工具包装，统一转发到 C# 生成器或 Godot C# 构建。
-- `fw/templates`
-  `fw new` 使用的新工程模板。
-- `fw/docs`
-  框架自身文档。
+- `fw/scripts/fw`：Godot 表现层基础设施。
+- `fw/csharp/FwRuntime`：C# system runtime。
+- `fw/csharp/FwGen`：system、bridge、config 和 `fw new` 生成器。
+- `fw/tools`：生成、构建、新建项目入口脚本。
+- `fw/templates/fw_new/default`：新游戏工程模板。
+- `fw/docs`：规范源文档。
 
-## 原理
-- Godot 运行时仍然由 GDScript 承担，因为它直接服务 scene tree、UI、View、Mode 和 System 生命周期。
-- 游戏核心逻辑由宿主项目的 C# 项目承担。
-- 框架工具链由 C# 生成器承担。
-- `fw/tools/gen.*` 调用 `fw/csharp/FwGen/FwGen.csproj`。
-- `fw/tools/build.*` 先执行生成命令，再执行宿主 C# 项目的 `dotnet build`。
-
-## System Context
-- `SystemManager` 统一负责 system 的初始化、tick 和 shutdown 顺序。
-- system 之间不直接互调，通过 context 暴露数据和接口。
-- `refs` 指向目标 system 的 context，不指向 system 本体。
-- context 只承载 `refs / config / state`。
-- scene、camera、pool、FUI 等表现层对象不进入 system context，由 mode、logic 或 view 显式装配。
-
-## 生成链
-- `system`
-  从 `schema/system.toml` 生成 `scripts/gen/_graph.gd`。
-- `bridge`
-  从 `schema/bridge/*.proto` 生成 GDScript action/event/snapshot 包装。
-- `config`
-  保留或创建 `scripts/gen/_config.gd`。当前游戏的 C# core 直接读取 `data/config`。
-- `check-config`
-  校验配置 schema 和数据目录存在。
-- `pak-config`
-  准备配置打包目录。
-
-## 模板
-`fw/templates/fw_new/default` 生成的是 C# 版最小项目：
+## 生成结果
+`fw new` 应生成：
+- `docs/fw/rule.md`
+- `docs/fw/spec.md`
+- `docs/fw/use.md`
 - `fw.toml`
-- Godot scene / script 骨架
-- `schema/*`
-- `<ProjectName>.csproj`
-- `csharp/core`
-- `csharp/bridge`
+- `schema/system.toml`
+- `schema/core_system.toml`
+- `schema/bridge/*`
+- `schema/config/*`
+- `scripts/app/*`
+- `scripts/mode/*`
+- `csharp/core/*`
+- `csharp/bridge/*`
 
-模板只生成 C# core / bridge 和 Godot 表现层骨架，不再生成 native bridge 配置。
+## System 规范
+- GDScript system 由 `schema/system.toml` 声明。
+- `FwGen` 生成 `_graph.gd` 和 `_systems.gd`。
+- C# core system 由 `schema/core_system.toml` 声明。
+- `FwGen` 生成 `csharp/core/core_systems.cs`。
+- C# system 使用 `Fw.Rt.Systems.SystemRuntime`。
+- C# 和 GDScript system 统一使用 `id / phase / context / init / tick / shutdown`。
+- system context 只放 `refs / config / state`。
+- C# core 可以使用无状态 `rules` 承载可复用规则函数。
+- `query`、`solver` 不作为架构后缀；相关计算归入 `rules`。
+- 推荐宿主项目 C# 目录按 `core/system`、`core/rules`、`core/state`、`core/config` 和 `bridge/codec` 分组。
+
+## Bridge / Config 生成
+- `schema/bridge/*.proto` 生成 GD wrapper 和 C# bridge 合同，合同包含字段、领域枚举、输入按钮、事件和网络包类型常量。
+- `schema/config/*.proto` 生成 C# typed config 和配置字段常量。
+- `schema/core_system.toml` 生成 C# system 注册表、phase 顺序和 phase 常量。
+- 手写 codec 只做 Godot 数据与生成合同之间的映射，不重复定义协议字段、网络包类型和配置类型。

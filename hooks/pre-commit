@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+set -eu
+
+fw_root="$(git rev-parse --show-toplevel)"
+host_root="$(cd "$fw_root/.." && pwd)"
+template_root="$fw_root/templates/fw_new/default"
+
+sync_file() {
+    src="$1"
+    dst="$2"
+    rel="${dst#$fw_root/}"
+
+    [ -f "$src" ] || return 0
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    git -C "$fw_root" add "$rel"
+}
+
+sync_file "$host_root/.codex/skills/fw/SKILL.md" \
+    "$template_root/.codex/skills/fw/SKILL.md.tpl"
+
+if [ -d "$host_root/docs/fw" ]; then
+    for name in rule spec use; do
+        sync_file "$host_root/docs/fw/$name.md" "$template_root/docs/fw/$name.md.tpl"
+    done
+else
+    for name in rule spec use; do
+        sync_file "$fw_root/docs/$name.md" "$template_root/docs/fw/$name.md.tpl"
+    done
+fi

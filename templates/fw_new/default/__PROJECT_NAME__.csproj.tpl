@@ -15,4 +15,7 @@
     <None Remove=".godot/**" />
     <None Remove=".godot\**" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="fw/csharp/FwRuntime/FwRuntime.csproj" />
+  </ItemGroup>
 </Project>

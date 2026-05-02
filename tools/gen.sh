@@ -9,6 +9,16 @@ PROJECT_ROOT="${SCRIPT_DIR}/../.."
 GENERATOR_PROJECT=""
 EXTRA_ARGS=()
 
+install_fw_hooks() {
+  local fw_root
+  fw_root="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  if [[ -d "${fw_root}/hooks" && -e "${fw_root}/.git" ]]; then
+    git -C "${fw_root}" config core.hooksPath hooks >/dev/null 2>&1 || true
+  fi
+}
+
+install_fw_hooks
+
 get_fw_toml_value() {
   local project_root="$1"
   local section="$2"

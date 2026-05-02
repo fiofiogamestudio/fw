@@ -6,6 +6,18 @@ PROJECT_ROOT=""
 GENERATOR_PROJECT=""
 FORCE=0
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+install_fw_hooks() {
+  local fw_root
+  fw_root="$(cd "${SCRIPT_DIR}/.." && pwd)"
+  if [[ -d "${fw_root}/hooks" && -e "${fw_root}/.git" ]]; then
+    git -C "${fw_root}" config core.hooksPath hooks >/dev/null 2>&1 || true
+  fi
+}
+
+install_fw_hooks
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --name)

@@ -3,9 +3,18 @@ extends RefCounted
 
 var _entries: Array[Dictionary] = []
 var _entries_by_id: Dictionary = {}
+var _phase_order: Array[StringName] = []
 
 
-func add_system(id: StringName, system: Variant, context: Variant = null) -> void:
+func set_phase_order(order: Array) -> void:
+	_phase_order.clear()
+	for raw_phase in order:
+		var phase := StringName(raw_phase)
+		if phase != &"" and not _phase_order.has(phase):
+			_phase_order.append(phase)
+
+
+func add_system(id: StringName, system: Variant, context: Variant = null, phase: StringName = &"") -> void:
 	if id == &"":
 		push_error("System id cannot be empty.")
 		return
@@ -17,6 +26,7 @@ func add_system(id: StringName, system: Variant, context: Variant = null) -> voi
 		"id": id,
 		"system": system,
 		"context": context,
+		"phase": phase,
 	}
 	_entries.append(entry)
 	_entries_by_id[id] = entry
@@ -84,24 +94,46 @@ func bind_refs(graph_refs: Dictionary) -> bool:
 
 
 func init_all() -> void:
-	for entry in _entries:
+	for entry in _ordered_entries():
 		if entry.system and entry.system.has_method("init"):
 			entry.system.init(entry.context)
 
 
 func tick(dt: float) -> void:
-	for entry in _entries:
+	for entry in _ordered_entries():
 		if entry.system and entry.system.has_method("tick"):
 			entry.system.tick(dt)
 
 
 func shutdown_all() -> void:
-	for i in range(_entries.size() - 1, -1, -1):
-		var system = _entries[i].system
+	var ordered := _ordered_entries()
+	for i in range(ordered.size() - 1, -1, -1):
+		var system = ordered[i].system
 		if system and system.has_method("shutdown"):
 			system.shutdown()
 	_entries.clear()
 	_entries_by_id.clear()
+	_phase_order.clear()
+
+
+func _ordered_entries() -> Array[Dictionary]:
+	if _phase_order.is_empty():
+		return _entries.duplicate()
+
+	var out: Array[Dictionary] = []
+	var added: Dictionary = {}
+	for phase in _phase_order:
+		for entry in _entries:
+			if StringName(entry.get("phase", &"")) != phase:
+				continue
+			out.append(entry)
+			added[entry.get("id", &"")] = true
+
+	for entry in _entries:
+		if added.has(entry.get("id", &"")):
+			continue
+		out.append(entry)
+	return out
 
 
 func _has_property(obj: Object, property_name: StringName) -> bool:

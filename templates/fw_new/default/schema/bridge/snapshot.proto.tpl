@@ -1,5 +1,9 @@
 syntax = "proto3";
 
+package __LIB_NAME__.bridge;
+
+import "schema/bridge/common.proto";
+
 message EntitySnapshot {
   uint32 id = 1;
   string label = 2;
