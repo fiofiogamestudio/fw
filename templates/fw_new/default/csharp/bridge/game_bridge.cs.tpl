@@ -1,5 +1,7 @@
 using Godot;
 using __PROJECT_NAME__.Core;
+using GdArray = Godot.Collections.Array;
+using GdDictionary = Godot.Collections.Dictionary;
 
 namespace __PROJECT_NAME__.Bridge;
 
@@ -12,12 +14,11 @@ public partial class GameBridge : RefCounted
         _core.Step();
     }
 
-    public Dictionary GetSnapshot()
+    public GdDictionary GetSnapshot()
     {
-        return new Dictionary
-        {
-            ["tick"] = _core.Tick,
-            ["entities"] = new Array<Dictionary>()
-        };
+        var snapshot = new GdDictionary();
+        snapshot["tick"] = _core.Tick;
+        snapshot["entities"] = new GdArray();
+        return snapshot;
     }
 }
