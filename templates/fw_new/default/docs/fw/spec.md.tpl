@@ -25,13 +25,13 @@
 - `AppRoot -> Mode -> SystemManager` 驱动 Godot 表现层 system。
 - `schema/system.toml` 生成 `scripts/gen/_graph.gd` 和 `scripts/gen/_systems.gd`。
 - `schema/core_system.toml` 生成 `csharp/core/core_systems.cs`，包含 phase 顺序和 phase 常量。
-- `schema/bridge/*.proto` 生成 `scripts/gen/_action.gd`、`_event.gd`、`_snapshot.gd`、`_input.gd` 和 `csharp/core/state/bridge_contract.cs`，包含字典字段、领域枚举值、输入按钮、事件和网络包类型常量。
+- `schema/bridge/*.proto` 生成 `scripts/gen/_action.gd`、`_event.gd`、`_snapshot.gd`、`_input.gd`、`csharp/core/state/bridge_contract.cs`、`csharp/bridge/codec/bridge_codec.cs`、`input_codec.cs` 和 `event_codec.cs`，包含字典字段、领域枚举值、输入按钮、事件、网络包类型常量、通用 packet codec、输入解码和事件编码。
 - `schema/config/*.proto` 生成 `csharp/core/config/config_contract.cs`，包含 typed config 和配置字段常量。
 - GDScript system 负责输入、bridge、event、world、hud 等表现层协作。
 - C# core 通过 `CoreRuntime`、`CoreSystems` 和 `Fw.Rt.Systems.SystemRuntime` 按生成 phase 顺序推进核心 system。
 - `CoreContext` 暴露 C# core 的 `Refs / Config / State`。
 - `GameBridge` 用于本地运行，`NetBridge` 用于 host / client 网络运行。
-- `bridge/codec` 把 Godot Dictionary / Array 和生成合同里的 C# 命令、事件、snapshot 互转。
+- `bridge/codec` 把 Godot Dictionary / Array 和生成合同里的 C# 命令、事件、snapshot 互转；字段名、包类型、通用 packet 读写、输入解码和事件编码由生成代码提供，地图和 snapshot 投影保留手写语义逻辑。
 - UI 使用 `form + logic`：form 负责结构，logic 负责表现层交互和刷新。
 - view 只做表现，表现层逻辑放在 logic 或 system。
 

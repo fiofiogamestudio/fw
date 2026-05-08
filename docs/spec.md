@@ -36,7 +36,7 @@
 - 推荐宿主项目 C# 目录按 `core/system`、`core/rules`、`core/state`、`core/config` 和 `bridge/codec` 分组。
 
 ## Bridge / Config 生成
-- `schema/bridge/*.proto` 生成 GD wrapper 和 C# bridge 合同，合同包含字段、领域枚举、输入按钮、事件和网络包类型常量。
+- `schema/bridge/*.proto` 生成 GD wrapper、C# bridge 合同和 C# bridge codec；合同包含字段、领域枚举、输入按钮、事件和网络包类型常量，codec 提供通用 packet 读写、输入解码和事件编码。
 - `schema/config/*.proto` 生成 C# typed config 和配置字段常量。
 - `schema/core_system.toml` 生成 C# system 注册表、phase 顺序和 phase 常量。
 - 手写 codec 只做 Godot 数据与生成合同之间的映射，不重复定义协议字段、网络包类型和配置类型。
