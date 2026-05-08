@@ -23,6 +23,16 @@
 - `csharp/core/*`
 - `csharp/bridge/*`
 
+## FwGen 结构
+- `Program.cs`：命令入口，只分发 `system`、`bridge`、`config`、`craft` 等命令。
+- `SystemGen.cs`：生成 GDScript system graph 和 system 注册。
+- `CoreSystemGen.cs`：生成 C# core system 注册表和 phase 常量。
+- `BridgeGen.cs`：生成 bridge 的 GD wrapper、C# 合同和 C# codec。
+- `ConfigGen.cs`：生成 C# typed config、配置字段常量和配置包入口。
+- `Craft.cs`：生成 `fw new` 项目骨架。
+- `ProtoSchema.cs`：解析 proto schema，并提供生成器共享的 proto model。
+- `FwConfig.cs` / `CliOptions.cs`：读取 `fw.toml` 和命令行参数。
+
 ## System 规范
 - GDScript system 由 `schema/system.toml` 声明。
 - `FwGen` 生成 `_graph.gd` 和 `_systems.gd`。
