@@ -63,8 +63,20 @@ $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path $ProjectRoot).Path
 }
 
-$ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "csharp" -Key "project"
-$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
+$ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "game"
+if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
+    $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "csharp"
+}
+if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
+    $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "csharp" -Key "project"
+}
+$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
+if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "generator"
+}
+if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
+}
 
 $ResolvedCSharpProject = if ([string]::IsNullOrWhiteSpace($CSharpProject)) {
     if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {

@@ -27,6 +27,11 @@ get_fw_toml_value() {
   local file="${project_root}/fw.toml"
   [[ -f "${file}" ]] || return 1
   awk -v section="${section}" -v key="${key}" '
+    function trim(value) {
+      gsub(/^[[:space:]]+/, "", value)
+      gsub(/[[:space:]]+$/, "", value)
+      return value
+    }
     /^\s*\[/ {
       current=$0
       gsub(/^\s*\[/, "", current)
@@ -34,8 +39,21 @@ get_fw_toml_value() {
       next
     }
     current == section {
-      if (match($0, "^[[:space:]]*" key "[[:space:]]*=[[:space:]]*\"([^\"]*)\"", parts)) {
-        print parts[1]
+      line=$0
+      sub(/#.*/, "", line)
+      eq=index(line, "=")
+      if (eq == 0) {
+        next
+      }
+      field=trim(substr(line, 1, eq - 1))
+      if (field != key) {
+        next
+      }
+      value=trim(substr(line, eq + 1))
+      if (value ~ /^".*"$/) {
+        sub(/^"/, "", value)
+        sub(/"$/, "", value)
+        print value
         exit
       }
     }
@@ -72,7 +90,13 @@ done
 
 PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
 if [[ -z "${CSHARP_PROJECT}" ]]; then
-  CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "csharp" "project" || true)"
+  CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "game" || true)"
+  if [[ -z "${CONFIGURED_CSHARP_PROJECT}" ]]; then
+    CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "csharp" || true)"
+  fi
+  if [[ -z "${CONFIGURED_CSHARP_PROJECT}" ]]; then
+    CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "csharp" "project" || true)"
+  fi
   if [[ -n "${CONFIGURED_CSHARP_PROJECT}" ]]; then
     CSHARP_PROJECT="${PROJECT_ROOT}/${CONFIGURED_CSHARP_PROJECT}"
   else
@@ -80,7 +104,13 @@ if [[ -z "${CSHARP_PROJECT}" ]]; then
   fi
 fi
 if [[ -z "${GENERATOR_PROJECT}" ]]; then
-  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "generator" "project" || true)"
+  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
+  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
+    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "generator" || true)"
+  fi
+  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
+    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "generator" "project" || true)"
+  fi
   if [[ -n "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
     GENERATOR_PROJECT="${PROJECT_ROOT}/${CONFIGURED_GENERATOR_PROJECT}"
   else

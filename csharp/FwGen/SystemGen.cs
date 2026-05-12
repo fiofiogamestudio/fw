@@ -14,17 +14,17 @@ static class SystemGen
 
     public static void Generate(string root, FwConfig config)
     {
-        var schema = config.PathValue(root, "schema", "system", "schema/system.toml");
-        var graphOutput = config.PathValue(root, "gen", "graph_gd", "scripts/gen/_graph.gd");
-        var systemsOutput = config.PathValue(root, "gen", "systems_gd", "scripts/gen/_systems.gd");
-        var model = Parse(root, schema);
+        var schema = config.GodotSystemSchemaPath(root);
+        var graphOutput = config.GraphGdPath(root);
+        var systemsOutput = config.SystemsGdPath(root);
+        var model = Parse(root, schema, "godot");
         TextUtil.WriteText(graphOutput, RenderGraph(model));
         TextUtil.WriteText(systemsOutput, RenderSystems(model));
         Console.WriteLine($"generated system graph: {graphOutput}");
         Console.WriteLine($"generated system registrations: {systemsOutput}");
     }
 
-    private static SystemSchema Parse(string root, string path)
+    private static SystemSchema Parse(string root, string path, string runtime)
     {
         if (!File.Exists(path))
         {
@@ -37,7 +37,7 @@ static class SystemGen
         SystemNode? current = null;
         var section = "";
 
-        var lines = File.ReadAllLines(path, Encoding.UTF8);
+        var lines = RuntimeLines(File.ReadAllLines(path, Encoding.UTF8), runtime);
         for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
         {
             var lineNo = lineIndex + 1;
@@ -153,6 +153,48 @@ static class SystemGen
         }
 
         return new SystemSchema(phaseOrder, systems);
+    }
+
+    private static string[] RuntimeLines(string[] lines, string runtime)
+    {
+        var prefix = runtime + ".";
+        var hasRuntimeSections = lines
+            .Select(line => StripComment(line).Trim())
+            .Any(line => line.StartsWith("[" + prefix, StringComparison.Ordinal));
+        if (!hasRuntimeSections)
+        {
+            return lines;
+        }
+
+        var output = new string[lines.Length];
+        var include = false;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = StripComment(lines[i]).Trim();
+            if (line.StartsWith('[') && line.EndsWith(']'))
+            {
+                var section = line.Trim('[', ']').Trim();
+                if (section == runtime + ".phases")
+                {
+                    output[i] = "[phases]";
+                    include = true;
+                }
+                else if (section.StartsWith(runtime + ".system.", StringComparison.Ordinal))
+                {
+                    output[i] = "[" + section[(runtime + ".system.").Length..] + "]";
+                    include = true;
+                }
+                else
+                {
+                    output[i] = "";
+                    include = false;
+                }
+                continue;
+            }
+
+            output[i] = include ? lines[i] : "";
+        }
+        return output;
     }
 
     private static void ParseMeta(SystemNode system, string field, string value, string path, int lineNo)

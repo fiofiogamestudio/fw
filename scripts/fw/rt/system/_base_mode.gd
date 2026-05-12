@@ -2,7 +2,7 @@ class_name BaseMode
 extends RefCounted
 
 const SystemManagerScript = preload("_system_manager.gd")
-const SystemGraphScript = preload("res://scripts/gen/_graph.gd")
+const SystemGraphScript = preload("res://scripts/_gen/_graph.gd")
 
 var _root: Variant
 var _context: Variant = null

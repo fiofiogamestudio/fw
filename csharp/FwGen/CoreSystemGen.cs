@@ -7,27 +7,27 @@ static class CoreSystemGen
 
     public static void Generate(string root, FwConfig config)
     {
-        var schemaPath = config.PathValue(root, "schema", "core_system", "schema/core_system.toml");
+        var schemaPath = config.CoreSystemSchemaPath(root);
         if (!File.Exists(schemaPath))
         {
             return;
         }
 
-        var output = config.PathValue(root, "gen", "core_systems_cs", "csharp/core/core_systems.cs");
-        var schema = Parse(schemaPath);
-        var rootNamespace = TextUtil.PascalName(config.Value("project", "name", "Game"));
+        var output = config.CoreSystemsCsPath(root);
+        var schema = Parse(schemaPath, "core");
+        var rootNamespace = TextUtil.PascalName(config.ProjectName());
         TextUtil.WriteText(output, Render(schema, rootNamespace));
         Console.WriteLine($"generated core system registrations: {output}");
     }
 
-    private static CoreSystemSchema Parse(string path)
+    private static CoreSystemSchema Parse(string path, string runtime)
     {
         var phaseOrder = new List<string>();
         var systems = new List<CoreSystemNode>();
         var values = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         var section = "";
 
-        var lines = File.ReadAllLines(path, Encoding.UTF8);
+        var lines = RuntimeLines(File.ReadAllLines(path, Encoding.UTF8), runtime);
         for (var index = 0; index < lines.Length; index++)
         {
             var lineNo = index + 1;
@@ -87,6 +87,48 @@ static class CoreSystemGen
             throw new InvalidOperationException($"{path}: core system schema is empty");
         }
         return new CoreSystemSchema(phaseOrder, systems);
+    }
+
+    private static string[] RuntimeLines(string[] lines, string runtime)
+    {
+        var prefix = runtime + ".";
+        var hasRuntimeSections = lines
+            .Select(line => StripComment(line).Trim())
+            .Any(line => line.StartsWith("[" + prefix, StringComparison.Ordinal));
+        if (!hasRuntimeSections)
+        {
+            return lines;
+        }
+
+        var output = new string[lines.Length];
+        var include = false;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var line = StripComment(lines[i]).Trim();
+            if (line.StartsWith('[') && line.EndsWith(']'))
+            {
+                var section = line.Trim('[', ']').Trim();
+                if (section == runtime + ".phases")
+                {
+                    output[i] = "[phases]";
+                    include = true;
+                }
+                else if (section.StartsWith(runtime + ".system.", StringComparison.Ordinal))
+                {
+                    output[i] = "[" + section[(runtime + ".system.").Length..] + "]";
+                    include = true;
+                }
+                else
+                {
+                    output[i] = "";
+                    include = false;
+                }
+                continue;
+            }
+
+            output[i] = include ? lines[i] : "";
+        }
+        return output;
     }
 
     private static string Render(CoreSystemSchema schema, string rootNamespace)

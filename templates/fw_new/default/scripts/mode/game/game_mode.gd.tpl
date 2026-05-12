@@ -2,7 +2,7 @@ extends "res://fw/scripts/fw/rt/system/_base_mode.gd"
 
 const GameLogicScript = preload("res://scripts/mode/game/feature/game_logic.gd")
 const GameFormScene = preload("res://prefabs/ui/game_form.tscn")
-const SystemsScript = preload("res://scripts/gen/_systems.gd")
+const SystemsScript = preload("res://scripts/_gen/_systems.gd")
 
 var _game_logic: Variant = null
 var _game_system: Variant = null

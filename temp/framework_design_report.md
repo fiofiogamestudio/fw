@@ -19,8 +19,8 @@
 - `fw` 本身不是具体游戏运行时，而是一套面向 Godot 表现层 + C# 玩法核心的规范性脚手架。
 - GDScript 和 C# 共享同一套 system 词汇：`id`、`phase`、`context`、`init`、`tick`、`shutdown`。
 - 两边共享的是架构范式，不是完全相同的源文件。
-- GDScript systems 由宿主工程的 `schema/system.toml` 声明，再生成 `_systems.gd` 和 `_graph.gd`。
-- C# core systems 由宿主工程的 `schema/core_system.toml` 声明，再生成 `core_systems.cs`。
+- GDScript systems 由宿主工程的 `schema/systems.toml` 中的 `godot.*` 声明，再生成 `_systems.gd` 和 `_graph.gd`。
+- C# core systems 由宿主工程的 `schema/systems.toml` 中的 `core.*` 声明，再生成 `csharp/_gen/_core_systems.cs`。
 - Bridge 和 config 合同由类 proto schema 生成，保证两侧字段名和 packet 常量稳定。
 - 跨游戏复用的基础设施放在 `fw`，具体玩法留在宿主工程。
 
@@ -36,8 +36,8 @@
 ## 生成链路
 - `Program.cs` 分发 `system`、`bridge`、`config`、`check-config`、`pak-config`、`craft` 等命令。
 - `FwConfig.cs` 读取 `fw.toml`，它是宿主工程的生成路径地图。
-- `SystemGen.cs` 生成 GDScript system factory 和 system graph refs。
-- `CoreSystemGen.cs` 生成 C# core system 注册表和 phase 常量。
+- `SystemGen.cs` 从 `schema/systems.toml` 的 `godot.*` 生成 GDScript system factory 和 system graph refs。
+- `CoreSystemGen.cs` 从 `schema/systems.toml` 的 `core.*` 生成 C# core system 注册表和 phase 常量。
 - `BridgeGen.cs` 生成 bridge 字段常量、packet helper、GDScript wrapper、C# input decoding 和 C# event encoding。
 - `ConfigGen.cs` 生成 typed config contract 和 config 字段常量。
 - `Craft.cs` 把 `fw/templates/fw_new/default` 拷贝到宿主工程，并立即运行生成命令。

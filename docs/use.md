@@ -19,14 +19,15 @@ godot --headless --path . --quit-after 3
 ```
 
 生成内容：
-- `system`：生成 GD system graph/register，并在存在 `schema/core_system.toml` 时生成 C# core system 注册表和 phase 常量。
-- `bridge`：生成 GD bridge wrapper 和 C# bridge 合同，合同包含字段、事件、输入和网络包类型常量。
-- `config`：生成 C# typed config 和配置字段常量，并保留现有 GD config 入口。
+- `system`：读取 `schema/systems.toml`，生成 GD system graph/register 和 C# core system 注册表。
+- `bridge`：读取 `schema/bridge/*.proto`，生成 GD bridge wrapper、C# bridge 合同和基础 codec。
+- `config`：读取 `schema/config/*.proto`，生成 C# typed config 和配置字段常量，并保留现有 GD config 入口。
 
 ## 修改模板
 - 改规范文档模板：`fw/templates/fw_new/default/docs/fw/*.md.tpl`
 - 改 Godot 模板：`fw/templates/fw_new/default/scripts`
 - 改 C# 模板：`fw/templates/fw_new/default/csharp`
+- 改 system 模板：`fw/templates/fw_new/default/schema/systems.toml.tpl`
 
 ## 提交前同步模板
 `fw/hooks/pre-commit` 会在提交 `fw` 仓库时自动同步：

@@ -32,10 +32,15 @@
 ### System
 - system 使用 `id / phase / context / init / tick / shutdown`。
 - system 顺序由 phase 决定。
-- GDScript system graph 事实源是 `schema/system.toml`。
-- C# core system 注册事实源是 `schema/core_system.toml`。
+- system graph 事实源是 `schema/systems.toml`。
+- `schema/systems.toml` 用 `godot.*` 描述 GDScript system。
+- `schema/systems.toml` 用 `core.*` 描述 C# core system。
 - C# core system 通过 `CoreRuntime` 推进。
-- 生成的 system graph 和 system 注册文件不得手改。
+- 生成的 system graph、system 注册和 bridge/config 合同不得手改。
+- 生成目录统一使用 `_gen`，表示用户不应直接修改。
+- 生成文件统一使用 `_` 前缀，表示用户不应直接修改。
+- 生成的 GDScript 文件统一放在 `scripts/_gen`。
+- 生成的 C# 文件统一放在 `csharp/_gen`。
 - Godot 和 C# 共享 `system / context / phase / refs / config / state` 主干。
 - 共享的是运行范式，不是所有文件后缀。
 
@@ -62,6 +67,7 @@
 - C# core 不依赖 Godot scene、form、view 或 GDScript system。
 - bridge 协议事实源是 `schema/bridge/*.proto`。
 - bridge 派生的输入命令、事件和字典字段合同由生成器生成。
+- bridge 的生成合同和基础 codec 放在 `csharp/_gen`。
 
 ### Config
 - 配置 schema 事实源是 `schema/config/*.proto`。
@@ -69,6 +75,7 @@
 - C# typed config 由配置 schema 生成。
 - 玩法参数优先配置化。
 - 生成配置文件不得作为规则事实源。
+- config 的生成合同放在 `csharp/_gen`。
 
 ### 表现
 - UI 使用 `form + logic`。
@@ -83,6 +90,8 @@
 - GDScript `class_name` 使用 PascalCase。
 - C# 类型使用 PascalCase。
 - 私有字段使用 `_camelCase`。
+- `fw.toml` 中的普通路径表示工程约定入口，路径名不能随意漂移。
+- `fw.toml` 中的 `path._gen` 表示生成产物路径，内容不能手改。
 - 共同角色后缀：`system`、`context`、`runtime`、`config`、`event`、`bridge`。
 - Godot 表现层后缀：`mode`、`logic`、`view`、`vm`、`actor`、`fx`、`form`、`widget`、`ui`。
 - C# core 后缀：`core`、`state`、`command`、`rules`、`codec`、`loader`、`const`。

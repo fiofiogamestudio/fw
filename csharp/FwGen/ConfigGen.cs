@@ -5,18 +5,18 @@ static class ConfigGen
     public static void Generate(string root, FwConfig config)
     {
         GenerateCSharp(root, config);
-        var output = config.PathValue(root, "gen", "config_gd", "scripts/gen/_config.gd");
+        var output = config.ConfigGdPath(root);
         if (File.Exists(output))
         {
             Console.WriteLine($"kept existing config gd script: {output}");
             return;
         }
 
-        var schemaDir = config.PathValue(root, "schema", "config", "schema/config");
+        var schemaDir = config.ConfigSchemaDir(root);
         var schema = ProtoSchema.ParseFiles(Directory.Exists(schemaDir)
             ? Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal)
             : []);
-        var rootNamespace = TextUtil.PascalName(config.Value("project", "name", "Game"));
+        var rootNamespace = TextUtil.PascalName(config.ProjectName());
 
         var roots = schema.Messages.Values
             .Where(item => item.Name.EndsWith("Config", StringComparison.Ordinal))
@@ -46,12 +46,12 @@ static class ConfigGen
 
     private static void GenerateCSharp(string root, FwConfig config)
     {
-        var schemaDir = config.PathValue(root, "schema", "config", "schema/config");
-        var output = config.PathValue(root, "gen", "config_contract_cs", "csharp/core/config/config_contract.cs");
+        var schemaDir = config.ConfigSchemaDir(root);
+        var output = config.ConfigContractCsPath(root);
         var schema = ProtoSchema.ParseFiles(Directory.Exists(schemaDir)
             ? Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal)
             : []);
-        var rootNamespace = TextUtil.PascalName(config.Value("project", "name", "Game"));
+        var rootNamespace = TextUtil.PascalName(config.ProjectName());
 
         var messages = schema.Messages.Values
             .Where(item => item.Name != "Fixed32")
@@ -151,8 +151,8 @@ static class ConfigGen
 
     public static void Check(string root, FwConfig config)
     {
-        var schemaDir = config.PathValue(root, "schema", "config", "schema/config");
-        var dataDir = config.PathValue(root, "schema", "data_config", "data/config");
+        var schemaDir = config.ConfigSchemaDir(root);
+        var dataDir = config.ConfigDataDir(root);
         if (!Directory.Exists(schemaDir))
         {
             throw new DirectoryNotFoundException($"config schema dir not found: {schemaDir}");
@@ -166,7 +166,7 @@ static class ConfigGen
 
     public static void Pack(string root, FwConfig config)
     {
-        var packDir = config.PathValue(root, "gen", "config_pack_dir", "data/gen/config");
+        var packDir = config.ConfigPackDir(root);
         Directory.CreateDirectory(packDir);
         Console.WriteLine($"prepared config pack dir: {packDir}");
     }

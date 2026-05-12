@@ -20,6 +20,7 @@ static class Craft
         CopyTemplate(templateRoot, root, name, options.Force);
         var nextConfig = FwConfig.Load(root);
         SystemGen.Generate(root, nextConfig);
+        CoreSystemGen.Generate(root, nextConfig);
         BridgeGen.Generate(root, nextConfig);
         ConfigGen.Generate(root, nextConfig);
         Console.WriteLine($"created fw project scaffold: {root}");
