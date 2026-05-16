@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("system", "bridge", "config", "check-config", "pak-config")]
+    [ValidateSet("system", "bridge", "config", "config_check", "config_pack")]
     [string]$Command,
 
     [string]$ProjectRoot = "",
@@ -66,7 +66,10 @@ $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path $ProjectRoot).Path
 }
 
-$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
+$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "fwgen"
+if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
+}
 if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
     $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "generator"
 }

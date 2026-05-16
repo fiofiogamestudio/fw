@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-COMMAND="${1:?missing fw_gen command}"
+COMMAND="${1:?missing fwgen command}"
 shift
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -86,7 +86,10 @@ done
 
 PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
 if [[ -z "${GENERATOR_PROJECT}" ]]; then
-  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
+  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "fwgen" || true)"
+  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
+    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
+  fi
   if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
     CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "generator" || true)"
   fi

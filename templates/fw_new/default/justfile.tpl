@@ -16,11 +16,11 @@ gen_bridge:
 gen_config:
     powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" config
 
-check_config:
-    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" check-config
+config_check:
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" config_check
 
-pak_config:
-    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" pak-config
+config_pack:
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" config_pack
 
 build:
     powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\build.ps1"

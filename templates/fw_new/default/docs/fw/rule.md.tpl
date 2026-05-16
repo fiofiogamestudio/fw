@@ -9,7 +9,7 @@
 ### 权威
 - C# core 是玩法规则权威。
 - Godot / GDScript 是表现层。
-- 表现层只能消费 core 的 snapshot、event 和配置。
+- 表现层只能消费 core 的 view、event 和配置。
 - 表现层不得保存或推导核心规则真值。
 
 ### 分层
@@ -32,11 +32,11 @@
 ### System
 - system 使用 `id / phase / context / init / tick / shutdown`。
 - system 顺序由 phase 决定。
-- system graph 事实源是 `schema/systems.toml`。
+- system 声明事实源是 `schema/systems.toml`。
 - `schema/systems.toml` 用 `godot.*` 描述 GDScript system。
 - `schema/systems.toml` 用 `core.*` 描述 C# core system。
 - C# core system 通过 `CoreRuntime` 推进。
-- 生成的 system graph、system 注册和 bridge/config 合同不得手改。
+- 生成的 system setup、system 注册和 bridge/config 合同不得手改。
 - 生成目录统一使用 `_gen`，表示用户不应直接修改。
 - 生成文件统一使用 `_` 前缀，表示用户不应直接修改。
 - 生成的 GDScript 文件统一放在 `scripts/_gen`。
@@ -53,7 +53,7 @@
 - `rules` 只保存无状态规则函数，不持有字段，不参与 tick。
 - `rules` 只能被 core system 或 core facade 调用。
 - `state` 保存可变运行期状态。
-- `command` 保存 bridge 输入后的 core 命令。
+- `intent` 保存表现层整理后提交给 core 的玩家意图。
 - `event` 保存 core 输出事件。
 - `config` 保存只读配置结构。
 - `loader` 只负责启动期加载事实数据。
@@ -72,6 +72,7 @@
 ### Config
 - 配置 schema 事实源是 `schema/config/*.proto`。
 - 配置数据事实源是 `data/config/*`。
+- 配置打包产物放在 `pack/config/*`，不作为规则事实源，不手工修改。
 - C# typed config 由配置 schema 生成。
 - 玩法参数优先配置化。
 - 生成配置文件不得作为规则事实源。
@@ -91,10 +92,11 @@
 - C# 类型使用 PascalCase。
 - 私有字段使用 `_camelCase`。
 - `fw.toml` 中的普通路径表示工程约定入口，路径名不能随意漂移。
-- `fw.toml` 中的 `path._gen` 表示生成产物路径，内容不能手改。
+- `fw.toml` 中的 `gen` 表示生成代码根路径，内容不能手改。
+- `fw.toml` 中的 `pack` 表示生成数据包路径，内容不能手改。
 - 共同角色后缀：`system`、`context`、`runtime`、`config`、`event`、`bridge`。
 - Godot 表现层后缀：`mode`、`logic`、`view`、`vm`、`actor`、`fx`、`form`、`widget`、`ui`。
-- C# core 后缀：`core`、`state`、`command`、`rules`、`codec`、`loader`、`const`。
+- C# core 后缀：`core`、`state`、`system`、`rules`、`codec`、`loader`、`const`。
 - 领域名可以出现在文件名中，但不得伪装成新的架构角色词。
 - 名字应短而明确，避免无意义缩写和冗余后缀。
 

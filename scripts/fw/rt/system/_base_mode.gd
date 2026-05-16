@@ -2,7 +2,6 @@ class_name BaseMode
 extends RefCounted
 
 const SystemManagerScript = preload("_system_manager.gd")
-const SystemGraphScript = preload("res://scripts/_gen/_graph.gd")
 
 var _root: Variant
 var _context: Variant = null
@@ -46,14 +45,11 @@ func set_system_phase_order(order: Array) -> void:
 	_system_manager.set_phase_order(order)
 
 
-func bind_system_refs(graph_refs: Variant = null) -> bool:
+func bind_system_refs(refs: Dictionary) -> bool:
 	if _system_manager == null:
 		push_error("Mode system manager is not ready.")
 		return false
-	if graph_refs == null:
-		set_system_phase_order(SystemGraphScript.phase_order())
-		graph_refs = SystemGraphScript.refs()
-	return _system_manager.bind_refs(graph_refs)
+	return _system_manager.bind_refs(refs)
 
 
 func init_systems() -> void:

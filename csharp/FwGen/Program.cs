@@ -28,10 +28,10 @@ static class FwGen
                 case "config":
                     ConfigGen.Generate(root, config);
                     break;
-                case "check-config":
+                case "config_check":
                     ConfigGen.Check(root, config);
                     break;
-                case "pak-config":
+                case "config_pack":
                     ConfigGen.Pack(root, config);
                     break;
                 case "craft":

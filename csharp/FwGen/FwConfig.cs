@@ -45,19 +45,20 @@ sealed class FwConfig
     {
         var fallback = Value("generator", "project", "fw/csharp/FwGen/FwGen.csproj");
         fallback = Value("build", "generator", fallback);
-        return PathValue(root, "dotnet", "generator", fallback);
+        fallback = Value("dotnet", "generator", fallback);
+        return PathValue(root, "dotnet", "fwgen", fallback);
     }
 
     public string BridgeSchemaDir(string root)
     {
-        var fallback = PathValue(root, "schema", "bridge", Path.Combine(SchemaRoot(), "bridge"));
-        return PathValue(root, "path", "bridge_schema", Path.GetRelativePath(root, fallback));
+        var fallback = Value("path", "bridge_schema", Path.Combine(SchemaRoot(), "bridge"));
+        return PathValue(root, "schema", "bridge", fallback);
     }
 
     public string ConfigSchemaDir(string root)
     {
-        var fallback = PathValue(root, "schema", "config", Path.Combine(SchemaRoot(), "config"));
-        return PathValue(root, "path", "config_schema", Path.GetRelativePath(root, fallback));
+        var fallback = Value("path", "config_schema", Path.Combine(SchemaRoot(), "config"));
+        return PathValue(root, "schema", "config", fallback);
     }
 
     public string ConfigDataDir(string root)
@@ -66,14 +67,15 @@ sealed class FwConfig
         {
             return PathValue(root, "schema", "data_config", "data/config");
         }
-        var fallback = PathValue(root, "data", "config", Path.Combine(DataRoot(), "config"));
-        return PathValue(root, "path", "config_data", Path.GetRelativePath(root, fallback));
+        var fallback = Value("path", "config_data", Path.Combine(DataRoot(), "config"));
+        return PathValue(root, "data", "config", fallback);
     }
 
     public string SystemsSchemaPath(string root)
     {
-        var fallback = PathValue(root, "schema", "systems", Path.Combine(SchemaRoot(), "systems.toml"));
-        return PathValue(root, "path", "systems", Path.GetRelativePath(root, fallback));
+        var fallback = Value("path", "systems", Path.Combine(SchemaRoot(), "systems.toml"));
+        fallback = Value("schema", "systems", fallback);
+        return PathValue(root, "schema", "system", fallback);
     }
 
     public string GodotSystemSchemaPath(string root)
@@ -88,8 +90,13 @@ sealed class FwConfig
 
     public string CoreSystemSchemaPath(string root)
     {
+        if (HasValue("schema", "core_system"))
+        {
+            return PathValue(root, "schema", "core_system", Path.Combine(SchemaRoot(), "core_system.toml"));
+        }
+
         var systemsPath = SystemsSchemaPath(root);
-        if (File.Exists(systemsPath) || HasValue("schema", "systems"))
+        if (File.Exists(systemsPath) || HasValue("schema", "systems") || HasValue("schema", "system") || HasValue("path", "systems"))
         {
             return systemsPath;
         }
@@ -99,58 +106,69 @@ sealed class FwConfig
     public string GodotGenDir(string root)
     {
         var fallback = PathValue(root, "gen", "gd_dir", Path.Combine(GodotRoot(), "_gen"));
-        return PathValue(root, "path._gen", "gdscript", Path.GetRelativePath(root, fallback));
+        fallback = Path.GetFullPath(Path.Combine(root, Value("path._gen", "gdscript", Path.GetRelativePath(root, fallback))));
+        return PathValue(root, "gen", "gdscript", Path.GetRelativePath(root, fallback));
     }
 
-    public string GraphGdPath(string root)
+    public string GodotSystemsGdPath(string root)
     {
-        return PathValue(root, "gen", "graph_gd", Path.Combine(GodotGenRoot(root), "_graph.gd"));
-    }
-
-    public string SystemsGdPath(string root)
-    {
-        return PathValue(root, "gen", "systems_gd", Path.Combine(GodotGenRoot(root), "_systems.gd"));
+        return Path.GetFullPath(Path.Combine(GodotGenDir(root), "_godot_systems.gd"));
     }
 
     public string ConfigGdPath(string root)
     {
-        return PathValue(root, "gen", "config_gd", Path.Combine(GodotGenRoot(root), "_config.gd"));
+        return Path.GetFullPath(Path.Combine(GodotGenDir(root), "_config.gd"));
     }
 
     public string ConfigPackDir(string root)
     {
-        var fallback = PathValue(root, "gen", "config_pack_dir", Path.Combine(DataRoot(), "_gen", "config"));
-        return PathValue(root, "path._gen", "config", Path.GetRelativePath(root, fallback));
+        if (HasValue("pack", "config"))
+        {
+            return PathValue(root, "pack", "config", "pack/config");
+        }
+
+        if (HasValue("gen", "data"))
+        {
+            var genData = PathValue(root, "gen", "data", Path.Combine(DataRoot(), "_gen"));
+            return Path.GetFullPath(Path.Combine(genData, "config"));
+        }
+
+        if (HasValue("path._gen", "config"))
+        {
+            return PathValue(root, "path._gen", "config", Path.Combine(DataRoot(), "_gen", "config"));
+        }
+
+        return Path.GetFullPath(Path.Combine(root, "pack", "config"));
     }
 
     public string CoreSystemsCsPath(string root)
     {
-        return PathValue(root, "gen", "core_systems_cs", Path.Combine(CSharpGenRoot(root), "_core_systems.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_core_systems.cs"));
     }
 
-    public string BridgeContractCsPath(string root)
+    public string BridgeTypesCsPath(string root)
     {
-        return PathValue(root, "gen", "bridge_contract_cs", Path.Combine(CSharpGenRoot(root), "_bridge_contract.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_bridge_types.cs"));
     }
 
     public string BridgeCodecCsPath(string root)
     {
-        return PathValue(root, "gen", "bridge_codec_cs", Path.Combine(CSharpGenRoot(root), "_bridge_codec.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_bridge_codec.cs"));
     }
 
-    public string BridgeInputCodecCsPath(string root)
+    public string BridgeIntentCodecCsPath(string root)
     {
-        return PathValue(root, "gen", "bridge_input_codec_cs", Path.Combine(CSharpGenRoot(root), "_input_codec.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_intent_codec.cs"));
     }
 
     public string BridgeEventCodecCsPath(string root)
     {
-        return PathValue(root, "gen", "bridge_event_codec_cs", Path.Combine(CSharpGenRoot(root), "_event_codec.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_event_codec.cs"));
     }
 
     public string ConfigContractCsPath(string root)
     {
-        return PathValue(root, "gen", "config_contract_cs", Path.Combine(CSharpGenRoot(root), "_config_contract.cs"));
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_config_contract.cs"));
     }
 
     public static FwConfig Load(string root)
@@ -218,22 +236,18 @@ sealed class FwConfig
 
     private string GodotRoot()
     {
-        return Value("path", "gdscript", Value("path", "godot", Value("layout", "godot", "scripts")));
+        return Value("script", "gdscript", Value("path", "gdscript", Value("path", "godot", Value("layout", "godot", "scripts"))));
     }
 
     private string CSharpRoot()
     {
-        return Value("path", "csharp", Value("layout", "csharp", "csharp"));
-    }
-
-    private string GodotGenRoot(string root)
-    {
-        return Path.GetRelativePath(root, GodotGenDir(root));
+        return Value("script", "csharp", Value("path", "csharp", Value("layout", "csharp", "csharp")));
     }
 
     private string CSharpGenRoot(string root)
     {
         var fallback = Path.Combine(CSharpRoot(), "_gen");
-        return PathValue(root, "path._gen", "csharp", fallback);
+        fallback = Value("path._gen", "csharp", fallback);
+        return PathValue(root, "gen", "csharp", fallback);
     }
 }

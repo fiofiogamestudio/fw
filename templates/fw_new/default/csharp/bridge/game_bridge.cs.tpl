@@ -9,16 +9,24 @@ public partial class GameBridge : RefCounted
 {
     private readonly GameCore _core = new();
 
-    public void Step()
+    public void tick(GdArray intents)
     {
+        _ = intents;
         _core.Step();
     }
 
-    public GdDictionary GetSnapshot()
+    public GdDictionary get_view(long playerId)
     {
-        var snapshot = new GdDictionary();
-        snapshot["tick"] = _core.Tick;
-        snapshot["entities"] = new GdArray();
-        return snapshot;
+        _ = playerId;
+        var view = new GdDictionary();
+        view["tick"] = _core.Tick;
+        view["entities"] = new GdArray();
+        return view;
+    }
+
+    public GdArray get_events(long playerId)
+    {
+        _ = playerId;
+        return new GdArray();
     }
 }

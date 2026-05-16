@@ -9,7 +9,7 @@
 - `fw/scripts/fw/rt/pool` 通过 `PoolManager` 和 pool node 提供 prefab 池化能力。
 - `fw/scripts/fw/vu` 提供 view 工具、refs、props、binding、view root、UI layer、form、widget 和常用 UI 组件。
 - `fw/csharp/FwRuntime` 提供 C# `SystemRuntime` 和泛型 `ISystem<TContext>` 合同。
-- `fw/csharp/FwGen` 提供 GDScript system、C# core system、bridge contract/codec、config contract、config pack 和 `fw new` 的生成能力。
+- `fw/csharp/FwGen` 提供 GDScript system、C# core system、bridge types/codec、config contract、config pack 和 `fw new` 的生成能力。
 - `fw/tools` 提供面向项目的命令入口，包括 `gen`、`build` 和 `new`。
 - `fw/templates/fw_new/default` 是 `fw new` 使用的新游戏工程模板。
 - `fw/docs` 是框架侧文档源。
@@ -19,7 +19,7 @@
 - `fw` 本身不是具体游戏运行时，而是一套面向 Godot 表现层 + C# 玩法核心的规范性脚手架。
 - GDScript 和 C# 共享同一套 system 词汇：`id`、`phase`、`context`、`init`、`tick`、`shutdown`。
 - 两边共享的是架构范式，不是完全相同的源文件。
-- GDScript systems 由宿主工程的 `schema/systems.toml` 中的 `godot.*` 声明，再生成 `_systems.gd` 和 `_graph.gd`。
+- GDScript systems 由宿主工程的 `schema/systems.toml` 中的 `godot.*` 声明，再生成 `_godot_systems.gd`。
 - C# core systems 由宿主工程的 `schema/systems.toml` 中的 `core.*` 声明，再生成 `csharp/_gen/_core_systems.cs`。
 - Bridge 和 config 合同由类 proto schema 生成，保证两侧字段名和 packet 常量稳定。
 - 跨游戏复用的基础设施放在 `fw`，具体玩法留在宿主工程。
@@ -34,9 +34,9 @@
 - C# `SystemRuntime` 用同样的 phase 生命周期推进 core gameplay。
 
 ## 生成链路
-- `Program.cs` 分发 `system`、`bridge`、`config`、`check-config`、`pak-config`、`craft` 等命令。
+- `Program.cs` 分发 `system`、`bridge`、`config`、`config_check`、`config_pack`、`craft` 等命令。
 - `FwConfig.cs` 读取 `fw.toml`，它是宿主工程的生成路径地图。
-- `SystemGen.cs` 从 `schema/systems.toml` 的 `godot.*` 生成 GDScript system factory 和 system graph refs。
+- `SystemGen.cs` 从 `schema/systems.toml` 的 `godot.*` 生成 GDScript system setup、phase 顺序和 refs 绑定入口。
 - `CoreSystemGen.cs` 从 `schema/systems.toml` 的 `core.*` 生成 C# core system 注册表和 phase 常量。
 - `BridgeGen.cs` 生成 bridge 字段常量、packet helper、GDScript wrapper、C# input decoding 和 C# event encoding。
 - `ConfigGen.cs` 生成 typed config contract 和 config 字段常量。
@@ -45,7 +45,7 @@
 ## 优点
 - 框架运行时核心很小，可读性较好。
 - GDScript 和 C# 已经共享同一套心智模型，在表现层和 core 之间切换时成本更低。
-- 生成的 system graph 可以避免 GDScript 手动绑定 refs 的常见错误。
+- 生成的 system setup 可以避免 GDScript 手动绑定 refs 的常见错误。
 - 生成的 C# core system 注册表可以避免手写 phase 顺序漂移。
 - Bridge 和 config 生成减少了跨语言边界重复定义常量和字段名的问题。
 - `fw new` 让框架具备复用到未来游戏的能力，而不是只服务当前工程。
@@ -61,7 +61,7 @@
 - pre-commit hook 假设宿主仓库是 `fw` 的父目录，这符合当前工作流，但不是所有 submodule 布局都通用。
 
 ## 可能改进方向
-- 按输出职责继续拆分 `BridgeGen.cs`，例如 C# contract、C# codec、GDScript wrapper 和 packet helpers。
+- 按输出职责继续拆分 `BridgeGen.cs`，例如 C# types、C# codec、GDScript wrapper 和 packet helpers。
 - 增加生成器级测试，使用小型 fixture schema 覆盖 bridge 和 config 输出。
 - 增加 `fw check` 命令，用 dry-run 方式检查生成文件是否过期。
 - 在 `fw/docs/use.md` 中继续明确 hook 行为，并保持通过 `core.hooksPath` 显式启用。

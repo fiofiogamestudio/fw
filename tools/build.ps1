@@ -9,7 +9,7 @@ param(
 
     [string[]]$GenCommands = @("system", "bridge", "config"),
 
-    [string[]]$ReleaseGenCommands = @("pak-config")
+    [string[]]$ReleaseGenCommands = @("config_pack")
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,7 +70,10 @@ if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
 if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
     $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "csharp" -Key "project"
 }
-$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
+$ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "fwgen"
+if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
+    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
+}
 if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
     $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "generator"
 }

@@ -8,7 +8,7 @@ GENERATOR_PROJECT=""
 CONFIGURATION="Debug"
 RELEASE="false"
 GEN_COMMANDS=(${FW_GEN_COMMANDS:-system bridge config})
-RELEASE_GEN_COMMANDS=(${FW_RELEASE_GEN_COMMANDS:-pak-config})
+RELEASE_GEN_COMMANDS=(${FW_RELEASE_GEN_COMMANDS:-config_pack})
 
 install_fw_hooks() {
   local fw_root
@@ -104,7 +104,10 @@ if [[ -z "${CSHARP_PROJECT}" ]]; then
   fi
 fi
 if [[ -z "${GENERATOR_PROJECT}" ]]; then
-  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
+  CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "fwgen" || true)"
+  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
+    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
+  fi
   if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
     CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "generator" || true)"
   fi

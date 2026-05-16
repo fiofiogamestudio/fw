@@ -8,7 +8,7 @@ internal sealed class CoreRuntime
 
     public CoreRuntime(CoreContext context)
     {
-        CoreSystems.Register(_runtime, context);
+        CoreSystems.Setup(_runtime, context);
         _runtime.InitAll();
     }
 

@@ -16,12 +16,16 @@ godot --headless --path . --quit-after 3
 .\fw\tools\gen.ps1 system
 .\fw\tools\gen.ps1 bridge
 .\fw\tools\gen.ps1 config
+.\fw\tools\gen.ps1 config_check
+.\fw\tools\gen.ps1 config_pack
 ```
 
 生成内容：
-- `system`：读取 `schema/systems.toml`，生成 GD system graph/register 和 C# core system 注册表。
-- `bridge`：读取 `schema/bridge/*.proto`，生成 GD bridge wrapper、C# bridge 合同和基础 codec。
+- `system`：读取 `schema/systems.toml`，生成 GD system setup 和 C# core system setup。
+- `bridge`：读取 `schema/bridge/*.proto`，生成 GD bridge wrapper、C# bridge types 和基础 codec。
 - `config`：读取 `schema/config/*.proto`，生成 C# typed config 和配置字段常量，并保留现有 GD config 入口。
+- `config_check`：检查 `schema/config` 与 `data/config` 的基本一致性。
+- `config_pack`：准备 `pack/config`，作为运行/发布配置包位置。
 
 ## 修改模板
 - 改规范文档模板：`fw/templates/fw_new/default/docs/fw/*.md.tpl`

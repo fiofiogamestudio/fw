@@ -1,20 +1,25 @@
 [project]
 name = "__PROJECT_NAME__"
 
-[path]
-schema = "schema"
-systems = "schema/systems.toml"
-bridge_schema = "schema/bridge"
-config_schema = "schema/config"
-config_data = "data/config"
-gdscript = "scripts"
-csharp = "csharp"
+[schema]
+system = "schema/systems.toml"
+bridge = "schema/bridge"
+config = "schema/config"
 
-[path._gen]
-config = "data/_gen/config"
+[gen]
 gdscript = "scripts/_gen"
 csharp = "csharp/_gen"
 
+[data]
+config = "data/config"
+
+[pack]
+config = "pack/config"
+
+[script]
+gdscript = "scripts"
+csharp = "csharp"
+
 [dotnet]
 game = "__PROJECT_NAME__.csproj"
-generator = "fw/csharp/FwGen/FwGen.csproj"
+fwgen = "fw/csharp/FwGen/FwGen.csproj"

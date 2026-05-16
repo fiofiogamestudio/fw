@@ -11,6 +11,8 @@
 - 改 Godot 或 C# system：先看 `schema/systems.toml`，再运行 `fw/tools/gen.ps1 system`。
 - 改 bridge 协议或网络包字段：先改 `schema/bridge/*.proto`，再运行 `fw/tools/gen.ps1 bridge`。
 - 改配置 schema 或配置字段：先改 `schema/config/*.proto` 和 `data/config/*`，再运行 `fw/tools/gen.ps1 config`。
+- 需要检查配置源：运行 `fw/tools/gen.ps1 config_check`。
+- 需要生成发布配置包：运行 `fw/tools/gen.ps1 config_pack`，产物放到 `pack/config`。
 - 改 C# core：先看 `csharp/core` 的 `system / rules / state / config`，保持 bridge 对外接口稳定。
 - 改 Godot 表现层：优先看 `scripts/mode/<mode>` 下的 `system / feature / shared`。
 - 改 fw 模板：同步 `fw/templates/fw_new/default`。

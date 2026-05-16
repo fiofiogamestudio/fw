@@ -1,59 +1,25 @@
 # Fw Spec
 
 ## 结构
-- `fw/scripts/fw`：Godot 表现层基础设施。
-- `fw/csharp/FwRuntime`：C# system runtime。
-- `fw/csharp/FwGen`：system、bridge、config 和 `fw new` 生成器。
-- `fw/tools`：生成、构建、新建项目入口脚本。
-- `fw/templates/fw_new/default`：新游戏工程模板。
-- `fw/docs`：规范源文档。
+- `fw.toml`：工程路径和工具入口配置。
+- `schema/systems.toml`：Godot system 与 C# core system 的统一事实源。
+- `schema/bridge/*.proto`：Godot 与 C# 的 bridge 协议事实源。
+- `schema/config/*.proto`：配置结构事实源。
+- `data/config/*`：人工维护的配置源数据。
+- `pack/config/*`：生成的运行时配置包，不手改。
+- `scripts/_gen`：生成的 GDScript 入口，包括 `_godot_systems.gd`、`_bridge.gd`、`_config.gd`。
+- `csharp/_gen`：生成的 C# 入口，包括 `_core_systems.cs`、`_bridge_types.cs`、`_bridge_codec.cs`、`_intent_codec.cs`、`_event_codec.cs`、`_config_contract.cs`。
+- `csharp/core`：玩法权威逻辑、状态、system、rules、config loader。
+- `csharp/bridge`：Godot 可调用的 C# 边界和手写语义 codec。
 
-## 生成结果
-`fw new` 应生成：
-- `docs/fw/rule.md`
-- `docs/fw/spec.md`
-- `docs/fw/use.md`
-- `fw.toml`
-- `schema/systems.toml`
-- `schema/bridge/*`
-- `schema/config/*`
-- `scripts/app/*`
-- `scripts/mode/*`
-- `scripts/_gen/*`
-- `csharp/core/*`
-- `csharp/bridge/*`
-- `csharp/_gen/*`
+## 原理
+- `schema/systems.toml` 生成两端 system 注册表，Godot 与 C# 共用 `system / context / phase / refs / config / state` 范式。
+- `schema/bridge` 按语义分为 value、intent、view、event、packet。生成到 Godot 时统一落到 `Bridge.Value / Bridge.Intent / Bridge.View / Bridge.Event / Bridge.Packet`。
+- C# bridge 生成基础字段、枚举、输入和事件 codec；复杂 view、map 等语义投影由 `csharp/bridge/codec` 手写。
+- `CoreRuntime` 只负责按生成的 core system 顺序推进；具体玩法写在 `csharp/core/system` 和 `csharp/core/rules`。
+- 表现层只消费 core 输出的 view、event 和配置，不反推核心规则。
 
-## FwGen 结构
-- `Program.cs`：命令入口，只分发 `system`、`bridge`、`config`、`craft` 等命令。
-- `SystemGen.cs`：从 `schema/systems.toml` 的 `godot.*` 生成 GDScript system graph 和 system 注册。
-- `CoreSystemGen.cs`：从 `schema/systems.toml` 的 `core.*` 生成 C# core system 注册表和 phase 常量。
-- `BridgeGen.cs`：生成 bridge 的 GD wrapper、C# 合同和 C# 基础 codec。
-- `ConfigGen.cs`：生成 C# typed config、配置字段常量和配置包入口。
-- `Craft.cs`：生成 `fw new` 项目骨架。
-- `ProtoSchema.cs`：解析 proto schema，并提供生成器共享的 proto model。
-- `FwConfig.cs` / `CliOptions.cs`：读取 `fw.toml` 和命令行参数。
-
-## FwToml
-- `fw.toml` 显式描述项目名、工程路径和构建入口。
-- `path.schema`、`path.gdscript`、`path.csharp` 是普通工程入口目录，目录名不能随意漂移。
-- `path.systems`、`path.bridge_schema`、`path.config_schema` 和 `path.config_data` 是手写事实源路径。
-- `path._gen.config`、`path._gen.gdscript` 和 `path._gen.csharp` 是生成产物路径。
-- `_gen` 目录和 `_` 前缀文件都表示机器生成，用户不直接编辑。
-- 旧版 `[layout]`、`[build]`、`[schema]` 和 `[gen]` 字段仍作为兼容覆盖项保留。
-
-## System 规范
-- GDScript 和 C# system 统一声明在 `schema/systems.toml`。
-- GDScript system 使用 `godot.phases` 和 `godot.system.<id>`。
-- C# core system 使用 `core.phases` 和 `core.system.<id>`。
-- C# system 使用 `Fw.Rt.Systems.SystemRuntime`。
-- C# 和 GDScript system 统一使用 `id / phase / context / init / tick / shutdown`。
-- system context 只放 `refs / config / state`。
-- C# core 可以使用无状态 `rules` 承载可复用规则函数。
-- `query`、`solver` 不作为架构后缀；相关计算归入 `rules`。
-
-## Bridge / Config 生成
-- `schema/bridge/*.proto` 生成 GD wrapper、C# bridge 合同和 C# 基础 codec。
-- `schema/config/*.proto` 生成 C# typed config 和配置字段常量。
-- 生成的 C# 合同、注册表和基础 codec 统一放在 `csharp/_gen`。
-- 手写语义 codec 放在宿主项目 `csharp/bridge/codec`，不重复定义协议字段、网络包类型和配置类型。
+## 约束
+- `_gen` 目录和 `_` 前缀文件都是生成产物，不手改。
+- `data/config` 是源数据，`pack/config` 是生成数据。
+- `fw/templates/fw_new/default` 必须与当前框架规范同步，避免新项目继承旧范式。

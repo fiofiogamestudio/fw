@@ -2,7 +2,7 @@ extends "res://fw/scripts/fw/rt/system/_base_mode.gd"
 
 const GameLogicScript = preload("res://scripts/mode/game/feature/game_logic.gd")
 const GameFormScene = preload("res://prefabs/ui/game_form.tscn")
-const SystemsScript = preload("res://scripts/_gen/_systems.gd")
+const GodotSystemsScript = preload("res://scripts/_gen/_godot_systems.gd")
 
 var _game_logic: Variant = null
 var _game_system: Variant = null
@@ -11,7 +11,9 @@ var _game_system: Variant = null
 func enter(root: Variant, context: Variant = null) -> void:
 	super.enter(root, context)
 
-	var entries: Dictionary = SystemsScript.create(self)
+	var entries: Dictionary = GodotSystemsScript.setup(self)
+	if entries.is_empty():
+		return
 	var game_entry: Dictionary = entries.get(&"game", {})
 	_game_system = game_entry.get("system", null)
 	var game_context: Variant = game_entry.get("context", null)
@@ -19,8 +21,6 @@ func enter(root: Variant, context: Variant = null) -> void:
 	game_context.config.subtitle = context.config.subtitle
 	game_context.config.status_message = context.config.status_message
 
-	if not bind_system_refs():
-		return
 	init_systems()
 
 	_game_logic = GameLogicScript.new()
