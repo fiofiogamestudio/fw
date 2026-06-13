@@ -4,6 +4,7 @@ package __LIB_NAME__.bridge;
 
 import "schema/bridge/value.proto";
 
+// Button values are bit masks used by buttons_hold/down/up.
 enum PlayerButton {
   PLAYER_BUTTON_UNSPECIFIED = 0;
   PLAYER_BUTTON_PRIMARY = 1;
@@ -20,6 +21,7 @@ message PlayerAction {
   }
 }
 
+// In network mode the host must bind player_id from the connection, not trust the client payload.
 message PlayerIntent {
   PlayerId player_id = 1;
   uint32 client_tick = 2;

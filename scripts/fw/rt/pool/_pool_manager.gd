@@ -34,6 +34,8 @@ func spawn(key: String, parent: Node = null) -> Node:
 	var target_parent: Node = parent if parent != null else _default_parent
 	if target_parent:
 		target_parent.add_child(node)
+	if node.has_method("setup"):
+		node.setup(self)
 	return node
 
 
@@ -41,10 +43,14 @@ func recycle(node: Node) -> void:
 	if node == null:
 		return
 	if not node.has_meta("_pool_key"):
+		if node.has_method("clear"):
+			node.clear()
 		node.queue_free()
 		return
 
 	var key: String = String(node.get_meta("_pool_key"))
+	if node.has_method("clear"):
+		node.clear()
 	if node.get_parent():
 		node.get_parent().remove_child(node)
 	if not _free.has(key):
@@ -52,13 +58,13 @@ func recycle(node: Node) -> void:
 	_free[key].append(node)
 
 
-func clear(key: String = "") -> void:
+func flush(key: String = "") -> void:
 	if key != "":
-		_clear_bucket(key)
+		_flush_bucket(key)
 		return
 
 	for bucket_key in _free.keys():
-		_clear_bucket(String(bucket_key))
+		_flush_bucket(String(bucket_key))
 	_free.clear()
 
 
@@ -69,7 +75,7 @@ func _instantiate(key: String) -> Node:
 	return node
 
 
-func _clear_bucket(key: String) -> void:
+func _flush_bucket(key: String) -> void:
 	var bucket: Array = _free.get(key, [])
 	for item in bucket:
 		if item and is_instance_valid(item):

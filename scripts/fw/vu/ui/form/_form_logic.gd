@@ -18,7 +18,7 @@ func detach_ui() -> void:
 	_ui = null
 
 
-func open_form(
+func open(
 	layer: StringName,
 	id: StringName,
 	packed_scene: PackedScene,
@@ -28,68 +28,14 @@ func open_form(
 	if _ui == null:
 		push_error("FFormLogic requires a valid FUI.")
 		return null
-	close_form()
+	close()
 	_form = _ui.open(layer, id, packed_scene, context, props)
 	if _form:
 		_binding = _form.create_binding()
 	return _form
 
 
-func show_hud(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_HUD, id, packed_scene, context, props)
-
-
-func push_screen(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_SCREEN, id, packed_scene, context, props)
-
-
-func push_popup(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_POPUP, id, packed_scene, context, props)
-
-
-func push_modal(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_MODAL, id, packed_scene, context, props)
-
-
-func show_toast(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_TOAST, id, packed_scene, context, props)
-
-
-func show_tooltip(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return open_form(FUIScript.LAYER_TOOLTIP, id, packed_scene, context, props)
-
-
-func close_form() -> void:
+func close() -> void:
 	if _binding:
 		_binding.unbind()
 		_binding = null

@@ -14,7 +14,7 @@ var _pages: Array[Control] = []
 var _selection: Variant = null
 
 
-func on_widget_ready() -> void:
+func on_setup() -> void:
 	_buttons.clear()
 	_pages.clear()
 	for key in button_ref_keys:
@@ -35,7 +35,7 @@ func on_widget_ready() -> void:
 		select_tab(0)
 
 
-func on_widget_shutdown() -> void:
+func on_clear() -> void:
 	_buttons.clear()
 	_pages.clear()
 	_selection = null

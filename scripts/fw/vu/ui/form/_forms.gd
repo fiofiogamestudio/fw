@@ -22,7 +22,7 @@ func open(
 	if _ui == null:
 		push_error("FForms host is not ready.")
 		return null
-	return _ui.push_screen(id, packed_scene, context, props)
+	return _ui.open(FUIScript.LAYER_SCREEN, id, packed_scene, context, props)
 
 
 func has(id: StringName) -> bool:

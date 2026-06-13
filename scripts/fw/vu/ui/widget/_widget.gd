@@ -11,18 +11,22 @@ var _is_ready: bool = false
 var _owner_form: Variant = null
 var _view: Variant = null
 
+signal action(name: StringName, payload: Dictionary)
 
-func setup_widget(owner_form: Variant, props: Dictionary = {}) -> void:
-	_owner_form = owner_form
+
+func setup(owner: Variant = null, props: Dictionary = {}) -> void:
+	if _is_ready:
+		return
+	_owner_form = owner
 	_view = FViewScript.new()
 	_view.setup(self, refs, self.props, props)
 	_is_ready = true
-	on_widget_ready()
+	on_setup()
 
 
-func shutdown_widget() -> void:
+func clear() -> void:
 	if _is_ready:
-		on_widget_shutdown()
+		on_clear()
 	_is_ready = false
 	if _view:
 		_view.clear()
@@ -30,12 +34,20 @@ func shutdown_widget() -> void:
 	_owner_form = null
 
 
-func on_widget_ready() -> void:
+func on_setup() -> void:
 	pass
 
 
-func on_widget_shutdown() -> void:
+func on_clear() -> void:
 	pass
+
+
+func apply(_vm: Variant, _dt: float = 0.0) -> void:
+	pass
+
+
+func emit_action(name: StringName, payload: Dictionary = {}) -> void:
+	action.emit(name, payload)
 
 
 func skip_auto_widget_setup() -> bool:

@@ -14,11 +14,12 @@
 
 ### 分层
 - App 只负责全局入口和 mode 切换。
-- Mode 只负责场景装配、system 装配和表现层装配。
+- Mode 是 Godot 独有的运行场景入口，只负责场景装配、system 装配和表现层装配。
 - System 负责一个稳定阶段的运行逻辑。
+- Service 负责框架能力，不属于 system。
 - Logic 负责表现层逻辑。
-- View 只负责表现。
-- Form / Widget 只负责 UI 结构和 UI 局部表现。
+- View 只负责渲染适配，不拥有对象生命周期。
+- Form / Widget 是 UI 表现对象，负责 UI 结构、局部表现和交互信号。
 
 ### Context
 - mode context 和 system context 都使用 `refs / config / state`。
@@ -26,6 +27,8 @@
 - `config` 只保存启动参数和只读配置。
 - `state` 只保存运行期状态。
 - system 的 `refs` 只指向其他 system 的 context。
+- system 默认只读其他 system context 的 `state`。
+- system 如需写入其他 context，只能调用对方 context 暴露的明确数据入口方法，不得直接改写对方 `state` 字段。
 - system 不直接持有其他 system 本体。
 - system context 不保存 scene、camera、pool、UI、form、view 等表现层对象。
 
@@ -53,11 +56,11 @@
 - `rules` 只保存无状态规则函数，不持有字段，不参与 tick。
 - `rules` 只能被 core system 或 core facade 调用。
 - `state` 保存可变运行期状态。
-- `intent` 保存表现层整理后提交给 core 的玩家意图。
+- `intent` 保存表现层整理后提交给 core 的玩家意图数据，不保存执行结果。
 - `event` 保存 core 输出事件。
 - `config` 保存只读配置结构。
 - `loader` 只负责启动期加载事实数据。
-- `codec` 只负责 Godot 数据和 C# 类型转换。
+- `codec` 只负责数据格式和 C# 类型转换；bridge codec 特指 Godot Dictionary 与 C# 类型转换。
 - `const` 只保存少量编译期常量，不保存玩法调参。
 - `query`、`solver` 不作为架构后缀；需要复用的计算归入 `rules`。
 
@@ -73,18 +76,30 @@
 - 配置 schema 事实源是 `schema/config/*.proto`。
 - 配置数据事实源是 `data/config/*`。
 - 配置打包产物放在 `pack/config/*`，不作为规则事实源，不手工修改。
-- C# typed config 由配置 schema 生成。
+- Godot config 入口由配置 schema 生成。
+- C# typed config、config path 和 config codec 由配置 schema 生成。
 - 玩法参数优先配置化。
 - 生成配置文件不得作为规则事实源。
 - config 的生成合同放在 `csharp/_gen`。
 
 ### 表现
-- UI 使用 `form + logic`。
+- UI 使用 `form + logic + widget`。
 - world-space 对象使用 `actor / view / logic / vm`。
 - view model 是表现层数据，不是 core 状态。
+- `vm_builder` 是纯转换器，只负责把 core/bridge view 转成 Godot VM，可被 system 调用。
 - 表现层可以做动画、渐变和缓存，但不得改变 core 结果。
+- service 使用领域 API，不使用表现对象生命周期名；例如 UI 使用 `open / close`，Pool 使用 `spawn / recycle / flush`，Resource 使用 `load / unload`。
+- presentation object 包括 `actor / form / widget / fx`，对外统一使用 `setup / clear`，内部扩展点统一使用 `on_setup / on_clear`。
+- 状态型表现对象使用 `apply(vm, dt)`，包括 `actor / form / widget`。
+- 事件型表现对象使用 `play(payload)`，主要用于 `fx`。
+- `fx` 必须继承 `FFx` 或遵守同等协议，结束时通过 `finished` signal 通知持有方回收或清理。
+- 可交互表现对象使用 `action(name, payload)` 输出交互，不直接调用 core。
+- 标准 feature view 使用 `setup(root) / render(root, vm, dt) / clear(root)`，不管理对象生命周期。
+- 自包含 visual component 可以使用更窄的 `update_*` API，但只能被上层 object/view 持有，不得读写 system context。
+- logic 只编排表现对象，不直接绕过对象协议操作 view。
 - `logic` 是表现层逻辑词，不用于 C# core 规则层。
-- `view / vm / actor / fx / form / widget / ui` 是表现层角色词，不用于 C# core。
+- `view / vm / vm_builder / actor / fx / form / widget` 是表现层角色词，不用于 C# core。
+- `ui` 不作为手写文件角色后缀；UI 局部组件统一使用 `widget`。
 
 ### 命名
 - 文件名使用 `snake_case`。
@@ -94,9 +109,13 @@
 - `fw.toml` 中的普通路径表示工程约定入口，路径名不能随意漂移。
 - `fw.toml` 中的 `gen` 表示生成代码根路径，内容不能手改。
 - `fw.toml` 中的 `pack` 表示生成数据包路径，内容不能手改。
-- 共同角色后缀：`system`、`context`、`runtime`、`config`、`event`、`bridge`。
-- Godot 表现层后缀：`mode`、`logic`、`view`、`vm`、`actor`、`fx`、`form`、`widget`、`ui`。
-- C# core 后缀：`core`、`state`、`system`、`rules`、`codec`、`loader`、`const`。
+- 跨 Godot / C# 的共同架构概念：`system`、`context`、`config`、`state`、`event`、`bridge`。
+- Godot 独有入口后缀：`app`、`mode`。
+- Godot 表现层后缀：`logic`、`view`、`vm`、`vm_builder`、`actor`、`fx`、`form`、`widget`。
+- C# core 后缀：`core`、`state`、`system`、`rules`、`intent`、`event`、`config`、`codec`、`loader`、`const`。
+- Bridge / 生成后缀：`packet`、`types` 只用于 bridge schema 或 `_gen` 生成产物，手写业务文件不得使用。
+- 宿主游戏手写代码文件必须以明确角色后缀结尾；没有明确角色的文件，要么合并到已有角色里，要么先证明它是必要的新角色。
+- `fw` 内部基础设施可以使用框架角色词，例如 `root`、`manager`、`refs`、`props`、`binding`、`gen`；这些名字不得扩散到宿主游戏业务代码。
 - 领域名可以出现在文件名中，但不得伪装成新的架构角色词。
 - 名字应短而明确，避免无意义缩写和冗余后缀。
 

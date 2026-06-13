@@ -17,7 +17,7 @@ var _refresh_button: Button = null
 func enter(form_scene: PackedScene, context: Variant, system: Variant) -> void:
 	_context = context
 	_system = system
-	var opened_form = push_screen(FORM_ID, form_scene, context)
+	var opened_form = open(FUIScript.LAYER_SCREEN, FORM_ID, form_scene, context)
 	if opened_form == null:
 		return
 
@@ -41,7 +41,7 @@ func tick(_dt: float) -> void:
 
 
 func exit() -> void:
-	close_form()
+	close()
 	detach_ui()
 	_context = null
 	_system = null

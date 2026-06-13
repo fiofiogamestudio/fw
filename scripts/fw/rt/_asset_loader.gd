@@ -4,13 +4,13 @@ extends RefCounted
 var _cache: Dictionary = {}
 
 
-func load_cached(path: String) -> Resource:
+func load(path: String) -> Resource:
 	if not _cache.has(path):
-		_cache[path] = load(path)
+		_cache[path] = ResourceLoader.load(path)
 	return _cache[path]
 
 
-func clear(path: String = "") -> void:
+func unload(path: String = "") -> void:
 	if path == "":
 		_cache.clear()
 		return

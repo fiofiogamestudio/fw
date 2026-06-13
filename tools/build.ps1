@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 function Install-FwHooks {
     $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $HookRoot = Join-Path $FwRoot "hooks"
-    if ((Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
+    if ((Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
         & git -C $FwRoot config core.hooksPath hooks | Out-Null
     }
 }

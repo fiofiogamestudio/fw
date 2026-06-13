@@ -50,65 +50,6 @@ func layer_root(layer: StringName) -> Control:
 	return _layers.get(layer, null) as Control
 
 
-func show_hud(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	close_layer(LAYER_HUD)
-	return _open(LAYER_HUD, id, packed_scene, context, props)
-
-
-func push_screen(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	var previous: Variant = top_form(LAYER_SCREEN)
-	if previous:
-		previous.visible = false
-	return _open(LAYER_SCREEN, id, packed_scene, context, props)
-
-
-func push_popup(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return _open(LAYER_POPUP, id, packed_scene, context, props)
-
-
-func push_modal(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return _open(LAYER_MODAL, id, packed_scene, context, props)
-
-
-func show_toast(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return _open(LAYER_TOAST, id, packed_scene, context, props)
-
-
-func show_tooltip(
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	close_layer(LAYER_TOOLTIP)
-	return _open(LAYER_TOOLTIP, id, packed_scene, context, props)
-
-
 func open(
 	layer: StringName,
 	id: StringName,
@@ -116,6 +57,12 @@ func open(
 	context: Variant = null,
 	props: Dictionary = {}
 ) -> Variant:
+	if layer == LAYER_HUD or layer == LAYER_TOOLTIP:
+		close_layer(layer)
+	elif layer == LAYER_SCREEN:
+		var previous: Variant = top_form(LAYER_SCREEN)
+		if previous:
+			previous.visible = false
 	return _open(layer, id, packed_scene, context, props)
 
 
@@ -140,8 +87,7 @@ func close(id: StringName) -> void:
 		return
 
 	var layer: StringName = form.layer()
-	if form.has_method("shutdown"):
-		form.shutdown()
+	form.clear()
 	if is_instance_valid(form):
 		form.queue_free()
 	_forms.erase(id)
@@ -200,7 +146,7 @@ func _open(
 	form.name = String(id)
 	layer_root_node.add_child(form)
 	form.assign_runtime(self, layer, id)
-	form.init(context, props)
+	form.setup(context, props)
 
 	_forms[id] = form
 	_push_to_stack(layer, id)

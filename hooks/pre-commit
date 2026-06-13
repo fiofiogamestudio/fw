@@ -21,6 +21,7 @@ sync_file "$host_root/.codex/skills/fw/SKILL.md" \
 
 if [ -d "$host_root/docs/fw" ]; then
     for name in rule spec use; do
+        sync_file "$host_root/docs/fw/$name.md" "$fw_root/docs/$name.md"
         sync_file "$host_root/docs/fw/$name.md" "$template_root/docs/fw/$name.md.tpl"
     done
 else

@@ -8,6 +8,10 @@ const FViewScript = preload("res://fw/scripts/fw/vu/_view.gd")
 @export var props: Dictionary[String, Variant] = {}
 
 var _view: Variant = null
+var _owner: Variant = null
+var _is_setup: bool = false
+
+signal action(name: StringName, payload: Dictionary)
 
 
 func _enter_tree() -> void:
@@ -15,9 +19,48 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
+	clear()
+
+
+func setup(owner: Variant = null, props: Dictionary = {}) -> void:
+	if _is_setup:
+		return
+	_owner = owner
+	_ensure_view()
+	apply_props(props)
+	_is_setup = true
+	on_setup()
+
+
+func clear() -> void:
+	if _is_setup:
+		on_clear()
+	_is_setup = false
+	clear_bindings()
 	if _view:
 		_view.clear()
 	_view = null
+	_owner = null
+
+
+func on_setup() -> void:
+	pass
+
+
+func on_clear() -> void:
+	pass
+
+
+func apply(_vm: Variant, _dt: float = 0.0) -> void:
+	pass
+
+
+func owner() -> Variant:
+	return _owner
+
+
+func emit_action(name: StringName, payload: Dictionary = {}) -> void:
+	action.emit(name, payload)
 
 
 func create_binding() -> Variant:

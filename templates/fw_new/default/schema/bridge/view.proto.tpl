@@ -37,3 +37,10 @@ message WorldView {
   uint64 tick = 1;
   repeated EntityView entities = 2;
 }
+
+message HighView {
+  uint64 tick = 1;
+  repeated EntityView entities = 2;
+}
+
+message MidView {}

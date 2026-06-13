@@ -12,10 +12,10 @@ var _ui: Variant = null
 var _ui_event: Variant
 
 
-func init(context: Variant, props: Dictionary = {}) -> void:
+func setup(context: Variant = null, props: Dictionary = {}) -> void:
 	_context = context
 	_ui_event = FUIEventScript.new()
-	setup_widget(self, props)
+	super.setup(self, props)
 	_setup_child_widgets(self)
 
 
@@ -23,13 +23,13 @@ func tick(_dt: float) -> void:
 	pass
 
 
-func shutdown() -> void:
+func clear() -> void:
 	_shutdown_child_widgets(self)
 	clear_bindings()
 	if _ui_event:
 		_ui_event.clear()
 	_ui_event = null
-	shutdown_widget()
+	super.clear()
 	_form_id = &""
 	_layer = &""
 	_ui = null
@@ -69,7 +69,7 @@ func ui_event() -> Variant:
 func _setup_child_widgets(node: Node) -> void:
 	for child in node.get_children():
 		if is_instance_of(child, FWidgetScript) and child != self and not child.skip_auto_widget_setup():
-			child.setup_widget(self)
+			child.setup(self)
 		_setup_child_widgets(child)
 
 
@@ -79,4 +79,4 @@ func _shutdown_child_widgets(node: Node) -> void:
 		var child: Node = children[i]
 		_shutdown_child_widgets(child)
 		if is_instance_of(child, FWidgetScript) and child != self and not child.skip_auto_widget_setup():
-			child.shutdown_widget()
+			child.clear()

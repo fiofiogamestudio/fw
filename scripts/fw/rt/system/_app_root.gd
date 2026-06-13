@@ -48,7 +48,7 @@ func switch_mode(mode: Variant, context: Variant = null) -> Variant:
 		_active_mode.exit()
 		_active_mode = null
 	_ui.close_all()
-	_pool_manager.clear()
+	_pool_manager.flush()
 	for child in _mode_host.get_children():
 		child.queue_free()
 

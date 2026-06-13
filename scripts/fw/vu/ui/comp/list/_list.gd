@@ -20,7 +20,7 @@ var _selection: Variant = null
 var _template_item: Variant = null
 
 
-func on_widget_ready() -> void:
+func on_setup() -> void:
 	_content_root = require_ref(content_ref_key)
 	_selection = FSelectionScript.new()
 	_selection.setup(allow_multi_select)
@@ -31,7 +31,7 @@ func on_widget_ready() -> void:
 			_template_item.set_template_mode(true)
 
 
-func on_widget_shutdown() -> void:
+func on_clear() -> void:
 	clear_items()
 	_template_item = null
 	_content_root = null
@@ -41,6 +41,13 @@ func on_widget_shutdown() -> void:
 func set_items(items: Array) -> void:
 	_items = items.duplicate(true)
 	refresh()
+
+
+func apply(vm: Variant, _dt: float = 0.0) -> void:
+	if vm is Array:
+		set_items(vm)
+	elif vm is Dictionary:
+		set_items(vm.get("items", []))
 
 
 func items() -> Array:
@@ -57,7 +64,7 @@ func refresh() -> void:
 			return
 		_content_root.add_child(item)
 		if is_instance_of(item, FWidgetScript):
-			item.setup_widget(owner_form())
+			item.setup(owner_form())
 		item.bind_item(self, i, _items[i], _selection.is_selected(i))
 		_item_nodes.append(item)
 
@@ -73,7 +80,7 @@ func refresh_item(index: int) -> void:
 func clear_items() -> void:
 	for item in _item_nodes:
 		if item and is_instance_of(item, FWidgetScript):
-			item.shutdown_widget()
+			item.clear()
 		if is_instance_valid(item):
 			item.queue_free()
 	_item_nodes.clear()
@@ -119,7 +126,9 @@ func press_index(index: int, additive: bool = false) -> void:
 		toggle_index(index)
 	else:
 		select_index(index, additive)
-	item_pressed.emit(index, _items[index])
+	var data: Variant = _items[index]
+	item_pressed.emit(index, data)
+	emit_action(&"item_pressed", {"index": index, "data": data})
 
 
 func _sync_selection_state() -> void:

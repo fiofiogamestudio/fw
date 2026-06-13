@@ -166,9 +166,19 @@ sealed class FwConfig
         return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_event_codec.cs"));
     }
 
+    public string BridgePacketCodecCsPath(string root)
+    {
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_packet_codec.cs"));
+    }
+
     public string ConfigContractCsPath(string root)
     {
         return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_config_contract.cs"));
+    }
+
+    public string ConfigCodecCsPath(string root)
+    {
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_config_codec.cs"));
     }
 
     public static FwConfig Load(string root)

@@ -57,20 +57,6 @@ func init_systems() -> void:
 		_system_manager.init_all()
 
 
-func open_form(
-	layer: StringName,
-	id: StringName,
-	packed_scene: PackedScene,
-	context: Variant = null,
-	props: Dictionary = {}
-) -> Variant:
-	return _root.ui().open(layer, id, packed_scene, context, props)
-
-
-func close_form(id: StringName) -> void:
-	_root.ui().close(id)
-
-
 func mode_host() -> Node:
 	return _root.mode_host()
 
