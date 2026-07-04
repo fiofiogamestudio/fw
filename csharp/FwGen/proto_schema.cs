@@ -34,7 +34,7 @@ sealed class ProtoSchema
             {
                 if (line == "}")
                 {
-                    schema.Enums[currentEnum.Name] = currentEnum;
+                    AddEnum(schema, currentEnum);
                     currentEnum = null;
                     continue;
                 }
@@ -57,7 +57,7 @@ sealed class ProtoSchema
                     currentEnum = new ProtoEnum(enumMatch.Groups[1].Value, path);
                     if (line.Contains('}'))
                     {
-                        schema.Enums[currentEnum.Name] = currentEnum;
+                        AddEnum(schema, currentEnum);
                         currentEnum = null;
                     }
                     continue;
@@ -69,7 +69,7 @@ sealed class ProtoSchema
                     current = new ProtoMessage(messageMatch.Groups[1].Value, path);
                     if (line.Contains('}'))
                     {
-                        schema.Messages[current.Name] = current;
+                        AddMessage(schema, current);
                         current = null;
                     }
                     continue;
@@ -89,7 +89,7 @@ sealed class ProtoSchema
                     inOneof = false;
                     continue;
                 }
-                schema.Messages[current.Name] = current;
+                AddMessage(schema, current);
                 current = null;
                 continue;
             }
@@ -104,6 +104,28 @@ sealed class ProtoSchema
                     inOneof));
             }
         }
+    }
+
+    private static void AddMessage(ProtoSchema schema, ProtoMessage message)
+    {
+        if (schema.Messages.TryGetValue(message.Name, out var existing))
+        {
+            throw new InvalidOperationException(
+                $"duplicate proto message `{message.Name}`: {existing.SourcePath} and {message.SourcePath}"
+            );
+        }
+        schema.Messages[message.Name] = message;
+    }
+
+    private static void AddEnum(ProtoSchema schema, ProtoEnum protoEnum)
+    {
+        if (schema.Enums.TryGetValue(protoEnum.Name, out var existing))
+        {
+            throw new InvalidOperationException(
+                $"duplicate proto enum `{protoEnum.Name}`: {existing.SourcePath} and {protoEnum.SourcePath}"
+            );
+        }
+        schema.Enums[protoEnum.Name] = protoEnum;
     }
 }
 
@@ -159,6 +181,12 @@ static class TextUtil
         {
             Directory.CreateDirectory(dir);
         }
-        File.WriteAllText(path, text.Replace("\r\n", "\n"), new UTF8Encoding(false));
+        File.WriteAllText(path, StripTrailingWhitespace(text), new UTF8Encoding(false));
+    }
+
+    private static string StripTrailingWhitespace(string text)
+    {
+        string normalized = text.Replace("\r\n", "\n");
+        return string.Join("\n", normalized.Split('\n').Select(line => line.TrimEnd()));
     }
 }

@@ -14,7 +14,16 @@ function Install-FwHooks {
     $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $HookRoot = Join-Path $FwRoot "hooks"
     if ((Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
-        & git -C $FwRoot config core.hooksPath hooks | Out-Null
+        $PreviousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            & git -C $FwRoot config core.hooksPath hooks 2>$null | Out-Null
+        }
+        catch {
+        }
+        finally {
+            $ErrorActionPreference = $PreviousErrorActionPreference
+        }
     }
 }
 

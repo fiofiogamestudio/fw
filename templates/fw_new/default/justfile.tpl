@@ -22,6 +22,9 @@ config_check:
 config_pack:
     powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" config_pack
 
+check:
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\gen.ps1" check
+
 build:
     powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ".\\fw\\tools\\build.ps1"
 

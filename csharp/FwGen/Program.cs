@@ -34,6 +34,9 @@ static class FwGen
                 case "config_pack":
                     ConfigGen.Pack(root, config);
                     break;
+                case "check":
+                    FwCheck.Run(root, config);
+                    break;
                 case "craft":
                     Craft.Run(root, config, options.Command.Skip(1).ToArray(), options);
                     break;

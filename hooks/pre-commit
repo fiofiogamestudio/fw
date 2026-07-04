@@ -20,12 +20,13 @@ sync_file "$host_root/.codex/skills/fw/SKILL.md" \
     "$template_root/.codex/skills/fw/SKILL.md.tpl"
 
 if [ -d "$host_root/docs/fw" ]; then
-    for name in rule spec use; do
-        sync_file "$host_root/docs/fw/$name.md" "$fw_root/docs/$name.md"
-        sync_file "$host_root/docs/fw/$name.md" "$template_root/docs/fw/$name.md.tpl"
-    done
+    sync_file "$host_root/docs/fw/rule.md" "$fw_root/docs/rule.md"
+    sync_file "$host_root/docs/fw/rule.md" "$template_root/docs/fw/rule.md.tpl"
+
+    # spec/use describe the current host structure and commands. Keep fw/docs in
+    # sync, but do not overwrite the default template's own spec/use.
+    sync_file "$host_root/docs/fw/spec.md" "$fw_root/docs/spec.md"
+    sync_file "$host_root/docs/fw/use.md" "$fw_root/docs/use.md"
 else
-    for name in rule spec use; do
-        sync_file "$fw_root/docs/$name.md" "$template_root/docs/fw/$name.md.tpl"
-    done
+    sync_file "$fw_root/docs/rule.md" "$template_root/docs/fw/rule.md.tpl"
 fi

@@ -65,8 +65,12 @@ func ui_root() -> Node:
 	return _root.ui_root()
 
 
-func pool_manager() -> Variant:
-	return _root.pool_manager()
+func pool() -> Variant:
+	return _root.pool()
+
+
+func asset() -> Variant:
+	return _root.asset()
 
 
 func ui() -> Variant:

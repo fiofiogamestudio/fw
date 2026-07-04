@@ -194,7 +194,9 @@ static class BridgeGen
             var eventKey = ClassNameForEvent(variant.Type);
             text.AppendLine();
             text.AppendLine($"\t\tfunc on_{variant.Name}(cb: Callable) -> void:");
-            text.AppendLine($"\t\t\t_callbacks[\"{eventKey}\"] = cb");
+            text.AppendLine($"\t\t\tvar callbacks: Array = _callbacks.get(\"{eventKey}\", [])");
+            text.AppendLine("\t\t\tcallbacks.append(cb)");
+            text.AppendLine($"\t\t\t_callbacks[\"{eventKey}\"] = callbacks");
         }
         text.AppendLine();
         text.AppendLine("\t\tfunc dispatch(events: Array) -> void:");
@@ -203,15 +205,18 @@ static class BridgeGen
         text.AppendLine();
         text.AppendLine("\t\tfunc dispatch_one(raw: Dictionary) -> void:");
         text.AppendLine("\t\t\tvar ev_type: String = str(raw.get(\"type\", \"\"))");
-        text.AppendLine("\t\t\tvar cb: Callable = _callbacks.get(ev_type, Callable())");
-        text.AppendLine("\t\t\tif not cb.is_valid():");
+        text.AppendLine("\t\t\tvar callbacks: Array = _callbacks.get(ev_type, [])");
+        text.AppendLine("\t\t\tif callbacks.is_empty():");
         text.AppendLine("\t\t\t\treturn");
         text.AppendLine("\t\t\tmatch ev_type:");
         foreach (var variant in eventRoot.Fields.Where(item => item.IsOneof))
         {
             var eventKey = ClassNameForEvent(variant.Type);
             text.AppendLine($"\t\t\t\t\"{eventKey}\":");
-            text.AppendLine($"\t\t\t\t\tcb.call({eventKey}.wrap(raw))");
+            text.AppendLine($"\t\t\t\t\tvar ev = {eventKey}.wrap(raw)");
+            text.AppendLine("\t\t\t\t\tfor cb in callbacks:");
+            text.AppendLine("\t\t\t\t\t\tif cb.is_valid():");
+            text.AppendLine("\t\t\t\t\t\t\tcb.call(ev)");
         }
         text.AppendLine("\t\t\t\t_:");
         text.AppendLine("\t\t\t\t\tpass");
@@ -337,16 +342,40 @@ static class BridgeGen
         text.AppendLine();
         text.AppendLine("public static class BridgeCodec");
         text.AppendLine("{");
+        text.AppendLine("    public const int ProtocolVersion = 1;");
+        text.AppendLine();
         text.AppendLine("    public static GdDictionary Packet(string type)");
         text.AppendLine("    {");
         text.AppendLine("        var packet = new GdDictionary();");
         text.AppendLine("        packet[BridgeField.Type] = type;");
+        text.AppendLine("        packet[BridgeField.ProtocolVersion] = ProtocolVersion;");
+        text.AppendLine("        packet[BridgeField.SessionToken] = \"\";");
         text.AppendLine("        return packet;");
         text.AppendLine("    }");
         text.AppendLine();
         text.AppendLine("    public static string ReadType(GdDictionary packet)");
         text.AppendLine("    {");
         text.AppendLine("        return ReadString(packet, BridgeField.Type);");
+        text.AppendLine("    }");
+        text.AppendLine();
+        text.AppendLine("    public static int ReadProtocolVersion(GdDictionary packet)");
+        text.AppendLine("    {");
+        text.AppendLine("        return (int)ReadLong(packet, BridgeField.ProtocolVersion, 0);");
+        text.AppendLine("    }");
+        text.AppendLine();
+        text.AppendLine("    public static bool IsProtocolSupported(GdDictionary packet)");
+        text.AppendLine("    {");
+        text.AppendLine("        return ReadProtocolVersion(packet) == ProtocolVersion;");
+        text.AppendLine("    }");
+        text.AppendLine();
+        text.AppendLine("    public static string ReadSessionToken(GdDictionary packet)");
+        text.AppendLine("    {");
+        text.AppendLine("        return ReadString(packet, BridgeField.SessionToken);");
+        text.AppendLine("    }");
+        text.AppendLine();
+        text.AppendLine("    public static void SetSessionToken(GdDictionary packet, string sessionToken)");
+        text.AppendLine("    {");
+        text.AppendLine("        packet[BridgeField.SessionToken] = sessionToken;");
         text.AppendLine("    }");
         text.AppendLine();
         text.AppendLine("    public static string ReadString(GdDictionary packet, string field)");
@@ -619,7 +648,7 @@ static class BridgeGen
         text.AppendLine("    private static bool TryPayload(GdDictionary packet, string type, string field, out GdDictionary payload)");
         text.AppendLine("    {");
         text.AppendLine("        payload = new GdDictionary();");
-        text.AppendLine("        if (BridgeCodec.ReadType(packet) != type)");
+        text.AppendLine("        if (!BridgeCodec.IsProtocolSupported(packet) || BridgeCodec.ReadType(packet) != type)");
         text.AppendLine("        {");
         text.AppendLine("            return false;");
         text.AppendLine("        }");
@@ -703,7 +732,7 @@ static class BridgeGen
             return [];
         }
         return packet.Fields
-            .Where(field => field.Name != "type")
+            .Where(field => field.IsOneof)
             .ToArray();
     }
 

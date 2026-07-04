@@ -27,6 +27,7 @@ message IntentPacket {
 
 message JoinAcceptPacket {
   PlayerId player_id = 1;
+  string session_token = 2;
 }
 
 message MapInfoPacket {
@@ -55,18 +56,23 @@ message MidViewPacket {
   MidView view = 1;
 }
 
-// Runtime packets are Godot dictionaries. type stores one of the generated PacketType string constants.
+// Runtime packets are Godot dictionaries.
+// type stores one of the generated PacketType string constants.
+// protocol_version rejects old/new clients before payload parsing.
+// session_token binds post-join UDP packets to the accepted peer.
 message Packet {
   string type = 1;
+  uint32 protocol_version = 2;
+  string session_token = 3;
   oneof payload {
-    JoinPacket join = 2;
-    IntentPacket intent = 3;
-    JoinAcceptPacket join_accept = 4;
-    MapInfoPacket map_info = 5;
-    MapChunksPacket map_chunks = 6;
-    MapChunkPacket map_chunk = 7;
-    SyncFramePacket sync_frame = 8;
-    HighViewPacket high_view = 9;
-    MidViewPacket mid_view = 10;
+    JoinPacket join = 10;
+    IntentPacket intent = 11;
+    JoinAcceptPacket join_accept = 12;
+    MapInfoPacket map_info = 13;
+    MapChunksPacket map_chunks = 14;
+    MapChunkPacket map_chunk = 15;
+    SyncFramePacket sync_frame = 16;
+    HighViewPacket high_view = 17;
+    MidViewPacket mid_view = 18;
   }
 }

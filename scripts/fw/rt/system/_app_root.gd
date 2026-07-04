@@ -1,11 +1,13 @@
 class_name AppRoot
 extends Node
 
-const PoolManagerScript = preload("../pool/_pool_manager.gd")
+const FPoolScript = preload("../pool/_pool.gd")
+const FAssetScript = preload("../_asset.gd")
 const FUIScript = preload("../../vu/ui/_ui.gd")
 
 var _mode_host: Node
-var _pool_manager: RefCounted
+var _pool: RefCounted
+var _asset: RefCounted
 var _ui_root: CanvasLayer
 var _ui: RefCounted
 var _active_mode: Variant = null
@@ -16,8 +18,9 @@ func _ready() -> void:
 	_mode_host.name = "ModeHost"
 	add_child(_mode_host)
 
-	_pool_manager = PoolManagerScript.new()
-	_pool_manager.setup(_mode_host)
+	_pool = FPoolScript.new()
+	_pool.setup(_mode_host)
+	_asset = FAssetScript.new()
 
 	_ui_root = CanvasLayer.new()
 	_ui_root.name = "UIRoot"
@@ -48,7 +51,7 @@ func switch_mode(mode: Variant, context: Variant = null) -> Variant:
 		_active_mode.exit()
 		_active_mode = null
 	_ui.close_all()
-	_pool_manager.flush()
+	_pool.flush()
 	for child in _mode_host.get_children():
 		child.queue_free()
 
@@ -61,8 +64,12 @@ func mode_host() -> Node:
 	return _mode_host
 
 
-func pool_manager() -> Variant:
-	return _pool_manager
+func pool() -> Variant:
+	return _pool
+
+
+func asset() -> Variant:
+	return _asset
 
 
 func ui_root() -> CanvasLayer:

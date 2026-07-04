@@ -5,9 +5,14 @@ using GdDictionary = Godot.Collections.Dictionary;
 
 namespace __PROJECT_NAME__.Bridge;
 
-public partial class GameBridge : RefCounted
+public partial class game_bridge : Node
 {
     private readonly GameCore _core = new();
+
+    public void close()
+    {
+        _core.Shutdown();
+    }
 
     public void tick(GdArray intents)
     {
@@ -28,5 +33,10 @@ public partial class GameBridge : RefCounted
     {
         _ = playerId;
         return new GdArray();
+    }
+
+    public override void _ExitTree()
+    {
+        close();
     }
 }

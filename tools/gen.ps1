@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("system", "bridge", "config", "config_check", "config_pack")]
+    [ValidateSet("system", "bridge", "config", "config_check", "config_pack", "check")]
     [string]$Command,
 
     [string]$ProjectRoot = "",
@@ -21,7 +21,16 @@ function Install-FwHooks {
     $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
     $HookRoot = Join-Path $FwRoot "hooks"
     if ((Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
-        & git -C $FwRoot config core.hooksPath hooks | Out-Null
+        $PreviousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = "Continue"
+            & git -C $FwRoot config core.hooksPath hooks 2>$null | Out-Null
+        }
+        catch {
+        }
+        finally {
+            $ErrorActionPreference = $PreviousErrorActionPreference
+        }
     }
 }
 

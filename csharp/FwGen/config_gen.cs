@@ -580,14 +580,32 @@ static func _clone_all(entries: Array) -> Array:
 
     private static void RenderConfigPaths(StringBuilder text, IEnumerable<ConfigRoot> roots)
     {
+        var orderedRoots = roots.OrderBy(item => item.Name, StringComparer.Ordinal).ToArray();
+
         text.AppendLine("public static class ConfigPath");
         text.AppendLine("{");
-        foreach (var root in roots.OrderBy(item => item.Name, StringComparer.Ordinal))
+        foreach (var root in orderedRoots)
         {
             var name = Pascal(root.Name);
             text.AppendLine($"    public const string {name}Source = \"{EscapeCs(root.SourcePath)}\";");
             text.AppendLine($"    public const string {name}Pack = \"{EscapeCs(root.PackPath)}\";");
         }
+        text.AppendLine();
+        text.AppendLine("    public static IReadOnlyList<string> AllSourcePaths { get; } = new[]");
+        text.AppendLine("    {");
+        foreach (var root in orderedRoots)
+        {
+            text.AppendLine($"        {Pascal(root.Name)}Source,");
+        }
+        text.AppendLine("    };");
+        text.AppendLine();
+        text.AppendLine("    public static IReadOnlyList<string> AllPackPaths { get; } = new[]");
+        text.AppendLine("    {");
+        foreach (var root in orderedRoots)
+        {
+            text.AppendLine($"        {Pascal(root.Name)}Pack,");
+        }
+        text.AppendLine("    };");
         text.AppendLine("}");
     }
 

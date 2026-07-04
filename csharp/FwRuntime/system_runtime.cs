@@ -15,6 +15,7 @@ public sealed class SystemRuntime
     private readonly List<Entry> _entries = [];
     private readonly Dictionary<string, Entry> _entriesById = new(StringComparer.Ordinal);
     private readonly List<string> _phaseOrder = [];
+    private List<Entry>? _orderedEntries;
 
     public IReadOnlyList<string> PhaseOrder => new ReadOnlyCollection<string>(_phaseOrder);
 
@@ -30,6 +31,7 @@ public sealed class SystemRuntime
             }
             _phaseOrder.Add(phase);
         }
+        _orderedEntries = null;
     }
 
     public void Add<TContext>(string id, ISystem<TContext> system, TContext context, string phase = "")
@@ -57,6 +59,7 @@ public sealed class SystemRuntime
         );
         _entries.Add(entry);
         _entriesById[id] = entry;
+        _orderedEntries = null;
     }
 
     public bool Has(string id)
@@ -88,18 +91,6 @@ public sealed class SystemRuntime
         }
     }
 
-    public void TickPhase(string phase, float dt)
-    {
-        foreach (var entry in OrderedEntries())
-        {
-            if (entry.Phase != phase)
-            {
-                continue;
-            }
-            entry.Tick(dt);
-        }
-    }
-
     public void ShutdownAll()
     {
         var ordered = OrderedEntries();
@@ -110,13 +101,20 @@ public sealed class SystemRuntime
         _entries.Clear();
         _entriesById.Clear();
         _phaseOrder.Clear();
+        _orderedEntries = null;
     }
 
-    private List<Entry> OrderedEntries()
+    private IReadOnlyList<Entry> OrderedEntries()
     {
+        if (_orderedEntries != null)
+        {
+            return _orderedEntries;
+        }
+
         if (_phaseOrder.Count == 0)
         {
-            return [.. _entries];
+            _orderedEntries = [.. _entries];
+            return _orderedEntries;
         }
 
         var ordered = new List<Entry>();
@@ -142,7 +140,8 @@ public sealed class SystemRuntime
             }
             ordered.Add(entry);
         }
-        return ordered;
+        _orderedEntries = ordered;
+        return _orderedEntries;
     }
 
     private sealed record Entry(

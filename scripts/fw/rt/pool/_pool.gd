@@ -1,4 +1,4 @@
-class_name PoolManager
+class_name FPool
 extends RefCounted
 
 var _prefabs: Dictionary = {}
@@ -11,17 +11,27 @@ func setup(default_parent: Node) -> void:
 
 
 func register_prefab(key: String, packed_scene: PackedScene, warmup: int = 0) -> void:
+	if packed_scene == null:
+		push_error("FPool cannot register empty prefab for key: %s" % key)
+		return
+
+	if _prefabs.has(key) and _prefabs[key] != packed_scene:
+		_flush_bucket(key)
+
 	_prefabs[key] = packed_scene
 	if not _free.has(key):
 		_free[key] = []
-	for _i in range(warmup):
-		var node := _instantiate(key)
-		_free[key].append(node)
+
+	var bucket: Array = _free[key]
+	var target_count: int = max(warmup, 0)
+	while bucket.size() < target_count:
+		bucket.append(_instantiate(key))
+	_free[key] = bucket
 
 
 func spawn(key: String, parent: Node = null) -> Node:
 	if not _prefabs.has(key):
-		push_error("PoolManager missing prefab for key: %s" % key)
+		push_error("FPool missing prefab for key: %s" % key)
 		return null
 
 	var bucket: Array = _free.get(key, [])
@@ -66,6 +76,7 @@ func flush(key: String = "") -> void:
 	for bucket_key in _free.keys():
 		_flush_bucket(String(bucket_key))
 	_free.clear()
+	_prefabs.clear()
 
 
 func _instantiate(key: String) -> Node:

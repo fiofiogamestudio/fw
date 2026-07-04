@@ -1,4 +1,4 @@
-class_name AssetLoader
+class_name FAsset
 extends RefCounted
 
 var _cache: Dictionary = {}
