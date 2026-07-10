@@ -263,8 +263,8 @@ static class BridgeGen
         block.AppendLine();
         block.AppendLine("\tvar _raw: Dictionary = {}");
         block.AppendLine();
-        block.AppendLine($"\tstatic func wrap(raw: Dictionary):");
-        block.AppendLine($"\t\tvar obj := {className}.new()");
+        block.AppendLine($"\tstatic func wrap(raw: Dictionary) -> {className}:");
+        block.AppendLine($"\t\tvar obj: {className} = {className}.new()");
         block.AppendLine("\t\tobj._raw = raw");
         block.AppendLine("\t\treturn obj");
         block.AppendLine();
