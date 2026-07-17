@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 
 static class FwCheck
 {
@@ -54,7 +55,6 @@ static class FwCheck
         "res://prefabs/ui",
         "prefabs/ui",
         "res://scenes/main.tscn",
-        "res://scenes/battle_env.tscn",
         "csharp/core/authority",
         "csharp/core/run",
         "csharp/core/domain",
@@ -87,12 +87,17 @@ static class FwCheck
         public void Run()
         {
             CheckFwToml();
+            CheckProjectGodot();
+            CheckToolchain();
             CheckRequiredLayout();
+            CheckSchemas();
             CheckForbiddenDirs();
             CheckRoleDirs();
             CheckPrefabRoleScripts();
             CheckGeneratedFiles();
+            CheckGeneratedManifest();
             CheckFileSuffixes();
+            CheckCSharpBridgeEntries();
             CheckForbiddenReferences();
 
             foreach (string warning in _warnings)
@@ -112,6 +117,69 @@ static class FwCheck
             Console.WriteLine("fw check passed.");
         }
 
+        private void CheckGeneratedManifest()
+        {
+            try
+            {
+                GenerationManifest.Verify(_root, _config);
+            }
+            catch (Exception ex)
+            {
+                Error(ex.Message);
+            }
+        }
+
+        private void CheckSchemas()
+        {
+            try
+            {
+                string systems = _config.SystemsSchemaPath(_root);
+                if (File.Exists(systems))
+                {
+                    SystemSchemaParser.Parse(_root, systems);
+                }
+            }
+            catch (Exception ex)
+            {
+                Error($"invalid system schema: {ex.Message}");
+            }
+
+            CheckBridgeSchema(_config.BridgeSchemaDir(_root));
+            CheckProtoSchema(_config.ConfigSchemaDir(_root), "config");
+        }
+
+        private void CheckBridgeSchema(string dir)
+        {
+            try
+            {
+                var schema = ProtoSchema.ParseFiles(BridgeGen.SchemaFiles(dir));
+                if (string.IsNullOrWhiteSpace(schema.Package))
+                {
+                    Error("bridge schema must declare one shared package");
+                }
+            }
+            catch (Exception ex)
+            {
+                Error($"invalid bridge schema: {ex.Message}");
+            }
+        }
+
+        private void CheckProtoSchema(string dir, string label)
+        {
+            if (!Directory.Exists(dir))
+            {
+                return;
+            }
+            try
+            {
+                ProtoSchema.ParseFiles(Directory.GetFiles(dir, "*.proto").OrderBy(item => item, StringComparer.Ordinal));
+            }
+            catch (Exception ex)
+            {
+                Error($"invalid {label} schema: {ex.Message}");
+            }
+        }
+
         private void CheckFwToml()
         {
             RequireFile(Path.Combine(_root, "fw.toml"), "fw.toml");
@@ -128,15 +196,159 @@ static class FwCheck
             RequireConfigValue("script", "csharp");
             RequireConfigValue("dotnet", "game");
             RequireConfigValue("dotnet", "fwgen");
+            try
+            {
+                Craft.ValidateProjectName(_config.ProjectName());
+            }
+            catch (Exception ex)
+            {
+                Error($"invalid [project].name: {ex.Message}");
+            }
+        }
 
-            ForbidConfigValue("schema", "systems", "use [schema].system");
-            ForbidConfigValue("schema", "data_config", "use [data].config");
-            ForbidConfigValue("gen", "data", "use [pack].config");
-            ForbidConfigValue("path._gen", "config", "use [pack].config");
-            ForbidConfigValue("dotnet", "generator", "use [dotnet].fwgen");
-            ForbidConfigValue("build", "csharp", "use [dotnet].game");
-            ForbidConfigValue("build", "generator", "use [dotnet].fwgen");
-            ForbidConfigValue("generator", "project", "use [dotnet].fwgen");
+        private void CheckProjectGodot()
+        {
+            string path = Path.Combine(_root, "project.godot");
+            RequireFile(path, "project.godot");
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            string text = File.ReadAllText(path, Encoding.UTF8);
+            var match = System.Text.RegularExpressions.Regex.Match(
+                text,
+                "(?m)^\\s*project/assembly_name\\s*=\\s*\"([^\"]+)\"\\s*$"
+            );
+            if (!match.Success)
+            {
+                Error("project.godot must define [dotnet] project/assembly_name");
+                return;
+            }
+
+            string expected = _config.ProjectName();
+            string actual = match.Groups[1].Value;
+            if (!string.Equals(actual, expected, StringComparison.Ordinal))
+            {
+                Error($"project.godot assembly name `{actual}` must match [project].name `{expected}`");
+            }
+        }
+
+        private void CheckToolchain()
+        {
+            string globalPath = Path.Combine(_root, "global.json");
+            string propsPath = Path.Combine(_root, "Directory.Build.props");
+            string gameProject = _config.CSharpProjectPath(_root);
+            string generatorProject = _config.GeneratorProjectPath(_root);
+            RequireFile(globalPath, "global.json");
+            RequireFile(propsPath, "Directory.Build.props");
+            RequireFile(gameProject, "[dotnet].game");
+            RequireFile(generatorProject, "[dotnet].fwgen");
+
+            string pinnedGodotSdk = "";
+
+            if (File.Exists(globalPath))
+            {
+                try
+                {
+                    using JsonDocument document = JsonDocument.Parse(File.ReadAllText(globalPath, Encoding.UTF8));
+                    JsonElement root = document.RootElement;
+                    bool hasSdk = root.TryGetProperty("sdk", out JsonElement sdk)
+                        && sdk.TryGetProperty("version", out JsonElement sdkVersion)
+                        && !string.IsNullOrWhiteSpace(sdkVersion.GetString());
+                    string? godotSdk = null;
+                    if (
+                        root.TryGetProperty("msbuild-sdks", out JsonElement sdks)
+                        && sdks.TryGetProperty("Godot.NET.Sdk", out JsonElement godotVersion)
+                    )
+                    {
+                        godotSdk = godotVersion.GetString();
+                    }
+                    bool hasGodot = !string.IsNullOrWhiteSpace(godotSdk);
+                    pinnedGodotSdk = godotSdk ?? "";
+                    if (!hasSdk || !hasGodot)
+                    {
+                        Error("global.json must pin sdk.version and msbuild-sdks/Godot.NET.Sdk");
+                    }
+                }
+                catch (Exception ex) when (ex is JsonException or IOException)
+                {
+                    Error($"invalid global.json: {ex.Message}");
+                }
+            }
+
+            string targetFramework = "";
+            if (File.Exists(propsPath))
+            {
+                string props = File.ReadAllText(propsPath, Encoding.UTF8);
+                var targetMatch = System.Text.RegularExpressions.Regex.Match(
+                    props,
+                    "<TargetFramework>\\s*([^<]+?)\\s*</TargetFramework>"
+                );
+                if (!targetMatch.Success)
+                {
+                    Error("Directory.Build.props must define TargetFramework");
+                }
+                else
+                {
+                    targetFramework = targetMatch.Groups[1].Value;
+                }
+            }
+
+            if (File.Exists(gameProject))
+            {
+                string project = File.ReadAllText(gameProject, Encoding.UTF8);
+                var sdkMatch = System.Text.RegularExpressions.Regex.Match(
+                    project,
+                    "<Project\\b[^>]*\\bSdk=[\"']Godot\\.NET\\.Sdk(?:/([^\"']+))?[\"']"
+                );
+                if (!sdkMatch.Success)
+                {
+                    Error($"{Rel(gameProject)} must use Godot.NET.Sdk");
+                }
+                else if (
+                    sdkMatch.Groups[1].Success
+                    && pinnedGodotSdk.Length > 0
+                    && !string.Equals(sdkMatch.Groups[1].Value, pinnedGodotSdk, StringComparison.Ordinal)
+                )
+                {
+                    Error($"{Rel(gameProject)} Godot.NET.Sdk must match global.json ({pinnedGodotSdk})");
+                }
+
+                var projectTargetMatch = System.Text.RegularExpressions.Regex.Match(
+                    project,
+                    "<TargetFramework>\\s*([^<]+?)\\s*</TargetFramework>"
+                );
+                if (
+                    projectTargetMatch.Success
+                    && targetFramework.Length > 0
+                    && !string.Equals(projectTargetMatch.Groups[1].Value, targetFramework, StringComparison.Ordinal)
+                )
+                {
+                    Error($"{Rel(gameProject)} TargetFramework must match Directory.Build.props ({targetFramework})");
+                }
+            }
+
+            string? generatorDir = Path.GetDirectoryName(generatorProject);
+            string? frameworkCSharpDir = generatorDir == null ? null : Directory.GetParent(generatorDir)?.FullName;
+            string frameworkPropsPath = frameworkCSharpDir == null
+                ? ""
+                : Path.Combine(frameworkCSharpDir, "Directory.Build.props");
+            if (frameworkPropsPath.Length > 0 && File.Exists(frameworkPropsPath) && targetFramework.Length > 0)
+            {
+                string frameworkProps = File.ReadAllText(frameworkPropsPath, Encoding.UTF8);
+                var frameworkTargetMatch = System.Text.RegularExpressions.Regex.Match(
+                    frameworkProps,
+                    "<TargetFramework>\\s*([^<]+?)\\s*</TargetFramework>"
+                );
+                if (
+                    !frameworkTargetMatch.Success
+                    || !string.Equals(frameworkTargetMatch.Groups[1].Value, targetFramework, StringComparison.Ordinal)
+                )
+                {
+                    Error($"{Rel(frameworkPropsPath)} TargetFramework must match Directory.Build.props ({targetFramework})");
+                }
+            }
         }
 
         private void CheckRequiredLayout()
@@ -159,17 +371,12 @@ static class FwCheck
             RequireDir(Path.Combine(csharpRoot, "bridge"), "csharp/bridge");
             RequireDir(Path.Combine(csharpRoot, "core"), "csharp/core");
             RequireDir(Path.Combine(csharpRoot, "core", "system"), "csharp/core/system");
-            RequireDir(Path.Combine(csharpRoot, "core", "state"), "csharp/core/state");
-            RequireDir(Path.Combine(csharpRoot, "core", "rules"), "csharp/core/rules");
-            RequireDir(Path.Combine(csharpRoot, "core", "config"), "csharp/core/config");
-            RequireDir(Path.Combine(csharpRoot, "core", "const"), "csharp/core/const");
         }
 
         private void CheckForbiddenDirs()
         {
             ForbidPath("prefabs/ui", "use prefabs/form or prefabs/widget");
             ForbidPath("scenes/main.tscn", "use scenes/app/main.tscn");
-            ForbidPath("scenes/battle_env.tscn", "use scenes/env/battle_env.tscn");
             ForbidPath("scripts/gen", "use scripts/_gen");
             ForbidPath("csharp/gen", "use csharp/_gen");
             ForbidPath("csharp/core/authority", "use csharp/core");
@@ -214,7 +421,7 @@ static class FwCheck
                 return;
             }
 
-            foreach (string file in Directory.GetFiles(dir, "*.tscn", SearchOption.TopDirectoryOnly))
+            foreach (string file in Directory.GetFiles(dir, "*.tscn", SearchOption.AllDirectories))
             {
                 string? scriptPath = ReadRootScriptPath(file);
                 if (scriptPath == null)
@@ -363,6 +570,35 @@ static class FwCheck
             }
         }
 
+        private void CheckCSharpBridgeEntries()
+        {
+            string csharpRoot = _config.PathValue(_root, "script", "csharp", "csharp");
+            string bridgeDir = Path.Combine(csharpRoot, "bridge");
+            if (!Directory.Exists(bridgeDir))
+            {
+                return;
+            }
+
+            foreach (string file in Directory.GetFiles(bridgeDir, "*_bridge.cs", SearchOption.TopDirectoryOnly))
+            {
+                string expected = Path.GetFileNameWithoutExtension(file);
+                string text = File.ReadAllText(file, Encoding.UTF8);
+                var match = System.Text.RegularExpressions.Regex.Match(
+                    text,
+                    @"\bpublic\s+(?:sealed\s+)?partial\s+class\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:Godot\.)?Node\b"
+                );
+                if (!match.Success)
+                {
+                    Error($"{Rel(file)} must expose one public partial Godot.Node bridge entry");
+                    continue;
+                }
+                if (!string.Equals(match.Groups[1].Value, expected, StringComparison.Ordinal))
+                {
+                    Error($"{Rel(file)} class `{match.Groups[1].Value}` must exactly match filename `{expected}`");
+                }
+            }
+        }
+
         private void CheckForbiddenReferences()
         {
             var roots = new List<string>
@@ -483,14 +719,11 @@ static class FwCheck
             if (!_config.HasValue(section, key))
             {
                 Error($"fw.toml missing [{section}].{key}");
+                return;
             }
-        }
-
-        private void ForbidConfigValue(string section, string key, string hint)
-        {
-            if (_config.HasValue(section, key))
+            if (string.IsNullOrWhiteSpace(_config.Value(section, key, "")))
             {
-                Error($"fw.toml [{section}].{key} is deprecated; {hint}");
+                Error($"fw.toml [{section}].{key} cannot be empty");
             }
         }
 

@@ -15,18 +15,23 @@ static class FwGen
             var root = Path.GetFullPath(options.Root);
             var config = FwConfig.Load(root);
             var command = options.Command[0];
+            using var generationLock = GenerationLock.Acquire(root);
 
             switch (command)
             {
                 case "system":
-                    SystemGen.Generate(root, config);
-                    CoreSystemGen.Generate(root, config);
+                    var systemSchema = SystemSchemaParser.Parse(root, config.SystemsSchemaPath(root));
+                    SystemGen.Generate(root, config, systemSchema.Godot);
+                    CoreSystemGen.Generate(root, config, systemSchema.Core);
+                    GenerationManifest.UpdateSystem(root, config);
                     break;
                 case "bridge":
                     BridgeGen.Generate(root, config);
+                    GenerationManifest.UpdateBridge(root, config);
                     break;
                 case "config":
                     ConfigGen.Generate(root, config);
+                    GenerationManifest.UpdateConfig(root, config);
                     break;
                 case "config_check":
                     ConfigGen.Check(root, config);

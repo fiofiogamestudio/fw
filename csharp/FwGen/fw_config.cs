@@ -3,6 +3,18 @@ using System.Text.RegularExpressions;
 
 sealed class FwConfig
 {
+    private static readonly IReadOnlyDictionary<string, HashSet<string>> AllowedKeys =
+        new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
+        {
+            ["project"] = new(StringComparer.Ordinal) { "name" },
+            ["schema"] = new(StringComparer.Ordinal) { "system", "bridge", "config" },
+            ["gen"] = new(StringComparer.Ordinal) { "gdscript", "csharp" },
+            ["data"] = new(StringComparer.Ordinal) { "config" },
+            ["pack"] = new(StringComparer.Ordinal) { "config" },
+            ["script"] = new(StringComparer.Ordinal) { "gdscript", "csharp" },
+            ["dotnet"] = new(StringComparer.Ordinal) { "game", "fwgen" },
+        };
+
     private readonly Dictionary<string, Dictionary<string, string>> _sections;
 
     private FwConfig(Dictionary<string, Dictionary<string, string>> sections)
@@ -26,7 +38,19 @@ sealed class FwConfig
 
     public string PathValue(string root, string section, string key, string fallback)
     {
-        return Path.GetFullPath(Path.Combine(root, Value(section, key, fallback)));
+        var fullRoot = Path.GetFullPath(root);
+        var path = Path.GetFullPath(Path.Combine(fullRoot, Value(section, key, fallback)));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        var rootPrefix = fullRoot.EndsWith(Path.DirectorySeparatorChar)
+            || fullRoot.EndsWith(Path.AltDirectorySeparatorChar)
+            ? fullRoot
+            : fullRoot + Path.DirectorySeparatorChar;
+        if (!path.Equals(fullRoot, comparison)
+            && !path.StartsWith(rootPrefix, comparison))
+        {
+            throw new InvalidOperationException($"fw.toml [{section}].{key} escapes project root: {Value(section, key, fallback)}");
+        }
+        return path;
     }
 
     public string ProjectName()
@@ -36,78 +60,37 @@ sealed class FwConfig
 
     public string CSharpProjectPath(string root)
     {
-        var fallback = Value("csharp", "project", $"{ProjectName()}.csproj");
-        fallback = Value("build", "csharp", fallback);
-        return PathValue(root, "dotnet", "game", fallback);
+        return PathValue(root, "dotnet", "game", $"{ProjectName()}.csproj");
     }
 
     public string GeneratorProjectPath(string root)
     {
-        var fallback = Value("generator", "project", "fw/csharp/FwGen/FwGen.csproj");
-        fallback = Value("build", "generator", fallback);
-        fallback = Value("dotnet", "generator", fallback);
-        return PathValue(root, "dotnet", "fwgen", fallback);
+        return PathValue(root, "dotnet", "fwgen", "fw/csharp/FwGen/FwGen.csproj");
     }
 
     public string BridgeSchemaDir(string root)
     {
-        var fallback = Value("path", "bridge_schema", Path.Combine(SchemaRoot(), "bridge"));
-        return PathValue(root, "schema", "bridge", fallback);
+        return PathValue(root, "schema", "bridge", "schema/bridge");
     }
 
     public string ConfigSchemaDir(string root)
     {
-        var fallback = Value("path", "config_schema", Path.Combine(SchemaRoot(), "config"));
-        return PathValue(root, "schema", "config", fallback);
+        return PathValue(root, "schema", "config", "schema/config");
     }
 
     public string ConfigDataDir(string root)
     {
-        if (HasValue("schema", "data_config"))
-        {
-            return PathValue(root, "schema", "data_config", "data/config");
-        }
-        var fallback = Value("path", "config_data", Path.Combine(DataRoot(), "config"));
-        return PathValue(root, "data", "config", fallback);
+        return PathValue(root, "data", "config", "data/config");
     }
 
     public string SystemsSchemaPath(string root)
     {
-        var fallback = Value("path", "systems", Path.Combine(SchemaRoot(), "systems.toml"));
-        fallback = Value("schema", "systems", fallback);
-        return PathValue(root, "schema", "system", fallback);
-    }
-
-    public string GodotSystemSchemaPath(string root)
-    {
-        var systemsPath = SystemsSchemaPath(root);
-        if (File.Exists(systemsPath) || HasValue("schema", "systems"))
-        {
-            return systemsPath;
-        }
-        return PathValue(root, "schema", "system", Path.Combine(SchemaRoot(), "system.toml"));
-    }
-
-    public string CoreSystemSchemaPath(string root)
-    {
-        if (HasValue("schema", "core_system"))
-        {
-            return PathValue(root, "schema", "core_system", Path.Combine(SchemaRoot(), "core_system.toml"));
-        }
-
-        var systemsPath = SystemsSchemaPath(root);
-        if (File.Exists(systemsPath) || HasValue("schema", "systems") || HasValue("schema", "system") || HasValue("path", "systems"))
-        {
-            return systemsPath;
-        }
-        return PathValue(root, "schema", "core_system", Path.Combine(SchemaRoot(), "core_system.toml"));
+        return PathValue(root, "schema", "system", "schema/systems.toml");
     }
 
     public string GodotGenDir(string root)
     {
-        var fallback = PathValue(root, "gen", "gd_dir", Path.Combine(GodotRoot(), "_gen"));
-        fallback = Path.GetFullPath(Path.Combine(root, Value("path._gen", "gdscript", Path.GetRelativePath(root, fallback))));
-        return PathValue(root, "gen", "gdscript", Path.GetRelativePath(root, fallback));
+        return PathValue(root, "gen", "gdscript", "scripts/_gen");
     }
 
     public string GodotSystemsGdPath(string root)
@@ -122,23 +105,7 @@ sealed class FwConfig
 
     public string ConfigPackDir(string root)
     {
-        if (HasValue("pack", "config"))
-        {
-            return PathValue(root, "pack", "config", "pack/config");
-        }
-
-        if (HasValue("gen", "data"))
-        {
-            var genData = PathValue(root, "gen", "data", Path.Combine(DataRoot(), "_gen"));
-            return Path.GetFullPath(Path.Combine(genData, "config"));
-        }
-
-        if (HasValue("path._gen", "config"))
-        {
-            return PathValue(root, "path._gen", "config", Path.Combine(DataRoot(), "_gen", "config"));
-        }
-
-        return Path.GetFullPath(Path.Combine(root, "pack", "config"));
+        return PathValue(root, "pack", "config", "pack/config");
     }
 
     public string CoreSystemsCsPath(string root)
@@ -181,6 +148,11 @@ sealed class FwConfig
         return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_config_codec.cs"));
     }
 
+    public string GenerationManifestPath(string root)
+    {
+        return Path.GetFullPath(Path.Combine(CSharpGenRoot(root), "_fwgen_manifest.json"));
+    }
+
     public static FwConfig Load(string root)
     {
         var path = Path.Combine(root, "fw.toml");
@@ -191,9 +163,11 @@ sealed class FwConfig
         }
 
         var section = "";
-        foreach (var rawLine in File.ReadAllLines(path, Encoding.UTF8))
+        var lines = File.ReadAllLines(path, Encoding.UTF8);
+        for (var index = 0; index < lines.Length; index++)
         {
-            var line = StripComment(rawLine).Trim();
+            var lineNo = index + 1;
+            var line = StripComment(lines[index]).Trim();
             if (line.Length == 0)
             {
                 continue;
@@ -203,14 +177,30 @@ sealed class FwConfig
             if (sectionMatch.Success)
             {
                 section = sectionMatch.Groups[1].Value.Trim();
-                sections.TryAdd(section, new Dictionary<string, string>(StringComparer.Ordinal));
+                if (!AllowedKeys.ContainsKey(section))
+                {
+                    throw new InvalidOperationException($"{path}:{lineNo} unsupported fw.toml section [{section}]");
+                }
+                if (!sections.TryAdd(section, new Dictionary<string, string>(StringComparer.Ordinal)))
+                {
+                    throw new InvalidOperationException($"{path}:{lineNo} duplicate fw.toml section [{section}]");
+                }
                 continue;
             }
 
             var valueMatch = Regex.Match(line, @"^([A-Za-z0-9_]+)\s*=\s*""(.*)""$");
-            if (valueMatch.Success && section.Length > 0)
+            if (!valueMatch.Success || section.Length == 0)
             {
-                sections[section][valueMatch.Groups[1].Value] = valueMatch.Groups[2].Value;
+                throw new InvalidOperationException($"{path}:{lineNo} expected `key = \"value\"` under a known section");
+            }
+            var key = valueMatch.Groups[1].Value;
+            if (!AllowedKeys[section].Contains(key))
+            {
+                throw new InvalidOperationException($"{path}:{lineNo} unsupported fw.toml key [{section}].{key}");
+            }
+            if (!sections[section].TryAdd(key, valueMatch.Groups[2].Value))
+            {
+                throw new InvalidOperationException($"{path}:{lineNo} duplicate fw.toml key [{section}].{key}");
             }
         }
 
@@ -234,30 +224,8 @@ sealed class FwConfig
         return line;
     }
 
-    private string SchemaRoot()
-    {
-        return Value("path", "schema", Value("layout", "schema", "schema"));
-    }
-
-    private string DataRoot()
-    {
-        return Value("path", "data", Value("layout", "data", "data"));
-    }
-
-    private string GodotRoot()
-    {
-        return Value("script", "gdscript", Value("path", "gdscript", Value("path", "godot", Value("layout", "godot", "scripts"))));
-    }
-
-    private string CSharpRoot()
-    {
-        return Value("script", "csharp", Value("path", "csharp", Value("layout", "csharp", "csharp")));
-    }
-
     private string CSharpGenRoot(string root)
     {
-        var fallback = Path.Combine(CSharpRoot(), "_gen");
-        fallback = Value("path._gen", "csharp", fallback);
-        return PathValue(root, "gen", "csharp", fallback);
+        return PathValue(root, "gen", "csharp", "csharp/_gen");
     }
 }

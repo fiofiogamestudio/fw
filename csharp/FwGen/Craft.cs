@@ -11,6 +11,7 @@ static class Craft
         }
 
         var name = string.IsNullOrWhiteSpace(options.Name) ? config.Value("project", "name", "Game") : options.Name;
+        ValidateProjectName(name);
         var templateRoot = Path.Combine(root, "fw", "templates", "fw_new", "default");
         if (!Directory.Exists(templateRoot))
         {
@@ -19,15 +20,24 @@ static class Craft
 
         CopyTemplate(templateRoot, root, name, options.Force);
         var nextConfig = FwConfig.Load(root);
-        SystemGen.Generate(root, nextConfig);
-        CoreSystemGen.Generate(root, nextConfig);
+        var systemSchema = SystemSchemaParser.Parse(root, nextConfig.SystemsSchemaPath(root));
+        SystemGen.Generate(root, nextConfig, systemSchema.Godot);
+        CoreSystemGen.Generate(root, nextConfig, systemSchema.Core);
+        GenerationManifest.UpdateSystem(root, nextConfig);
         BridgeGen.Generate(root, nextConfig);
+        GenerationManifest.UpdateBridge(root, nextConfig);
         ConfigGen.Generate(root, nextConfig);
+        GenerationManifest.UpdateConfig(root, nextConfig);
+        ConfigGen.Check(root, nextConfig);
+        FwCheck.Run(root, nextConfig);
         Console.WriteLine($"created fw project scaffold: {root}");
     }
 
     private static void CopyTemplate(string templateRoot, string outputRoot, string projectName, bool force)
     {
+        var fullOutputRoot = Path.GetFullPath(outputRoot);
+        var outputPrefix = fullOutputRoot + Path.DirectorySeparatorChar;
+        var projectNamespace = TextUtil.PascalName(projectName);
         foreach (var source in Directory.GetFiles(templateRoot, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(templateRoot, source);
@@ -40,7 +50,11 @@ static class Craft
                 ? relative[..^".tpl".Length]
                 : relative;
             targetRelative = targetRelative.Replace("__PROJECT_NAME__", projectName, StringComparison.Ordinal);
-            var target = Path.Combine(outputRoot, targetRelative);
+            var target = Path.GetFullPath(Path.Combine(fullOutputRoot, targetRelative));
+            if (!target.StartsWith(outputPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"template target escapes project root: {targetRelative}");
+            }
 
             if (File.Exists(target) && !force)
             {
@@ -48,9 +62,21 @@ static class Craft
             }
 
             var text = File.ReadAllText(source, Encoding.UTF8)
+                .Replace("__PROJECT_NAMESPACE__", projectNamespace, StringComparison.Ordinal)
+                .Replace("__PROJECT_NAME_PASCAL__", projectNamespace, StringComparison.Ordinal)
                 .Replace("__PROJECT_NAME__", projectName, StringComparison.Ordinal)
                 .Replace("__LIB_NAME__", Slug(projectName), StringComparison.Ordinal);
             TextUtil.WriteText(target, text);
+        }
+    }
+
+    internal static void ValidateProjectName(string value)
+    {
+        if (!Regex.IsMatch(value, @"^[A-Za-z][A-Za-z0-9_]*$"))
+        {
+            throw new InvalidOperationException(
+                $"project name `{value}` must start with a letter and use only letters, digits and underscores"
+            );
         }
     }
 

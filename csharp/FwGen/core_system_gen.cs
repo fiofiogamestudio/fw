@@ -2,136 +2,15 @@ using System.Text;
 
 static class CoreSystemGen
 {
-    private sealed record CoreSystemSchema(List<string> PhaseOrder, List<CoreSystemNode> Systems);
-    private sealed record CoreSystemNode(string Id, string Phase, string Type);
-
-    public static void Generate(string root, FwConfig config)
+    public static void Generate(string root, FwConfig config, RuntimeSystemSchema schema)
     {
-        var schemaPath = config.CoreSystemSchemaPath(root);
-        if (!File.Exists(schemaPath))
-        {
-            return;
-        }
-
         var output = config.CoreSystemsCsPath(root);
-        var schema = Parse(schemaPath, "core");
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
         TextUtil.WriteText(output, Render(schema, rootNamespace));
         Console.WriteLine($"generated core systems: {output}");
     }
 
-    private static CoreSystemSchema Parse(string path, string runtime)
-    {
-        var phaseOrder = new List<string>();
-        var systems = new List<CoreSystemNode>();
-        var values = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
-        var section = "";
-
-        var lines = RuntimeLines(File.ReadAllLines(path, Encoding.UTF8), runtime);
-        for (var index = 0; index < lines.Length; index++)
-        {
-            var lineNo = index + 1;
-            var line = StripComment(lines[index]).Trim();
-            if (line.Length == 0)
-            {
-                continue;
-            }
-
-            if (line.StartsWith('[') && line.EndsWith(']'))
-            {
-                section = line.Trim('[', ']').Trim();
-                if (section.Length == 0)
-                {
-                    throw new InvalidOperationException($"{path}:{lineNo} section cannot be empty");
-                }
-                values.TryAdd(section, new Dictionary<string, string>(StringComparer.Ordinal));
-                continue;
-            }
-
-            var parts = line.Split('=', 2);
-            if (parts.Length != 2 || section.Length == 0)
-            {
-                throw new InvalidOperationException($"{path}:{lineNo} expected `field = \"value\"` under a section");
-            }
-
-            var field = parts[0].Trim();
-            var value = parts[1].Trim();
-            if (section == "phases" && field == "order")
-            {
-                phaseOrder = ParseQuotedList(value, path, lineNo);
-                continue;
-            }
-
-            values[section][field] = ParseQuotedRaw(value, path, lineNo);
-        }
-
-        foreach (var (id, fields) in values)
-        {
-            if (id == "phases")
-            {
-                continue;
-            }
-            if (!fields.TryGetValue("phase", out var phase) || phase.Length == 0)
-            {
-                throw new InvalidOperationException($"{path}: core system `{id}` needs phase");
-            }
-            if (!fields.TryGetValue("type", out var type) || type.Length == 0)
-            {
-                throw new InvalidOperationException($"{path}: core system `{id}` needs type");
-            }
-            systems.Add(new CoreSystemNode(id, phase, type));
-        }
-
-        if (systems.Count == 0)
-        {
-            throw new InvalidOperationException($"{path}: core system schema is empty");
-        }
-        return new CoreSystemSchema(phaseOrder, systems);
-    }
-
-    private static string[] RuntimeLines(string[] lines, string runtime)
-    {
-        var prefix = runtime + ".";
-        var hasRuntimeSections = lines
-            .Select(line => StripComment(line).Trim())
-            .Any(line => line.StartsWith("[" + prefix, StringComparison.Ordinal));
-        if (!hasRuntimeSections)
-        {
-            return lines;
-        }
-
-        var output = new string[lines.Length];
-        var include = false;
-        for (var i = 0; i < lines.Length; i++)
-        {
-            var line = StripComment(lines[i]).Trim();
-            if (line.StartsWith('[') && line.EndsWith(']'))
-            {
-                var section = line.Trim('[', ']').Trim();
-                if (section == runtime + ".phases")
-                {
-                    output[i] = "[phases]";
-                    include = true;
-                }
-                else if (section.StartsWith(runtime + ".system.", StringComparison.Ordinal))
-                {
-                    output[i] = "[" + section[(runtime + ".system.").Length..] + "]";
-                    include = true;
-                }
-                else
-                {
-                    output[i] = "";
-                    include = false;
-                }
-                continue;
-            }
-
-            output[i] = include ? lines[i] : "";
-        }
-        return output;
-    }
-
-    private static string Render(CoreSystemSchema schema, string rootNamespace)
+    private static string Render(RuntimeSystemSchema schema, string rootNamespace)
     {
         var text = new StringBuilder();
         text.AppendLine("// @generated by fwgen system. Do not edit.");
@@ -145,18 +24,12 @@ static class CoreSystemGen
         {
             text.AppendLine($"    public const string Id{TextUtil.PascalName(system.Id)} = \"{system.Id}\";");
         }
-        if (schema.Systems.Count > 0)
-        {
-            text.AppendLine();
-        }
+        text.AppendLine();
         foreach (var phase in schema.PhaseOrder)
         {
             text.AppendLine($"    public const string Phase{TextUtil.PascalName(phase)} = \"{phase}\";");
         }
-        if (schema.PhaseOrder.Count > 0)
-        {
-            text.AppendLine();
-        }
+        text.AppendLine();
         text.AppendLine("    public static readonly string[] PhaseOrder =");
         text.AppendLine("    [");
         foreach (var phase in schema.PhaseOrder)
@@ -175,52 +48,5 @@ static class CoreSystemGen
         text.AppendLine("    }");
         text.AppendLine("}");
         return text.ToString();
-    }
-
-    private static string StripComment(string line)
-    {
-        var inQuote = false;
-        for (var i = 0; i < line.Length; i++)
-        {
-            if (line[i] == '"')
-            {
-                inQuote = !inQuote;
-            }
-            if (!inQuote && line[i] == '#')
-            {
-                return line[..i];
-            }
-        }
-        return line;
-    }
-
-    private static string ParseQuotedRaw(string value, string path, int lineNo)
-    {
-        if (!value.StartsWith('"') || !value.EndsWith('"') || value.Length < 2)
-        {
-            throw new InvalidOperationException($"{path}:{lineNo} value must be quoted");
-        }
-        return value[1..^1];
-    }
-
-    private static List<string> ParseQuotedList(string value, string path, int lineNo)
-    {
-        if (!value.StartsWith('[') || !value.EndsWith(']'))
-        {
-            throw new InvalidOperationException($"{path}:{lineNo} expected quoted string array");
-        }
-
-        var inner = value[1..^1].Trim();
-        if (inner.Length == 0)
-        {
-            return [];
-        }
-
-        var items = new List<string>();
-        foreach (var rawPart in inner.Split(','))
-        {
-            items.Add(ParseQuotedRaw(rawPart.Trim(), path, lineNo));
-        }
-        return items;
     }
 }

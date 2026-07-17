@@ -3,9 +3,10 @@
     <OutputType>Exe</OutputType>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FwGenTests</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
-    <InternalsVisibleTo Include="FwGenTests" />
+    <ProjectReference Include="../FwGen/FwGen.csproj" />
     <ProjectReference Include="../FwRuntime/FwRuntime.csproj" />
   </ItemGroup>
 </Project>
