@@ -4,8 +4,8 @@
 
 它提供三类能力：
 - Godot 运行时骨架：`AppRoot -> BaseMode -> SystemManager`
-- Godot UI / View 子框架：`FUI`、`FForm`、`FWidget`、`FView`、`FRefs`、`FProps`、`FBinding`、`FViewModel`
-- C# 工具链：`fw new`、`fw gen`、`fw build`
+- Godot UI / View 子框架：`FUI`、`FForm`、`FWidget`、`FViewRoot`、`FViewStore`、`FRefs`、`FProps`、`FBinding`、`FViewModel`
+- C# 工具链：`fw/tools/new.*`、`gen.*`、`build.*`、`test.*`
 
 框架维护文档在：
 - `fw/docs/rule.md`
@@ -13,7 +13,9 @@
 - `fw/docs/use.md`
 
 ## 接入前提
-- 已有 Godot 工程和 `project.godot`
+- Godot 4.6.2 .NET
+- .NET SDK 10.0.201（由 `global.json` 固定）
+- 已有 Godot 工程，或允许模板创建最小 `project.godot`
 - `fw/` 位于工程根目录
 - 游戏核心逻辑使用 Godot C# 项目承载
 
@@ -36,7 +38,7 @@ powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\fw\tools\new.ps1 -
 或：
 
 ```bash
-./fw/tools/new.sh --project-root . --name MyGame
+bash ./fw/tools/new.sh --project-root . --name MyGame
 ```
 
 生成和构建：
@@ -53,6 +55,23 @@ powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\fw\tools\new.ps1 -
 ```powershell
 just build
 ```
+
+完整验证：
+
+```powershell
+.\fw\tools\test.ps1
+```
+
+`new` 会在返回成功前完成生成、配置检查和框架检查。测试会在临时目录创建全新工程，并验证生成、篡改检测、配置打包、Release/Debug 构建、Godot 运行时和主场景启动。
+
+## Hook
+框架维护者需要时显式启用：
+
+```powershell
+git -C fw config core.hooksPath hooks
+```
+
+hook 只把 `fw/docs` 和 `fw/.codex/skills/fw` 同步到默认模板；产生差异时会中止提交等待审阅，不会读取宿主工程或自动暂存。
 
 ## 边界
 `fw/` 只承载可复用框架能力，不放当前游戏玩法。

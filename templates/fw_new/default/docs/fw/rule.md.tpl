@@ -31,10 +31,14 @@
 - system 如需写入其他 context，只能调用对方 context 暴露的明确数据入口方法，不得直接改写对方 `state` 字段。
 - system 不直接持有其他 system 本体。
 - system context 不保存 scene、camera、pool、UI、form、view 等表现层对象。
+- presentation logic 通过 context 数据入口或 intent 提交操作，不持有或调用 system 本体。
 
 ### System
 - system 使用 `id / phase / context / init / tick / shutdown`。
 - system 顺序由 phase 决定。
+- system 只有完成全部初始化后才能进入 running；初始化失败必须按逆序回滚所有已尝试 system。
+- shutdown 必须可重复调用，并在单个 system 清理失败时继续清理其余 system。
+- 非 running 状态不得 tick，也不得继续注册 system 或修改 phase。
 - system 声明事实源是 `schema/systems.toml`。
 - `schema/systems.toml` 用 `godot.*` 描述 GDScript system。
 - `schema/systems.toml` 用 `core.*` 描述 C# core system。
@@ -52,7 +56,7 @@
 - C# 分为 `bridge / core` 两层。
 - `bridge` 是边界层，只负责 Godot 调用、网络、packet、codec 和数据进出。
 - `core` 是玩法权威层，只负责 `GameCore` facade、`CoreContext`、有 phase 的 core system、state、rules、config 和 const。
-- `core` 是对外 facade，只做启动、tick、查询和边界方法。
+- `GameCore` 是对外 facade，只做启动、tick、查询和边界方法。
 - `system` 只负责有 phase 的运行阶段。
 - `context` 只保存 `refs / config / state`。
 - `rules` 只保存无状态规则函数，不持有字段，不参与 tick。
@@ -70,9 +74,14 @@
 - GDScript 不直接依赖 C# core 内部类型。
 - C# core 不依赖 Godot scene、form、view 或 GDScript system。
 - bridge 协议事实源是 `schema/bridge/*.proto`。
+- bridge schema 固定由 `value / intent / view / event / packet.proto` 五个语义文件组成，并声明同一个 package；不得增加同级私有分类文件。
 - bridge 派生的输入命令、事件和字典字段合同由生成器生成。
 - bridge 的生成合同和基础 codec 放在 `csharp/_gen`。
+- fwgen 只支持文档声明的 proto3 子集；未知语法、重复字段或未闭合结构必须直接失败，不得静默忽略。
+- proto enum 未赋值时保持 unspecified 空值，不得擅自选择第一个业务枚举；数值保持 proto3 零值。
+- intent action、event 和 packet 的 variant root 各自只能有一个 oneof group。
 - 联机 wire codec 必须能被 Godot 客户端和纯 C# DS 同时读取；不得依赖 Godot 引擎私有二进制格式作为网络协议。
+- wire frame 必须校验 magic、版本、flags、编码/解码长度和 checksum，并在解压过程中执行硬上限。
 - 联机 packet 必须校验协议版本；加入战局后的 UDP packet 必须校验会话身份。
 
 ### Config
@@ -84,6 +93,10 @@
 - 玩法参数优先配置化。
 - 生成配置文件不得作为规则事实源。
 - config 的生成合同放在 `csharp/_gen`。
+- `Fixed32` 是可选的空 marker，表示 signed Q24.8；不得给 marker 添加字段或改变 256 scale。
+- config pack 必须包含 magic、版本、schema hash、payload length 和 payload checksum，并使用原子替换写入。
+- config pack 的 C# 编解码合同只允许由纯 C# `FwRuntime.ConfigPack` 实现；生成器和生成 codec 不得各自复制格式解析。
+- 调整数据行只需 check/pack；只有 schema 或 CSV/JSON 文件布局变化才需要重新生成 config 代码。
 
 ### 表现
 - UI 使用 `form + logic + widget`。
@@ -97,12 +110,15 @@
 - `vm_builder` 是纯转换器，只负责把 core/bridge view 转成 Godot VM，可被 system 调用。
 - 表现层可以做动画、渐变和缓存，但不得改变 core 结果。
 - service 使用领域 API，不使用表现对象生命周期名；例如 FUI 使用 `open / close`，FPool 使用 `spawn / recycle / flush`，FAsset 使用 `load / unload`。
-- present object 包括 `actor / form / widget / fx`，对外统一使用 `setup / clear`，内部扩展点统一使用 `on_setup / on_clear`。
+- presentation object 包括 `actor / form / widget / fx`，对外统一使用 `setup / clear`，内部扩展点统一使用 `on_setup / on_clear`。
+- UI 打开采用事务语义：新 form 完成 setup 后才能替换旧 form；失败不得破坏现有 UI stack。
+- UI wrapper 与 form logic 的 `setup/attach` 必须先清理旧 owner，`clear/detach` 必须关闭其持有的 form；外部释放 form 后仍要修复 stack。
 - 状态型表现对象使用 `apply(vm, dt)`，包括 `actor / form / widget`。
 - 事件型表现对象使用 `play(payload)`，主要用于 `fx`。
 - `fx` 必须继承 `FFx` 或遵守同等协议，结束时通过 `finished` signal 通知持有方回收或清理。
 - 可交互表现对象使用 `action(name, payload)` 输出交互，不直接调用 core。
 - 标准 feature view 使用 `setup(root) / render(root, vm, dt) / clear(root)`，不管理对象生命周期。
+- `FViewStore` 是框架内部 refs/props/binding/VM 存储器，不是业务 `view`，不得作为 feature view 基类。
 - 自包含 visual component 可以使用更窄的 `update_*` API，但只能被上层 object/view 持有，不得读写 system context。
 - logic 只编排表现对象，不直接绕过对象协议操作 view。
 - `logic` 是表现层逻辑词，不用于 C# core 规则层。
@@ -114,8 +130,10 @@
 - GDScript `class_name` 使用 PascalCase。
 - C# 类型使用 PascalCase。
 - 被 GDScript 按路径加载的 C# 脚本入口例外：类型名必须和 `.cs` 文件名完全一致，这是 Godot C# 运行时约束。
+- GDScript 创建 C# Node 必须通过 `FCSharp.create_node()` 或同等的 `Node + set_script` 流程，不直接假设 `CSharpScript.new()` 可用。
 - 私有字段使用 `_camelCase`。
 - `fw.toml` 中的普通路径表示工程约定入口，路径名不能随意漂移。
+- `fw.toml` 只允许框架声明的 section/key；未知字段、重复字段、空值和逃出工程根目录的路径必须失败。
 - `fw.toml` 中的 `gen` 表示生成代码根路径，内容不能手改。
 - `fw.toml` 中的 `pack` 表示生成数据包路径，内容不能手改。
 - 跨 Godot / C# 的共同架构概念：`system`、`context`、`config`、`state`、`event`、`bridge`。
@@ -128,9 +146,18 @@
 - C# DS 兼容层后缀：`compat`，仅用于纯 C# DS 替代 Godot 基础类型或集合 API 的适配层。
 - Bridge / 生成后缀：`packet`、`types` 只用于 bridge schema 或 `_gen` 生成产物，手写业务文件不得使用。
 - 宿主游戏手写代码文件必须以明确角色后缀结尾；没有明确角色的文件，要么合并到已有角色里，要么先证明它是必要的新角色。
-- `fw` 内部基础设施可以使用框架角色词，例如 `root`、`manager`、`refs`、`props`、`binding`、`gen`；这些名字不得扩散到宿主游戏业务代码。
+- `fw` 内部基础设施可以使用框架角色词，例如 `root`、`manager`、`store`、`refs`、`props`、`binding`、`gen`；这些名字不得扩散到宿主游戏业务代码。
 - 领域名可以出现在文件名中，但不得伪装成新的架构角色词。
 - 名字应短而明确，避免无意义缩写和冗余后缀。
+
+### 工具链
+- 根 `global.json` 是 .NET SDK 与 `Godot.NET.Sdk` 版本事实源。
+- 根 `Directory.Build.props` 是宿主与 DS 的 `TargetFramework` 事实源；Godot 可能在游戏 `.csproj` 中显式写回同一值，两处必须一致。
+- `fw/csharp/Directory.Build.props` 必须使用与宿主相同的 `TargetFramework`，避免宿主无法引用框架运行时。
+- 框架以 Godot 支持的运行时版本为 target baseline；命令行工具可通过 `RollForward` 使用已安装的更高兼容运行时，不能反向抬高游戏程序集 target。
+- 游戏 `.csproj` 可省略 `Godot.NET.Sdk` 版本或显式写出版本；显式版本必须与 `global.json` 一致。
+- `project.godot [dotnet].project/assembly_name` 必须等于 `fw.toml [project].name`。
+- 本地和 CI 必须执行相同的 generator test、模板生成、Release/Debug 构建和 Godot headless 测试。
 
 ### 复用
 - 具体玩法留在宿主项目。
@@ -138,3 +165,4 @@
 - 同一 mode 复用后再上提到 mode shared。
 - 跨 mode 复用后再上提到 scripts shared。
 - 只有跨游戏复用能力才能进入 `fw`。
+- `fw/docs` 只描述通用框架；宿主项目文档不得反向覆盖框架文档。
