@@ -4,8 +4,12 @@ extends RefCounted
 var _context: Variant
 
 
-func init(context: Variant) -> void:
+func init(context: Variant) -> bool:
+	if context == null:
+		push_error("System requires a valid context.")
+		return false
 	_context = context
+	return true
 
 
 func tick(_dt: float) -> void:
@@ -13,4 +17,4 @@ func tick(_dt: float) -> void:
 
 
 func shutdown() -> void:
-	pass
+	_context = null

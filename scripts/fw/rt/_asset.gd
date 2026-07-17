@@ -6,7 +6,11 @@ var _cache: Dictionary = {}
 
 func load(path: String) -> Resource:
 	if not _cache.has(path):
-		_cache[path] = ResourceLoader.load(path)
+		var resource: Resource = ResourceLoader.load(path)
+		if resource == null:
+			push_error("FAsset failed to load resource: %s" % path)
+			return null
+		_cache[path] = resource
 	return _cache[path]
 
 

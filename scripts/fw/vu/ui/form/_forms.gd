@@ -8,9 +8,20 @@ var _ui: Variant = null
 
 
 func setup(host: CanvasLayer) -> void:
+	clear()
+	if host == null or not is_instance_valid(host):
+		push_error("FForms requires a valid CanvasLayer host.")
+		return
 	_host = host
 	_ui = FUIScript.new()
 	_ui.setup(host)
+
+
+func clear() -> void:
+	if _ui:
+		_ui.clear()
+	_ui = null
+	_host = null
 
 
 func open(

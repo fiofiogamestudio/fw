@@ -13,10 +13,16 @@ var _ui_event: Variant
 
 
 func setup(context: Variant = null, props: Dictionary = {}) -> void:
+	if is_setup():
+		return
 	_context = context
 	_ui_event = FUIEventScript.new()
-	super.setup(self, props)
+	if not _begin_setup(self, props):
+		_ui_event = null
+		_context = null
+		return
 	_setup_child_widgets(self)
+	_finish_setup()
 
 
 func tick(_dt: float) -> void:
@@ -24,12 +30,13 @@ func tick(_dt: float) -> void:
 
 
 func clear() -> void:
+	if not _begin_clear():
+		return
 	_shutdown_child_widgets(self)
-	clear_bindings()
 	if _ui_event:
 		_ui_event.clear()
 	_ui_event = null
-	super.clear()
+	_finish_clear()
 	_form_id = &""
 	_layer = &""
 	_ui = null

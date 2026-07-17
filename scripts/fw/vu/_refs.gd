@@ -37,12 +37,13 @@ func set_ref(key: StringName, raw_path: Variant) -> void:
 
 func get_ref(key: StringName) -> Node:
 	if _cache.has(key):
-		var cached: Node = _cache[key]
-		if is_instance_valid(cached):
+		var raw_cached: Variant = _cache[key]
+		if is_instance_valid(raw_cached) and raw_cached is Node:
+			var cached: Node = raw_cached
 			return cached
 		_cache.erase(key)
 
-	if _owner == null:
+	if _owner == null or not is_instance_valid(_owner):
 		return null
 	if not _paths.has(key):
 		return null

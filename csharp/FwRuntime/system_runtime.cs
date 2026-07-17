@@ -10,17 +10,31 @@ public interface ISystem<TContext>
     void Shutdown();
 }
 
+public enum SystemRuntimeState
+{
+    Created,
+    Initializing,
+    Running,
+    Faulted,
+    Stopping,
+    Stopped,
+}
+
 public sealed class SystemRuntime
 {
     private readonly List<Entry> _entries = [];
     private readonly Dictionary<string, Entry> _entriesById = new(StringComparer.Ordinal);
+    private readonly List<Entry> _initializedEntries = [];
     private readonly List<string> _phaseOrder = [];
     private List<Entry>? _orderedEntries;
 
     public IReadOnlyList<string> PhaseOrder => new ReadOnlyCollection<string>(_phaseOrder);
+    public SystemRuntimeState State { get; private set; } = SystemRuntimeState.Created;
+    public bool IsRunning => State == SystemRuntimeState.Running;
 
     public void SetPhaseOrder(IEnumerable<string> order)
     {
+        EnsureConfigurable();
         _phaseOrder.Clear();
         foreach (var rawPhase in order)
         {
@@ -37,6 +51,7 @@ public sealed class SystemRuntime
     public void Add<TContext>(string id, ISystem<TContext> system, TContext context, string phase = "")
         where TContext : class
     {
+        EnsureConfigurable();
         if (string.IsNullOrWhiteSpace(id))
         {
             throw new ArgumentException("System id cannot be empty.", nameof(id));
@@ -77,27 +92,97 @@ public sealed class SystemRuntime
 
     public void InitAll()
     {
-        foreach (var entry in OrderedEntries())
+        if (State != SystemRuntimeState.Created)
         {
-            entry.Init();
+            throw new InvalidOperationException($"System runtime cannot initialize from state {State}.");
+        }
+
+        State = SystemRuntimeState.Initializing;
+        try
+        {
+            foreach (var entry in OrderedEntries())
+            {
+                _initializedEntries.Add(entry);
+                entry.Init();
+            }
+            State = SystemRuntimeState.Running;
+        }
+        catch (Exception initError)
+        {
+            State = SystemRuntimeState.Faulted;
+            var errors = new List<Exception> { initError };
+            ShutdownInitialized(errors);
+            ClearRegistration();
+            State = SystemRuntimeState.Stopped;
+            throw new AggregateException("System runtime initialization failed and was rolled back.", errors);
         }
     }
 
     public void Tick(float dt)
     {
-        foreach (var entry in OrderedEntries())
+        if (State != SystemRuntimeState.Running)
         {
-            entry.Tick(dt);
+            throw new InvalidOperationException($"System runtime cannot tick from state {State}.");
+        }
+
+        try
+        {
+            foreach (var entry in OrderedEntries())
+            {
+                entry.Tick(dt);
+            }
+        }
+        catch
+        {
+            State = SystemRuntimeState.Faulted;
+            throw;
         }
     }
 
     public void ShutdownAll()
     {
-        var ordered = OrderedEntries();
-        for (var i = ordered.Count - 1; i >= 0; i--)
+        if (State == SystemRuntimeState.Stopped || State == SystemRuntimeState.Stopping)
         {
-            ordered[i].Shutdown();
+            return;
         }
+
+        State = SystemRuntimeState.Stopping;
+        var errors = new List<Exception>();
+        ShutdownInitialized(errors);
+        ClearRegistration();
+        State = SystemRuntimeState.Stopped;
+        if (errors.Count > 0)
+        {
+            throw new AggregateException("One or more systems failed to shut down.", errors);
+        }
+    }
+
+    private void EnsureConfigurable()
+    {
+        if (State != SystemRuntimeState.Created)
+        {
+            throw new InvalidOperationException($"System runtime cannot be configured from state {State}.");
+        }
+    }
+
+    private void ShutdownInitialized(List<Exception> errors)
+    {
+        for (var i = _initializedEntries.Count - 1; i >= 0; i--)
+        {
+            try
+            {
+                _initializedEntries[i].Shutdown();
+            }
+            catch (Exception shutdownError)
+            {
+                errors.Add(shutdownError);
+            }
+        }
+        _initializedEntries.Clear();
+    }
+
+    private void ClearRegistration()
+    {
         _entries.Clear();
         _entriesById.Clear();
         _phaseOrder.Clear();

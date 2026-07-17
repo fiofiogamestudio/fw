@@ -11,10 +11,14 @@ var _view_model: Variant = null
 
 
 func attach_ui(ui: Variant) -> void:
+	if _ui == ui:
+		return
+	close()
 	_ui = ui
 
 
 func detach_ui() -> void:
+	close()
 	_ui = null
 
 
@@ -39,13 +43,19 @@ func close() -> void:
 	if _binding:
 		_binding.unbind()
 		_binding = null
-	if _ui and _form:
+	if _ui and _form and is_instance_valid(_form):
 		_ui.close(_form.form_id())
 	_form = null
 	_view_model = null
 
 
 func form() -> Variant:
+	if _form != null and not is_instance_valid(_form):
+		if _binding:
+			_binding.unbind()
+		_binding = null
+		_form = null
+		_view_model = null
 	return _form
 
 
@@ -54,51 +64,59 @@ func binding() -> Variant:
 
 
 func ui_event() -> Variant:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		return null
-	return _form.ui_event()
+	return active_form.ui_event()
 
 
 func require_node(path: NodePath) -> Node:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		push_error("FFormLogic has no active form.")
 		return null
-	return _form.require_node(path)
+	return active_form.require_node(path)
 
 
 func get_ref(key: StringName) -> Node:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		push_error("FFormLogic has no active form.")
 		return null
-	return _form.get_ref(key)
+	return active_form.get_ref(key)
 
 
 func require_ref(key: StringName, expected_type: Variant = null) -> Node:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		push_error("FFormLogic has no active form.")
 		return null
-	return _form.require_ref(key, expected_type)
+	return active_form.require_ref(key, expected_type)
 
 
 func has_prop(key: StringName) -> bool:
-	return _form != null and _form.has_prop(key)
+	var active_form: Variant = form()
+	return active_form != null and active_form.has_prop(key)
 
 
 func get_prop(key: StringName, fallback: Variant = null) -> Variant:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		return fallback
-	return _form.get_prop(key, fallback)
+	return active_form.get_prop(key, fallback)
 
 
 func apply_props(props: Dictionary) -> void:
-	if _form:
-		_form.apply_props(props)
+	var active_form: Variant = form()
+	if active_form:
+		active_form.apply_props(props)
 
 
 func resolved_props() -> Dictionary:
-	if _form == null:
+	var active_form: Variant = form()
+	if active_form == null:
 		return {}
-	return _form.resolved_props()
+	return active_form.resolved_props()
 
 
 func bind_signal(emitter: Object, signal_name: StringName, callable: Callable, flags: int = 0) -> void:

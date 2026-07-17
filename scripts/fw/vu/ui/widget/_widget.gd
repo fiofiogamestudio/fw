@@ -2,7 +2,7 @@
 class_name FWidget
 extends Control
 
-const FViewScript = preload("res://fw/scripts/fw/vu/_view.gd")
+const FViewStoreScript = preload("res://fw/scripts/fw/vu/_view_store.gd")
 
 @export var refs: Dictionary[String, NodePath] = {}
 @export var props: Dictionary[String, Variant] = {}
@@ -15,23 +15,48 @@ signal action(name: StringName, payload: Dictionary)
 
 
 func setup(owner: Variant = null, props: Dictionary = {}) -> void:
-	if _is_ready:
+	if not _begin_setup(owner, props):
 		return
+	_finish_setup()
+
+
+func _begin_setup(owner: Variant, overrides: Dictionary) -> bool:
+	if _is_ready:
+		return false
 	_owner_form = owner
-	_view = FViewScript.new()
-	_view.setup(self, refs, self.props, props)
+	_view = FViewStoreScript.new()
+	_view.setup(self, refs, self.props, overrides)
 	_is_ready = true
+	return true
+
+
+func _finish_setup() -> void:
 	on_setup()
 
 
 func clear() -> void:
-	if _is_ready:
-		on_clear()
+	if not _begin_clear():
+		return
+	_finish_clear()
+
+
+func _begin_clear() -> bool:
+	if not _is_ready:
+		return false
+	on_clear()
+	return true
+
+
+func _finish_clear() -> void:
 	_is_ready = false
 	if _view:
 		_view.clear()
 	_view = null
 	_owner_form = null
+
+
+func is_setup() -> bool:
+	return _is_ready
 
 
 func on_setup() -> void:

@@ -1,4 +1,4 @@
-class_name FView
+class_name FViewStore
 extends RefCounted
 
 const FBindingScript = preload("res://fw/scripts/fw/vu/_binding.gd")
@@ -81,7 +81,7 @@ func get_ref(key: StringName) -> Node:
 
 func require_ref(key: StringName, expected_type: Variant = null) -> Node:
 	if _refs == null:
-		push_error("FView refs are not ready.")
+		push_error("FViewStore refs are not ready.")
 		return null
 	return _refs.require_ref(key, expected_type)
 
@@ -118,13 +118,17 @@ func view_model() -> Variant:
 
 func require_node(path: NodePath) -> Node:
 	if _node_cache.has(path):
-		return _node_cache[path]
-	if _owner == null:
-		push_error("FView owner is not ready.")
+		var raw_cached: Variant = _node_cache[path]
+		if is_instance_valid(raw_cached) and raw_cached is Node:
+			var cached: Node = raw_cached
+			return cached
+		_node_cache.erase(path)
+	if _owner == null or not is_instance_valid(_owner):
+		push_error("FViewStore owner is not ready.")
 		return null
 	var node: Node = _owner.get_node_or_null(path)
 	if node == null:
-		push_error("FView missing required node: %s" % String(path))
+		push_error("FViewStore missing required node: %s" % String(path))
 		return null
 	_node_cache[path] = node
 	return node

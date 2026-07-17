@@ -2,7 +2,7 @@
 class_name FViewRoot
 extends Node3D
 
-const FViewScript = preload("res://fw/scripts/fw/vu/_view.gd")
+const FViewStoreScript = preload("res://fw/scripts/fw/vu/_view_store.gd")
 
 @export var refs: Dictionary[String, NodePath] = {}
 @export var props: Dictionary[String, Variant] = {}
@@ -148,5 +148,5 @@ func require_node(path: NodePath) -> Node:
 func _ensure_view() -> void:
 	if _view != null:
 		return
-	_view = FViewScript.new()
+	_view = FViewStoreScript.new()
 	_view.setup(self, refs, props)
