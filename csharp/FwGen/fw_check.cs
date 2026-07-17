@@ -152,7 +152,7 @@ static class FwCheck
         {
             try
             {
-                var schema = ProtoSchema.ParseFiles(BridgeGen.SchemaFiles(dir));
+                var schema = ProtoSchema.ParseFiles(BridgeSchema.SchemaFiles(dir));
                 if (string.IsNullOrWhiteSpace(schema.Package))
                 {
                     Error("bridge schema must declare one shared package");

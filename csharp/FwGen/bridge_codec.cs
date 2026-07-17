@@ -1,7 +1,16 @@
 using System.Text;
+using static BridgeSchema;
 
-static partial class BridgeGen
+static class BridgeCodec
 {
+    internal static void Write(string root, FwConfig config, ProtoSchema schema)
+    {
+        GenerateCodecCs(root, config);
+        GenerateIntentCodecCs(root, config, schema);
+        GenerateEventCodecCs(root, config, schema);
+        GeneratePacketCodecCs(root, config, schema);
+    }
+
     private static void GenerateCodecCs(string root, FwConfig config)
     {
         var output = config.BridgeCodecCsPath(root);
@@ -624,5 +633,13 @@ static partial class BridgeGen
         text.AppendLine("        }");
         text.AppendLine("        return data;");
         text.AppendLine("    }");
+    }
+
+    private static void DeleteLegacyFile(string path)
+    {
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
     }
 }

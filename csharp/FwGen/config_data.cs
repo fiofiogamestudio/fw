@@ -1,12 +1,12 @@
 using Fw.Rt.Config;
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using static ConfigSchema;
 
-static partial class ConfigGen
+static class ConfigData
 {
-    public static void Check(string root, FwConfig config)
+    internal static void Check(string root, FwConfig config)
     {
         var schemaDir = config.ConfigSchemaDir(root);
         var dataDir = config.ConfigDataDir(root);
@@ -19,8 +19,7 @@ static partial class ConfigGen
             throw new DirectoryNotFoundException($"config data dir not found: {dataDir}");
         }
 
-        var schema = ProtoSchema.ParseFiles(Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal));
-        ValidateFixed32(schema);
+        var schema = Read(schemaDir);
         var roots = schema.Messages.Values
             .Where(item => item.Name.EndsWith("Config", StringComparison.Ordinal))
             .OrderBy(item => item.Name, StringComparer.Ordinal)
@@ -60,7 +59,7 @@ static partial class ConfigGen
         Console.WriteLine($"config check ok: {schemaDir}, {dataDir}");
     }
 
-    public static void Pack(string root, FwConfig config)
+    internal static void Pack(string root, FwConfig config)
     {
         Check(root, config);
         var schemaDir = config.ConfigSchemaDir(root);
@@ -75,9 +74,8 @@ static partial class ConfigGen
             throw new DirectoryNotFoundException($"config data dir not found: {dataDir}");
         }
 
-        var schema = ProtoSchema.ParseFiles(Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal));
-        ValidateFixed32(schema);
-        var schemaHash = Convert.FromHexString(SchemaHash(schemaDir));
+        var schema = Read(schemaDir);
+        var schemaHash = Convert.FromHexString(Hash(schemaDir));
         var roots = schema.Messages.Values
             .Where(item => item.Name.EndsWith("Config", StringComparison.Ordinal))
             .Where(item => item.Name != "GameConfig" || HasConfigData(dataDir, "game"))
@@ -370,14 +368,6 @@ static partial class ConfigGen
         return (int)scaled;
     }
 
-    private static void ValidateFixed32(ProtoSchema schema)
-    {
-        if (schema.Messages.TryGetValue("Fixed32", out var marker) && marker.Fields.Count != 0)
-        {
-            throw new InvalidOperationException("Fixed32 is a reserved empty marker for signed Q24.8 config values");
-        }
-    }
-
     private static void WriteConfigPack(string output, object entries, byte[] schemaHash)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(output) ?? ".");
@@ -397,19 +387,6 @@ static partial class ConfigGen
                 File.Delete(temp);
             }
         }
-    }
-
-    private static string SchemaHash(string schemaDir)
-    {
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var path in Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal))
-        {
-            var relative = Path.GetRelativePath(schemaDir, path).Replace('\\', '/');
-            var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n").Replace('\r', '\n');
-            hash.AppendData(Encoding.UTF8.GetBytes(relative + "\n"));
-            hash.AppendData(Encoding.UTF8.GetBytes(text));
-        }
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
 
     private static void CheckConfigData(string dataDir, ProtoMessage message)

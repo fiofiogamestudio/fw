@@ -1,7 +1,17 @@
 using System.Text;
 
-static partial class BridgeGen
+static class BridgeSchema
 {
+    internal static ProtoSchema Read(string schemaDir)
+    {
+        var schema = ProtoSchema.ParseFiles(SchemaFiles(schemaDir));
+        if (string.IsNullOrWhiteSpace(schema.Package))
+        {
+            throw new InvalidOperationException("bridge schema must declare one shared package");
+        }
+        return schema;
+    }
+
     internal static string[] SchemaFiles(string schemaDir)
     {
         var names = new[] { "value.proto", "intent.proto", "view.proto", "event.proto", "packet.proto" };
@@ -25,21 +35,21 @@ static partial class BridgeGen
         return files;
     }
 
-    private static string ClassNameForEvent(string messageType)
+    internal static string ClassNameForEvent(string messageType)
     {
         return messageType.EndsWith("Event", StringComparison.Ordinal)
             ? messageType[..^"Event".Length]
             : messageType;
     }
 
-    private static string ClassNameForView(string messageType)
+    internal static string ClassNameForView(string messageType)
     {
         return messageType.EndsWith("View", StringComparison.Ordinal)
             ? messageType[..^"View".Length]
             : messageType;
     }
 
-    private static ProtoMessage[] MessagesInFile(ProtoSchema schema, string fileName)
+    internal static ProtoMessage[] MessagesInFile(ProtoSchema schema, string fileName)
     {
         return schema.Messages.Values
             .Where(item => Path.GetFileName(item.SourcePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
@@ -47,7 +57,7 @@ static partial class BridgeGen
             .ToArray();
     }
 
-    private static ProtoEnum[] EnumsInFile(ProtoSchema schema, string fileName)
+    internal static ProtoEnum[] EnumsInFile(ProtoSchema schema, string fileName)
     {
         return schema.Enums.Values
             .Where(item => Path.GetFileName(item.SourcePath).Equals(fileName, StringComparison.OrdinalIgnoreCase))
@@ -55,7 +65,7 @@ static partial class BridgeGen
             .ToArray();
     }
 
-    private static ProtoMessage? FindIntentRoot(ProtoSchema schema)
+    internal static ProtoMessage? FindIntentRoot(ProtoSchema schema)
     {
         var messages = MessagesInFile(schema, "intent.proto");
         if (messages.Length == 0)
@@ -79,7 +89,7 @@ static partial class BridgeGen
         throw new InvalidOperationException("intent.proto must expose exactly one unreferenced root message");
     }
 
-    private static ProtoMessage? FindActionRoot(ProtoSchema schema)
+    internal static ProtoMessage? FindActionRoot(ProtoSchema schema)
     {
         var intentRoot = FindIntentRoot(schema);
         if (intentRoot == null)
@@ -101,7 +111,7 @@ static partial class BridgeGen
         return root;
     }
 
-    private static ProtoMessage? FindOneofRoot(ProtoSchema schema, string fileName)
+    internal static ProtoMessage? FindOneofRoot(ProtoSchema schema, string fileName)
     {
         var roots = MessagesInFile(schema, fileName)
             .Where(message => message.Fields.Any(field => field.IsOneof))
@@ -116,7 +126,7 @@ static partial class BridgeGen
         return root;
     }
 
-    private static void ValidateOneofGroup(ProtoMessage? root, string label)
+    internal static void ValidateOneofGroup(ProtoMessage? root, string label)
     {
         if (root == null)
         {
@@ -132,7 +142,7 @@ static partial class BridgeGen
         }
     }
 
-    private static ProtoEnum? FindButtonEnum(ProtoSchema schema)
+    internal static ProtoEnum? FindButtonEnum(ProtoSchema schema)
     {
         var candidates = EnumsInFile(schema, "intent.proto")
             .Where(item => item.Name.EndsWith("Button", StringComparison.Ordinal))
@@ -145,7 +155,7 @@ static partial class BridgeGen
         };
     }
 
-    private static ProtoEnum? FindPacketEnum(ProtoSchema schema)
+    internal static ProtoEnum? FindPacketEnum(ProtoSchema schema)
     {
         var candidates = EnumsInFile(schema, "packet.proto");
         var preferred = candidates.Where(item => item.Name == "PacketType").ToArray();
@@ -161,7 +171,7 @@ static partial class BridgeGen
         };
     }
 
-    private static ProtoField[] VariantFields(ProtoSchema schema, ProtoMessage root)
+    internal static ProtoField[] VariantFields(ProtoSchema schema, ProtoMessage root)
     {
         var fields = root.Fields.Where(item => item.IsOneof)
             .SelectMany(variant => schema.Messages.TryGetValue(variant.Type, out var message) ? message.Fields : [])
@@ -197,13 +207,13 @@ static partial class BridgeGen
         return fields;
     }
 
-    private static string RuntimeEventType(ProtoMessage eventRoot)
+    internal static string RuntimeEventType(ProtoMessage eventRoot)
     {
         _ = eventRoot;
         return "CoreEvent";
     }
 
-    private static string EnumTail(string value)
+    internal static string EnumTail(string value)
     {
         var parts = value.Split('_', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length <= 2)
@@ -213,7 +223,7 @@ static partial class BridgeGen
         return string.Join("_", parts.Skip(2)).ToLowerInvariant();
     }
 
-    private static string Pascal(string value)
+    internal static string Pascal(string value)
     {
         var text = new StringBuilder();
         foreach (var part in value.Split('_', StringSplitOptions.RemoveEmptyEntries))
@@ -227,7 +237,7 @@ static partial class BridgeGen
         return text.Length == 0 ? "Value" : text.ToString();
     }
 
-    private static string Camel(string value)
+    internal static string Camel(string value)
     {
         var pascal = Pascal(value);
         return pascal.Length == 0
@@ -235,13 +245,13 @@ static partial class BridgeGen
             : char.ToLowerInvariant(pascal[0]) + pascal[1..];
     }
 
-    private static string GdConstName(string value)
+    internal static string GdConstName(string value)
     {
         return string.Join("_", value.Split('_', StringSplitOptions.RemoveEmptyEntries))
             .ToUpperInvariant();
     }
 
-    private static string CsCoreType(ProtoSchema schema, string type, bool repeated)
+    internal static string CsCoreType(ProtoSchema schema, string type, bool repeated)
     {
         var itemType = type switch
         {
@@ -260,7 +270,7 @@ static partial class BridgeGen
         return repeated ? $"List<{itemType}>" : itemType;
     }
 
-    private static string CsDefaultInit(ProtoSchema schema, ProtoField field)
+    internal static string CsDefaultInit(ProtoSchema schema, ProtoField field)
     {
         if (field.IsRepeated)
         {
@@ -281,7 +291,7 @@ static partial class BridgeGen
         return "";
     }
 
-    private static string CsIntentType(ProtoSchema schema, ProtoField field)
+    internal static string CsIntentType(ProtoSchema schema, ProtoField field)
     {
         if (field.Name == "client_tick" && field.Type == "uint32")
         {
@@ -294,7 +304,7 @@ static partial class BridgeGen
         return CsCoreType(schema, field.Type, field.IsRepeated);
     }
 
-    private static string IntentPropertyName(ProtoField field)
+    internal static string IntentPropertyName(ProtoField field)
     {
         return field.Name switch
         {
@@ -305,7 +315,7 @@ static partial class BridgeGen
         };
     }
 
-    private static string GdArgType(ProtoSchema schema, ProtoField field)
+    internal static string GdArgType(ProtoSchema schema, ProtoField field)
     {
         if (field.IsRepeated) return "Array";
         return field.Type switch
@@ -320,7 +330,7 @@ static partial class BridgeGen
         };
     }
 
-    private static string GdReturnType(ProtoSchema? schema, ProtoField field, bool eventMode)
+    internal static string GdReturnType(ProtoSchema? schema, ProtoField field, bool eventMode)
     {
         if (field.IsRepeated) return "Array";
         return field.Type switch
@@ -335,7 +345,7 @@ static partial class BridgeGen
         };
     }
 
-    private static string GdGetter(ProtoSchema? schema, ProtoField field, bool eventMode)
+    internal static string GdGetter(ProtoSchema? schema, ProtoField field, bool eventMode)
     {
         if (field.IsRepeated)
         {
@@ -354,19 +364,19 @@ static partial class BridgeGen
         };
     }
 
-    private static string BridgeEnumDefault(ProtoSchema schema, string type)
+    internal static string BridgeEnumDefault(ProtoSchema schema, string type)
     {
         _ = schema;
         _ = type;
         return "\"\"";
     }
 
-    private static string BridgeEnumClass(string enumName)
+    internal static string BridgeEnumClass(string enumName)
     {
         return $"Bridge{enumName}";
     }
 
-    private static bool IsIntLike(string type)
+    internal static bool IsIntLike(string type)
     {
         return type is "int32" or "int64" or "uint32" or "uint64" or "sint32" or "sint64"
             || type.EndsWith("Id", StringComparison.Ordinal);

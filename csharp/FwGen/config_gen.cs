@@ -1,51 +1,21 @@
-using System.Text;
-
-static partial class ConfigGen
+static class ConfigGen
 {
     public static void Generate(string root, FwConfig config)
     {
-        var schemaDir = config.ConfigSchemaDir(root);
-        var schema = ProtoSchema.ParseFiles(Directory.Exists(schemaDir)
-            ? Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal)
-            : []);
-        ValidateFixed32(schema);
-        var schemaHash = SchemaHash(schemaDir);
+        var schema = ConfigSchema.Read(config.ConfigSchemaDir(root));
+        var schemaHash = ConfigSchema.Hash(config.ConfigSchemaDir(root));
 
-        GenerateCSharp(root, config, schema, schemaHash);
-        GenerateGd(root, config, schema, schemaHash);
+        ConfigCs.Write(root, config, schema, schemaHash);
+        ConfigGd.Write(root, config, schema, schemaHash);
     }
 
-    private static void GenerateCSharp(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    public static void Check(string root, FwConfig config)
     {
-        var rootNamespace = TextUtil.PascalName(config.ProjectName());
-        var roots = ConfigRoots(root, config, schema);
-
-        GenerateCSharpContract(config.ConfigContractCsPath(root), schema, rootNamespace, roots);
-        GenerateCSharpCodec(
-            config.ConfigCodecCsPath(root),
-            schema,
-            rootNamespace,
-            schemaHash);
+        ConfigData.Check(root, config);
     }
 
-    private static void GenerateGd(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    public static void Pack(string root, FwConfig config)
     {
-        var messages = schema.Messages.Values
-            .Where(item => item.Name != "Fixed32")
-            .OrderBy(item => item.Name.EndsWith("Config", StringComparison.Ordinal) ? 1 : 0)
-            .ThenBy(item => item.Name, StringComparer.Ordinal)
-            .ToArray();
-        var roots = ConfigRoots(root, config, schema);
-
-        var text = new StringBuilder();
-        text.Append(GdRuntimePrelude(schemaHash));
-        RenderGdDefaults(text, messages, schema);
-        RenderGdParsers(text, messages, schema, false);
-        RenderGdParsers(text, messages, schema, true);
-        RenderGdLoaders(text, roots, schema);
-
-        var output = config.ConfigGdPath(root);
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated config gd script: {output}");
+        ConfigData.Pack(root, config);
     }
 }

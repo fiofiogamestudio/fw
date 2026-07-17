@@ -1,8 +1,17 @@
 using System.Text;
+using static ConfigSchema;
 
-static partial class ConfigGen
+static class ConfigCs
 {
-    private static void GenerateCSharpContract(
+    internal static void Write(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    {
+        var rootNamespace = TextUtil.PascalName(config.ProjectName());
+        var roots = ConfigRoots(root, config, schema);
+        GenerateContract(config.ConfigContractCsPath(root), schema, rootNamespace, roots);
+        GenerateCodec(config.ConfigCodecCsPath(root), schema, rootNamespace, schemaHash);
+    }
+
+    private static void GenerateContract(
         string output,
         ProtoSchema schema,
         string rootNamespace,
@@ -72,7 +81,7 @@ static partial class ConfigGen
         text.AppendLine("}");
     }
 
-    private static void GenerateCSharpCodec(
+    private static void GenerateCodec(
         string output,
         ProtoSchema schema,
         string rootNamespace,

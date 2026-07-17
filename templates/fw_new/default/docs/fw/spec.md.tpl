@@ -85,7 +85,7 @@
 - 默认模板是最小但完整的 `Godot intent -> C# GameSystem -> view/event -> Godot VM` 计数器闭环，不默认塞入网络、DS 或具体世界玩法。
 
 ## 生成
-- FwGen 的公开命令仍由 `bridge_gen.cs`、`config_gen.cs` 编排；内部使用同一 partial generator 按 `gd / types / codec / schema / pack` 拆分实现，拆分文件不形成新命令或新合同。
+- `BridgeGen`、`ConfigGen` 只编排流程；`BridgeSchema`、`ConfigSchema` 解析语义模型，`BridgeGd / BridgeTypes / BridgeCodec` 与 `ConfigGd / ConfigCs / ConfigData` 单向消费模型。各阶段是独立类型，不共享 partial 私有状态，也不形成新命令或新合同。
 - 所有输出使用确定性排序；重复生成内容保持一致。
 - 单个文件先写同目录临时文件，再原子替换目标，避免留下半写文件。
 - `csharp/_gen/_fwgen_manifest.json` 记录生成器、输入和完整输出集合的 hash；`fw check` 拒绝缺失、过期、集合异常或被手改的生成产物。
@@ -93,7 +93,7 @@
 - `new` 在返回成功前自动完成生成、`config_check` 和 `fw check`。
 
 ## 测试
-- `FwGenTests` 覆盖合法/非法 proto、import/package/oneof、proto 零值、system 回滚、生成锁、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、pack runtime 解码与长度边界。
+- `FwGenTests` 按 `proto / system / bridge / config / runtime` 分组，覆盖合法/非法 proto、import/package/oneof、proto 零值、system 回滚、生成锁、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、pack runtime 解码与长度边界。
 - `tools/test.ps1`、`tools/test.sh` 会构建 runtime/generator，运行生成器测试，并在全新临时目录验证 `new -> check -> config_pack -> build`。
 - 测试会比较规范源与模板镜像，并验证重复生成、重复打包的内容完全一致。
 - 本地存在 Godot .NET 时继续执行 headless editor 扫描、编辑器改写后的二次 check/build、runtime 故障注入和主场景启动；可用 `GODOT_BIN` 显式指定可执行文件。

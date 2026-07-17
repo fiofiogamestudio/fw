@@ -1,7 +1,29 @@
 using System.Text;
+using static ConfigSchema;
 
-static partial class ConfigGen
+static class ConfigGd
 {
+    internal static void Write(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    {
+        var messages = schema.Messages.Values
+            .Where(item => item.Name != "Fixed32")
+            .OrderBy(item => item.Name.EndsWith("Config", StringComparison.Ordinal) ? 1 : 0)
+            .ThenBy(item => item.Name, StringComparer.Ordinal)
+            .ToArray();
+        var roots = ConfigRoots(root, config, schema);
+
+        var text = new StringBuilder();
+        text.Append(GdRuntimePrelude(schemaHash));
+        RenderGdDefaults(text, messages, schema);
+        RenderGdParsers(text, messages, schema, false);
+        RenderGdParsers(text, messages, schema, true);
+        RenderGdLoaders(text, roots, schema);
+
+        var output = config.ConfigGdPath(root);
+        TextUtil.WriteText(output, text.ToString());
+        Console.WriteLine($"generated config gd script: {output}");
+    }
+
     private static string GdRuntimePrelude(string schemaHash)
     {
         return """
@@ -276,7 +298,7 @@ static func _clone_all(entries: Array) -> Array:
 """.Replace("__SCHEMA_HASH__", schemaHash, StringComparison.Ordinal);
     }
 
-private static void RenderGdDefaults(StringBuilder text, IEnumerable<ProtoMessage> messages, ProtoSchema schema)
+    private static void RenderGdDefaults(StringBuilder text, IEnumerable<ProtoMessage> messages, ProtoSchema schema)
     {
         foreach (var message in messages)
         {

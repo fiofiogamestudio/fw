@@ -1,8 +1,9 @@
 using System.Text;
+using static BridgeSchema;
 
-static partial class BridgeGen
+static class BridgeTypes
 {
-    private static void GenerateTypesCs(string root, FwConfig config, ProtoSchema schema)
+    internal static void Write(string root, FwConfig config, ProtoSchema schema)
     {
         var output = config.BridgeTypesCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());

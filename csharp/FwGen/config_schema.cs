@@ -1,6 +1,31 @@
-static partial class ConfigGen
+using System.Security.Cryptography;
+using System.Text;
+
+static class ConfigSchema
 {
-    private static ConfigRoot[] ConfigRoots(string root, FwConfig config, ProtoSchema schema)
+    internal static ProtoSchema Read(string schemaDir)
+    {
+        var schema = ProtoSchema.ParseFiles(Directory.Exists(schemaDir)
+            ? Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal)
+            : []);
+        ValidateFixed32(schema);
+        return schema;
+    }
+
+    internal static string Hash(string schemaDir)
+    {
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var path in Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal))
+        {
+            var relative = Path.GetRelativePath(schemaDir, path).Replace('\\', '/');
+            var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n").Replace('\r', '\n');
+            hash.AppendData(Encoding.UTF8.GetBytes(relative + "\n"));
+            hash.AppendData(Encoding.UTF8.GetBytes(text));
+        }
+        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+    }
+
+    internal static ConfigRoot[] ConfigRoots(string root, FwConfig config, ProtoSchema schema)
     {
         var dataDir = config.ConfigDataDir(root);
         var packDir = config.ConfigPackDir(root);
@@ -18,33 +43,41 @@ static partial class ConfigGen
             .ToArray();
     }
 
-    private static bool IsMessageType(string type, ProtoSchema schema)
+    internal static bool IsMessageType(string type, ProtoSchema schema)
     {
         return schema.Messages.ContainsKey(type);
     }
 
-    private static bool IsConfigMessage(string type)
+    internal static bool IsConfigMessage(string type)
     {
         return type.EndsWith("Config", StringComparison.Ordinal);
     }
 
-    private static string ConfigRootName(string type)
+    internal static string ConfigRootName(string type)
     {
         return TextUtil.Snake(type[..^"Config".Length]);
     }
 
-    private static string ConfigClassName(string type)
+    internal static string ConfigClassName(string type)
     {
         return type == "GameConfig" ? "CoreConfig" : type;
     }
 
-    private static string ResourcePath(string root, string fullPath)
+    internal static string ResourcePath(string root, string fullPath)
     {
         var relative = Path.GetRelativePath(root, fullPath).Replace('\\', '/');
         return $"res://{relative}";
     }
 
-    private sealed record ConfigRoot(
+    internal static void ValidateFixed32(ProtoSchema schema)
+    {
+        if (schema.Messages.TryGetValue("Fixed32", out var marker) && marker.Fields.Count != 0)
+        {
+            throw new InvalidOperationException("Fixed32 is a reserved empty marker for signed Q24.8 config values");
+        }
+    }
+
+    internal sealed record ConfigRoot(
         string Name,
         ProtoMessage Message,
         bool IsJson,
