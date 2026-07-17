@@ -4,6 +4,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FW_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TEST_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/fw-template-test.XXXXXX")"
+GODOT_EDITOR_TIMEOUT_SECONDS="${FW_GODOT_EDITOR_TIMEOUT_SECONDS:-90}"
+GODOT_RUN_TIMEOUT_SECONDS="${FW_GODOT_RUN_TIMEOUT_SECONDS:-30}"
+
+for value in "${GODOT_EDITOR_TIMEOUT_SECONDS}" "${GODOT_RUN_TIMEOUT_SECONDS}"; do
+  [[ "${value}" =~ ^[1-9][0-9]*$ ]] || {
+    echo "Godot test timeouts must be positive seconds." >&2
+    exit 1
+  }
+done
 
 cleanup() {
   rm -f "${TEST_ROOT}/fw"
@@ -73,11 +82,11 @@ fi
 
 if [[ -n "${GODOT_DOTNET}" && -x "${GODOT_DOTNET}" ]]; then
   dotnet build "${TEST_ROOT}/fw_audit.csproj" -c Debug
-  timeout 30s "${GODOT_DOTNET}" --headless --editor --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_editor.log" --quit
+  timeout "${GODOT_EDITOR_TIMEOUT_SECONDS}s" "${GODOT_DOTNET}" --headless --editor --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_editor.log" --quit
   dotnet run --project "${GENERATOR}" -c Release -- --root "${TEST_ROOT}" check
   dotnet build "${TEST_ROOT}/fw_audit.csproj" -c Debug
-  timeout 30s "${GODOT_DOTNET}" --headless --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_runtime.log" --script "res://fw/tests/runtime_test.gd"
-  timeout 30s "${GODOT_DOTNET}" --headless --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_game.log" --quit-after 3
+  timeout "${GODOT_RUN_TIMEOUT_SECONDS}s" "${GODOT_DOTNET}" --headless --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_runtime.log" --script "res://fw/tests/runtime_test.gd"
+  timeout "${GODOT_RUN_TIMEOUT_SECONDS}s" "${GODOT_DOTNET}" --headless --path "${TEST_ROOT}" --log-file "${TEST_ROOT}/godot_game.log" --quit-after 3
   test -f "${TEST_ROOT}/.godot/global_script_class_cache.cfg"
   ! grep -Eiq 'SCRIPT ERROR|Parse Error|Compile Error|Can.t run project|^ERROR:' \
     "${TEST_ROOT}/godot_editor.log" "${TEST_ROOT}/godot_game.log"

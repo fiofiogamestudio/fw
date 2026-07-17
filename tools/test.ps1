@@ -3,6 +3,19 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$GodotEditorTimeoutSeconds = if ($env:FW_GODOT_EDITOR_TIMEOUT_SECONDS) {
+    [int]$env:FW_GODOT_EDITOR_TIMEOUT_SECONDS
+} else {
+    90
+}
+$GodotRunTimeoutSeconds = if ($env:FW_GODOT_RUN_TIMEOUT_SECONDS) {
+    [int]$env:FW_GODOT_RUN_TIMEOUT_SECONDS
+} else {
+    30
+}
+if ($GodotEditorTimeoutSeconds -le 0 -or $GodotRunTimeoutSeconds -le 0) {
+    throw "Godot test timeouts must be positive seconds."
+}
 $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $TempBase = [IO.Path]::GetFullPath((Join-Path ([IO.Path]::GetTempPath()) "fw template tests"))
 $TestRoot = [IO.Path]::GetFullPath((Join-Path $TempBase ([Guid]::NewGuid().ToString("N"))))
@@ -63,7 +76,8 @@ function Invoke-Godot {
     param(
         [string]$Executable,
         [string[]]$Arguments,
-        [string]$Label
+        [string]$Label,
+        [int]$TimeoutSeconds
     )
 
     $ArgumentLine = ($Arguments | ForEach-Object { ConvertTo-NativeArgument $_ }) -join " "
@@ -71,10 +85,10 @@ function Invoke-Godot {
         -ArgumentList $ArgumentLine `
         -WindowStyle Hidden `
         -PassThru
-    if (-not $Process.WaitForExit(30000)) {
+    if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
         Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
         $Process.WaitForExit()
-        throw "$Label timed out after 30 seconds."
+        throw "$Label timed out after $TimeoutSeconds seconds."
     }
     if ($Process.ExitCode -ne 0) {
         throw "$Label exited with code $($Process.ExitCode)."
@@ -205,7 +219,8 @@ try {
             Invoke-Godot `
                 -Executable $Godot `
                 -Arguments @("--headless", "--editor", "--path", $TestRoot, "--log-file", $EditorLog, "--quit") `
-                -Label "Godot editor check"
+                -Label "Godot editor check" `
+                -TimeoutSeconds $GodotEditorTimeoutSeconds
             Assert-GodotLog -Path $EditorLog -Label "Godot editor check"
             & dotnet run --project $Generator -c Release -- --root $TestRoot check
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -219,13 +234,15 @@ try {
             Invoke-Godot `
                 -Executable $Godot `
                 -Arguments @("--headless", "--path", $TestRoot, "--log-file", $RuntimeLog, "--script", "res://fw/tests/runtime_test.gd") `
-                -Label "Godot runtime check"
+                -Label "Godot runtime check" `
+                -TimeoutSeconds $GodotRunTimeoutSeconds
             Assert-GodotLog -Path $RuntimeLog -Label "Godot runtime check" -AllowFaultInjection
             $GameLog = Join-Path $TestRoot "godot_game.log"
             Invoke-Godot `
                 -Executable $Godot `
                 -Arguments @("--headless", "--path", $TestRoot, "--log-file", $GameLog, "--quit-after", "3") `
-                -Label "Godot game check"
+                -Label "Godot game check" `
+                -TimeoutSeconds $GodotRunTimeoutSeconds
             Assert-GodotLog -Path $GameLog -Label "Godot game check"
         }
         else {

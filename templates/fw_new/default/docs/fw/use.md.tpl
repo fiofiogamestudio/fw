@@ -59,6 +59,7 @@
 - 提交前验证：`fw/tools/test.ps1`。
 - 测试会创建并清理临时项目，不写入宿主工程。
 - 本机安装 Godot .NET 时，测试会额外执行 headless 脚本扫描和主场景启动；可用 `GODOT_BIN` 指定版本，或用 `-SkipGodot` 跳过。
+- 冷缓存较慢时可用 `FW_GODOT_EDITOR_TIMEOUT_SECONDS` 和 `FW_GODOT_RUN_TIMEOUT_SECONDS` 调整 headless 超时；默认分别为 90 秒和 30 秒。
 - 正式提交不应使用 `-SkipGodot`；该参数只用于明确缺少 Godot 的临时环境。
 
 ## Hook
