@@ -5,7 +5,7 @@ const FORM_ID: StringName = &"game_form"
 const FViewModelScript = preload("res://fw/scripts/fw/vu/ui/_view_model.gd")
 
 var _context: Variant = null
-var _system: Variant = null
+var _system_context: Variant = null
 var _view_model_state: Variant = null
 var _title_label: Label = null
 var _subtitle_label: Label = null
@@ -14,9 +14,9 @@ var _counter_label: Label = null
 var _refresh_button: Button = null
 
 
-func enter(form_scene: PackedScene, context: Variant, system: Variant) -> void:
+func enter(form_scene: PackedScene, context: Variant, system_context: Variant) -> void:
 	_context = context
-	_system = system
+	_system_context = system_context
 	var opened_form = open(FUIScript.LAYER_SCREEN, FORM_ID, form_scene, context)
 	if opened_form == null:
 		return
@@ -44,7 +44,7 @@ func exit() -> void:
 	close()
 	detach_ui()
 	_context = null
-	_system = null
+	_system_context = null
 	_view_model_state = null
 	_title_label = null
 	_subtitle_label = null
@@ -54,8 +54,8 @@ func exit() -> void:
 
 
 func _on_refresh_pressed() -> void:
-	if _system and _system.has_method("increment_press_count"):
-		_system.increment_press_count()
+	if _system_context:
+		_system_context.request_increment()
 	_sync_view_model()
 
 
@@ -65,8 +65,8 @@ func _sync_view_model() -> void:
 	if _view_model_state == null:
 		return
 	var press_count: int = 0
-	if _system and _system.has_method("get_press_count"):
-		press_count = int(_system.get_press_count())
+	if _system_context:
+		press_count = int(_system_context.state.count)
 	_view_model_state.set_value(&"title_text", _context.config.project_name)
 	_view_model_state.set_value(&"subtitle_text", _context.config.subtitle)
 	_view_model_state.set_value(&"status_text", _context.config.status_message)

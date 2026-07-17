@@ -7,18 +7,8 @@ CSHARP_PROJECT=""
 GENERATOR_PROJECT=""
 CONFIGURATION="Debug"
 RELEASE="false"
-GEN_COMMANDS=(${FW_GEN_COMMANDS:-system bridge config})
+GEN_COMMANDS=(${FW_GEN_COMMANDS:-system bridge config config_check check})
 RELEASE_GEN_COMMANDS=(${FW_RELEASE_GEN_COMMANDS:-config_pack})
-
-install_fw_hooks() {
-  local fw_root
-  fw_root="$(cd "${SCRIPT_DIR}/.." && pwd)"
-  if [[ -d "${fw_root}/hooks" && -e "${fw_root}/.git" ]]; then
-    git -C "${fw_root}" config core.hooksPath hooks >/dev/null 2>&1 || true
-  fi
-}
-
-install_fw_hooks
 
 get_fw_toml_value() {
   local project_root="$1"
@@ -91,29 +81,15 @@ done
 PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
 if [[ -z "${CSHARP_PROJECT}" ]]; then
   CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "game" || true)"
-  if [[ -z "${CONFIGURED_CSHARP_PROJECT}" ]]; then
-    CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "csharp" || true)"
-  fi
-  if [[ -z "${CONFIGURED_CSHARP_PROJECT}" ]]; then
-    CONFIGURED_CSHARP_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "csharp" "project" || true)"
-  fi
   if [[ -n "${CONFIGURED_CSHARP_PROJECT}" ]]; then
     CSHARP_PROJECT="${PROJECT_ROOT}/${CONFIGURED_CSHARP_PROJECT}"
   else
-    CSHARP_PROJECT="${PROJECT_ROOT}/wdc.csproj"
+    CONFIGURED_PROJECT_NAME="$(get_fw_toml_value "${PROJECT_ROOT}" "project" "name" || true)"
+    CSHARP_PROJECT="${PROJECT_ROOT}/${CONFIGURED_PROJECT_NAME:-Game}.csproj"
   fi
 fi
 if [[ -z "${GENERATOR_PROJECT}" ]]; then
   CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "fwgen" || true)"
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
-  fi
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "generator" || true)"
-  fi
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "generator" "project" || true)"
-  fi
   if [[ -n "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
     GENERATOR_PROJECT="${PROJECT_ROOT}/${CONFIGURED_GENERATOR_PROJECT}"
   else
@@ -123,13 +99,13 @@ fi
 
 pushd "${PROJECT_ROOT}" >/dev/null
 for command in "${GEN_COMMANDS[@]}"; do
-  "${SCRIPT_DIR}/gen.sh" "${command}" \
+  bash "${SCRIPT_DIR}/gen.sh" "${command}" \
     --project-root "${PROJECT_ROOT}" \
     --generator-project "${GENERATOR_PROJECT}"
 done
 if [[ "${RELEASE}" == "true" ]]; then
   for command in "${RELEASE_GEN_COMMANDS[@]}"; do
-    "${SCRIPT_DIR}/gen.sh" "${command}" \
+    bash "${SCRIPT_DIR}/gen.sh" "${command}" \
       --project-root "${PROJECT_ROOT}" \
       --generator-project "${GENERATOR_PROJECT}"
   done

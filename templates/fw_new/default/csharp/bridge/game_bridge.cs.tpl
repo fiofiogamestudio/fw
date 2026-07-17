@@ -1,9 +1,9 @@
 using Godot;
-using __PROJECT_NAME__.Core;
+using __PROJECT_NAMESPACE__.Core;
 using GdArray = Godot.Collections.Array;
 using GdDictionary = Godot.Collections.Dictionary;
 
-namespace __PROJECT_NAME__.Bridge;
+namespace __PROJECT_NAMESPACE__.Bridge;
 
 public partial class game_bridge : Node
 {
@@ -14,25 +14,23 @@ public partial class game_bridge : Node
         _core.Shutdown();
     }
 
-    public void tick(GdArray intents)
+    public void tick(float dt, GdArray intents)
     {
-        _ = intents;
-        _core.Step();
+        _core.Step(dt, IntentCodec.Decode(intents));
     }
 
-    public GdDictionary get_view(long playerId)
+    public GdDictionary get_view()
     {
-        _ = playerId;
-        var view = new GdDictionary();
-        view["tick"] = _core.Tick;
-        view["entities"] = new GdArray();
-        return view;
+        return new GdDictionary
+        {
+            [BridgeField.Tick] = _core.Tick,
+            [BridgeField.Count] = _core.Count,
+        };
     }
 
-    public GdArray get_events(long playerId)
+    public GdArray get_events()
     {
-        _ = playerId;
-        return new GdArray();
+        return EventCodec.Encode(_core.Events);
     }
 
     public override void _ExitTree()

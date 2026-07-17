@@ -10,25 +10,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Install-FwHooks {
-    $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-    $HookRoot = Join-Path $FwRoot "hooks"
-    if ((Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
-        $PreviousErrorActionPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = "Continue"
-            & git -C $FwRoot config core.hooksPath hooks 2>$null | Out-Null
-        }
-        catch {
-        }
-        finally {
-            $ErrorActionPreference = $PreviousErrorActionPreference
-        }
-    }
-}
-
-Install-FwHooks
-
 $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {

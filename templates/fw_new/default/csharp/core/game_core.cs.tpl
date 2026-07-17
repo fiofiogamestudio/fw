@@ -1,6 +1,8 @@
+using System;
 using Fw.Rt.Systems;
+using System.Collections.Generic;
 
-namespace __PROJECT_NAME__.Core;
+namespace __PROJECT_NAMESPACE__.Core;
 
 public sealed class GameCore
 {
@@ -15,15 +17,20 @@ public sealed class GameCore
     }
 
     public ulong Tick { get; private set; }
+    public int Count => _context.State.Count;
+    public IReadOnlyList<CoreEvent> Events => _context.State.Events;
 
-    public void Step()
+    public void Step(float dt, IReadOnlyList<GameIntent> intents)
     {
         if (_isShutdown)
         {
-            return;
+            throw new ObjectDisposedException(nameof(GameCore));
         }
+
         Tick += 1;
-        _systems.Tick(1.0f / 30.0f);
+        _context.State.Events.Clear();
+        _context.State.Intents = intents;
+        _systems.Tick(Math.Max(dt, 0.0f));
     }
 
     public void Shutdown()
@@ -32,7 +39,15 @@ public sealed class GameCore
         {
             return;
         }
-        _systems.ShutdownAll();
-        _isShutdown = true;
+        try
+        {
+            _systems.ShutdownAll();
+        }
+        finally
+        {
+            _context.State.Intents = [];
+            _context.State.Events.Clear();
+            _isShutdown = true;
+        }
     }
 }

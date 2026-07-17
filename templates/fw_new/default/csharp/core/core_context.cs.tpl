@@ -1,4 +1,6 @@
-namespace __PROJECT_NAME__.Core;
+using System.Collections.Generic;
+
+namespace __PROJECT_NAMESPACE__.Core;
 
 internal sealed class CoreContext
 {
@@ -16,5 +18,8 @@ internal sealed class CoreContext
 
     internal sealed class ContextState
     {
+        public IReadOnlyList<GameIntent> Intents { get; set; } = [];
+        public List<CoreEvent> Events { get; } = [];
+        public int Count { get; set; }
     }
 }

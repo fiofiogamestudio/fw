@@ -7,29 +7,12 @@ param(
 
     [string]$GeneratorProject = "",
 
-    [string[]]$GenCommands = @("system", "bridge", "config", "check"),
+    [string[]]$GenCommands = @("system", "bridge", "config", "config_check", "check"),
 
     [string[]]$ReleaseGenCommands = @("config_pack")
 )
 
 $ErrorActionPreference = "Stop"
-
-function Install-FwHooks {
-    $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-    $HookRoot = Join-Path $FwRoot "hooks"
-    if ((Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
-        $PreviousErrorActionPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = "Continue"
-            & git -C $FwRoot config core.hooksPath hooks 2>$null | Out-Null
-        }
-        catch {
-        }
-        finally {
-            $ErrorActionPreference = $PreviousErrorActionPreference
-        }
-    }
-}
 
 function Get-FwTomlValue {
     param(
@@ -64,8 +47,6 @@ function Get-FwTomlValue {
     return $null
 }
 
-Install-FwHooks
-
 $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -73,26 +54,13 @@ $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
 }
 
 $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "game"
-if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
-    $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "csharp"
-}
-if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
-    $ConfiguredCSharpProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "csharp" -Key "project"
-}
 $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "fwgen"
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
-}
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "generator"
-}
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
-}
+$ConfiguredProjectName = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "project" -Key "name"
 
 $ResolvedCSharpProject = if ([string]::IsNullOrWhiteSpace($CSharpProject)) {
     if ([string]::IsNullOrWhiteSpace($ConfiguredCSharpProject)) {
-        Join-Path $ResolvedProjectRoot "wdc.csproj"
+        $DefaultProjectName = if ([string]::IsNullOrWhiteSpace($ConfiguredProjectName)) { "Game" } else { $ConfiguredProjectName }
+        Join-Path $ResolvedProjectRoot "${DefaultProjectName}.csproj"
     } else {
         Join-Path $ResolvedProjectRoot $ConfiguredCSharpProject
     }

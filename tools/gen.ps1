@@ -7,32 +7,11 @@ param(
 
     [string]$GeneratorProject = "",
 
-    [string]$GeneratorManifest = "",
-
-    [string]$Package = "",
-
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$RemainingArgs
 )
 
 $ErrorActionPreference = "Stop"
-
-function Install-FwHooks {
-    $FwRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-    $HookRoot = Join-Path $FwRoot "hooks"
-    if ((Get-Command git -ErrorAction SilentlyContinue) -and (Test-Path $HookRoot) -and (Test-Path (Join-Path $FwRoot ".git"))) {
-        $PreviousErrorActionPreference = $ErrorActionPreference
-        try {
-            $ErrorActionPreference = "Continue"
-            & git -C $FwRoot config core.hooksPath hooks 2>$null | Out-Null
-        }
-        catch {
-        }
-        finally {
-            $ErrorActionPreference = $PreviousErrorActionPreference
-        }
-    }
-}
 
 function Get-FwTomlValue {
     param(
@@ -67,8 +46,6 @@ function Get-FwTomlValue {
     return $null
 }
 
-Install-FwHooks
-
 $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
     (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 } else {
@@ -76,15 +53,6 @@ $ResolvedProjectRoot = if ([string]::IsNullOrWhiteSpace($ProjectRoot)) {
 }
 
 $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "fwgen"
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "dotnet" -Key "generator"
-}
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "build" -Key "generator"
-}
-if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
-    $ConfiguredGeneratorProject = Get-FwTomlValue -ProjectRoot $ResolvedProjectRoot -Section "generator" -Key "project"
-}
 $ResolvedGeneratorProject = if ([string]::IsNullOrWhiteSpace($GeneratorProject)) {
     if ([string]::IsNullOrWhiteSpace($ConfiguredGeneratorProject)) {
         Join-Path $ResolvedProjectRoot "fw\csharp\FwGen\FwGen.csproj"

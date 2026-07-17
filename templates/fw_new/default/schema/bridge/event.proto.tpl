@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package __LIB_NAME__.bridge;
 
-message StartedEvent {
-  string message = 1;
+message CountChangedEvent {
+  uint32 count = 1;
 }
 
 message GameEvent {
   oneof payload {
-    StartedEvent started = 1;
+    CountChangedEvent count_changed = 1;
   }
 }

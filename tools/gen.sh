@@ -9,16 +9,6 @@ PROJECT_ROOT="${SCRIPT_DIR}/../.."
 GENERATOR_PROJECT=""
 EXTRA_ARGS=()
 
-install_fw_hooks() {
-  local fw_root
-  fw_root="$(cd "${SCRIPT_DIR}/.." && pwd)"
-  if [[ -d "${fw_root}/hooks" && -e "${fw_root}/.git" ]]; then
-    git -C "${fw_root}" config core.hooksPath hooks >/dev/null 2>&1 || true
-  fi
-}
-
-install_fw_hooks
-
 get_fw_toml_value() {
   local project_root="$1"
   local section="$2"
@@ -69,9 +59,6 @@ while [[ $# -gt 0 ]]; do
       GENERATOR_PROJECT="$2"
       shift 2
       ;;
-    --generator-manifest|--package)
-      shift 2
-      ;;
     --)
       shift
       EXTRA_ARGS+=("$@")
@@ -87,15 +74,6 @@ done
 PROJECT_ROOT="$(cd "${PROJECT_ROOT}" && pwd)"
 if [[ -z "${GENERATOR_PROJECT}" ]]; then
   CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "fwgen" || true)"
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "dotnet" "generator" || true)"
-  fi
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "build" "generator" || true)"
-  fi
-  if [[ -z "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
-    CONFIGURED_GENERATOR_PROJECT="$(get_fw_toml_value "${PROJECT_ROOT}" "generator" "project" || true)"
-  fi
   if [[ -n "${CONFIGURED_GENERATOR_PROJECT}" ]]; then
     GENERATOR_PROJECT="${PROJECT_ROOT}/${CONFIGURED_GENERATOR_PROJECT}"
   else

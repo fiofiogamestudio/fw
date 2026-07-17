@@ -1,8 +1,9 @@
 <Project Sdk="Godot.NET.Sdk/4.6.2">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <DefaultItemExcludes>$(DefaultItemExcludes);.godot/**;**/.godot/**</DefaultItemExcludes>
   </PropertyGroup>
