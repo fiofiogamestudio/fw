@@ -15,7 +15,6 @@ for value in "${GODOT_EDITOR_TIMEOUT_SECONDS}" "${GODOT_RUN_TIMEOUT_SECONDS}"; d
 done
 
 cleanup() {
-  rm -f "${TEST_ROOT}/fw"
   rm -rf "${TEST_ROOT}"
 }
 trap cleanup EXIT
@@ -37,7 +36,13 @@ dotnet build "${FW_ROOT}/csharp/FwRuntime/FwRuntime.csproj" -c Release
 dotnet build "${FW_ROOT}/csharp/FwGen/FwGen.csproj" -c Release
 dotnet run --project "${FW_ROOT}/csharp/FwGenTests/FwGenTests.csproj" -c Release
 
-ln -s "${FW_ROOT}" "${TEST_ROOT}/fw"
+mkdir -p "${TEST_ROOT}/fw"
+tar \
+  --exclude='.git' \
+  --exclude='*/bin' \
+  --exclude='*/obj' \
+  --exclude='*/.godot' \
+  -C "${FW_ROOT}" -cf - . | tar -C "${TEST_ROOT}/fw" -xf -
 GENERATOR="${FW_ROOT}/csharp/FwGen/FwGen.csproj"
 dotnet run --project "${GENERATOR}" -c Release -- --root "${TEST_ROOT}" craft fw-new --name fw_audit
 dotnet run --project "${GENERATOR}" -c Release -- --root "${TEST_ROOT}" check
@@ -69,9 +74,11 @@ dotnet build "${TEST_ROOT}/fw_audit.csproj" -c Release
 
 GODOT_DOTNET=""
 godot_candidates=()
-if [[ -n "${GODOT_BIN:-}" ]]; then
-  godot_candidates+=("${GODOT_BIN}")
-fi
+for variable in GODOT_BIN GODOT GODOT4; do
+  if [[ -n "${!variable:-}" ]]; then
+    godot_candidates+=("${!variable}")
+  fi
+done
 for candidate in godot_mono godot4_mono godot_console godot godot4; do
   if command -v "${candidate}" >/dev/null 2>&1; then
     godot_candidates+=("$(command -v "${candidate}")")

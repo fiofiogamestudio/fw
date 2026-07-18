@@ -49,8 +49,11 @@ function Assert-GodotLog {
 
 function Resolve-GodotDotNet {
     $Candidates = @()
-    if (-not [string]::IsNullOrWhiteSpace($env:GODOT_BIN)) {
-        $Candidates += $env:GODOT_BIN
+    foreach ($Variable in @("GODOT_BIN", "GODOT", "GODOT4")) {
+        $Value = [Environment]::GetEnvironmentVariable($Variable)
+        if (-not [string]::IsNullOrWhiteSpace($Value)) {
+            $Candidates += $Value
+        }
     }
     foreach ($Name in @("godot_mono", "godot4_mono", "godot_console", "godot", "godot4")) {
         $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
@@ -90,10 +93,15 @@ function Invoke-Godot {
     )
 
     $ArgumentLine = ($Arguments | ForEach-Object { ConvertTo-NativeArgument $_ }) -join " "
-    $Process = Start-Process -FilePath $Executable `
-        -ArgumentList $ArgumentLine `
-        -WindowStyle Hidden `
-        -PassThru
+    $StartInfo = [Diagnostics.ProcessStartInfo]::new()
+    $StartInfo.FileName = $Executable
+    $StartInfo.Arguments = $ArgumentLine
+    $StartInfo.UseShellExecute = $false
+    $StartInfo.CreateNoWindow = $true
+    $Process = [Diagnostics.Process]::Start($StartInfo)
+    if ($null -eq $Process) {
+        throw "$Label could not start."
+    }
     if (-not $Process.WaitForExit($TimeoutSeconds * 1000)) {
         Stop-Process -Id $Process.Id -Force -ErrorAction SilentlyContinue
         $Process.WaitForExit()
@@ -185,7 +193,17 @@ try {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     New-Item -ItemType Directory -Path $TestRoot -Force | Out-Null
-    New-Item -ItemType Junction -Path $FwLink -Target $FwRoot | Out-Null
+    New-Item -ItemType Directory -Path $FwLink -Force | Out-Null
+    foreach ($Item in Get-ChildItem -LiteralPath $FwRoot -Force) {
+        if ($Item.Name -eq ".git") {
+            continue
+        }
+        Copy-Item -LiteralPath $Item.FullName -Destination $FwLink -Recurse -Force
+    }
+    Get-ChildItem -LiteralPath $FwLink -Directory -Recurse -Force |
+        Where-Object { $_.Name -in @("bin", "obj", ".godot") } |
+        Sort-Object { $_.FullName.Length } -Descending |
+        Remove-Item -Recurse -Force
     $Generator = Join-Path $FwRoot "csharp\FwGen\FwGen.csproj"
     & dotnet run --project $Generator -c Release -- --root $TestRoot craft fw-new --name fw_audit
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -267,9 +285,6 @@ finally {
             Write-Host "--- $($Log.Name) ---"
             Get-Content -LiteralPath $Log.FullName -Encoding UTF8
         }
-    }
-    if ([IO.Directory]::Exists($FwLink)) {
-        [IO.Directory]::Delete($FwLink, $false)
     }
     if (Test-Path -LiteralPath $TestRoot) {
         Remove-Item -LiteralPath $TestRoot -Recurse -Force
