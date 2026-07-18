@@ -43,6 +43,27 @@ static class TestKit
         throw new InvalidOperationException($"expected exception containing `{expected}`");
     }
 
+    internal static void Throws<TException>(Action action, string label)
+        where TException : Exception
+    {
+        try
+        {
+            action();
+        }
+        catch (TException)
+        {
+            return;
+        }
+        catch (Exception error)
+        {
+            throw new InvalidOperationException(
+                $"{label}: expected {typeof(TException).Name}, got {error.GetType().Name}",
+                error
+            );
+        }
+        throw new InvalidOperationException($"{label}: expected {typeof(TException).Name}");
+    }
+
     internal static void Equal<T>(T expected, T actual, string label)
     {
         if (!EqualityComparer<T>.Default.Equals(expected, actual))
@@ -57,5 +78,12 @@ static class TestKit
         {
             throw new InvalidOperationException($"{label}: expected true");
         }
+    }
+
+    internal static byte[] Changed(byte[] source, int index, byte value)
+    {
+        byte[] changed = [.. source];
+        changed[index] = value;
+        return changed;
     }
 }

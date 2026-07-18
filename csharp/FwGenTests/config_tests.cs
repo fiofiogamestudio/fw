@@ -6,6 +6,8 @@ static class ConfigTests
     internal static TestCase[] Cases =>
     [
         new("config pack header", TestConfigPackHeader),
+        new("config pack rejects malformed input", TestConfigPackMalformedInput),
+        new("config pack rejects every single-byte mutation", TestConfigPackMutationSweep),
         new("invalid Fixed32 marker fails", TestInvalidFixed32Marker),
         new("config reference validation", TestConfigReferenceValidation),
         new("duplicate config key fails", TestDuplicateConfigKey),
@@ -48,6 +50,49 @@ static class ConfigTests
             True(codec.Contains("public static List<string> ReadPackKeys", StringComparison.Ordinal), "config pack keys API");
             True(codec.Contains("ConfigPack.Decode", StringComparison.Ordinal), "shared config pack runtime");
         });
+    }
+
+    private static void TestConfigPackMalformedInput()
+    {
+        byte[] schemaHash = System.Security.Cryptography.SHA256.HashData("schema"u8);
+        string schemaHex = Convert.ToHexString(schemaHash);
+        byte[] pack = ConfigPack.Encode("[{\"key\":\"default\",\"value\":{}}]"u8, schemaHash);
+
+        Throws(() => ConfigPack.Decode(pack.AsMemory(0, ConfigPack.HeaderSize - 1), schemaHex), "header");
+        Throws(() => ConfigPack.Decode(Changed(pack, 0, (byte)'X'), schemaHex), "header");
+
+        byte[] invalidVersion = [.. pack];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(invalidVersion.AsSpan(4, 4), 2);
+        Throws(() => ConfigPack.Decode(invalidVersion, schemaHex), "unsupported");
+        Throws(() => ConfigPack.Decode(pack, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("other"u8))), "schema hash");
+
+        byte[] invalidLength = [.. pack];
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(invalidLength.AsSpan(40, 4), -1);
+        Throws(() => ConfigPack.Decode(invalidLength, schemaHex), "payload length");
+        Throws(() => ConfigPack.Decode(pack.AsMemory(0, pack.Length - 1), schemaHex), "payload length");
+
+        Throws(() => ConfigPack.Decode(ConfigPack.Encode("not-json"u8, schemaHash), schemaHex), "valid JSON");
+        Throws(() => ConfigPack.Decode(ConfigPack.Encode("{}"u8, schemaHash), schemaHex), "must be an array");
+        Throws(() => ConfigPack.Decode(ConfigPack.Encode("[{\"key\":\"   \",\"value\":{}}]"u8, schemaHash), schemaHex), "invalid entry");
+        Throws(() => ConfigPack.Decode(ConfigPack.Encode("[{\"key\":\"same\",\"value\":1},{\"key\":\"same\",\"value\":2}]"u8, schemaHash), schemaHex), "duplicate key");
+    }
+
+    private static void TestConfigPackMutationSweep()
+    {
+        byte[] schemaHash = System.Security.Cryptography.SHA256.HashData("schema"u8);
+        string schemaHex = Convert.ToHexString(schemaHash);
+        byte[] pack = ConfigPack.Encode("[{\"key\":\"default\",\"value\":{\"count\":7}}]"u8, schemaHash);
+
+        for (var index = 0; index < pack.Length; index++)
+        {
+            byte[] changed = [.. pack];
+            changed[index] ^= 1;
+            int position = index;
+            Throws<InvalidDataException>(
+                () => ConfigPack.Decode(changed, schemaHex),
+                $"config pack mutation at byte {position}"
+            );
+        }
     }
 
     private static void TestInvalidFixed32Marker()
@@ -111,4 +156,5 @@ static class ConfigTests
             Throws(() => ConfigGen.Check(root, FwConfig.Load(root)), "duplicate key");
         });
     }
+
 }

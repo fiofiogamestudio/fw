@@ -90,7 +90,10 @@ sealed class ProtoSchema
                 }
 
                 var name = valueMatch.Groups[1].Value;
-                var number = int.Parse(valueMatch.Groups[2].Value);
+                if (!int.TryParse(valueMatch.Groups[2].Value, out var number))
+                {
+                    throw Error(path, lineNo, $"invalid enum number `{valueMatch.Groups[2].Value}`");
+                }
                 if (currentEnum.Values.Any(item => item.Name == name))
                 {
                     throw Error(path, lineNo, $"duplicate enum value `{name}` in `{currentEnum.Name}`");
@@ -145,7 +148,10 @@ sealed class ProtoSchema
                 var repeated = fieldMatch.Groups[1].Success;
                 var type = fieldMatch.Groups[2].Value;
                 var name = fieldMatch.Groups[3].Value;
-                var number = int.Parse(fieldMatch.Groups[4].Value);
+                if (!int.TryParse(fieldMatch.Groups[4].Value, out var number))
+                {
+                    throw Error(path, lineNo, $"invalid protobuf field number `{fieldMatch.Groups[4].Value}`");
+                }
                 if (oneofGroup.Length > 0 && repeated)
                 {
                     throw Error(path, lineNo, "oneof fields cannot be repeated");

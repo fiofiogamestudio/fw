@@ -88,7 +88,7 @@ public static class ConfigPack
                     entry.ValueKind != JsonValueKind.Object
                     || !entry.TryGetProperty("key", out JsonElement keyElement)
                     || keyElement.ValueKind != JsonValueKind.String
-                    || string.IsNullOrEmpty(keyElement.GetString())
+                    || string.IsNullOrWhiteSpace(keyElement.GetString())
                     || !entry.TryGetProperty("value", out JsonElement value)
                 )
                 {

@@ -11,6 +11,7 @@ static class ProtoTests
         new("proto package mismatch fails", TestProtoPackageMismatch),
         new("unsupported proto fails", TestUnsupportedProto),
         new("duplicate proto fields fail", TestDuplicateProtoFields),
+        new("invalid proto numbers fail clearly", TestInvalidProtoNumbers),
         new("unclosed proto fails", TestUnclosedProto),
         new("unknown proto type fails", TestUnknownProtoType),
         new("proto3 enum starts at zero", TestProtoEnumZero),
@@ -155,6 +156,32 @@ static class ProtoTests
                 }
                 """);
             Throws(() => ProtoSchema.ParseFiles([path]), "duplicate field number");
+        });
+    }
+
+    private static void TestInvalidProtoNumbers()
+    {
+        WithTempDir(root =>
+        {
+            var field = Write(root, "field.proto", """
+                syntax = "proto3";
+                message Example {
+                  string value = 999999999999999999999999;
+                }
+                """);
+            Throws(() => ProtoSchema.ParseFiles([field]), "invalid protobuf field number");
+        });
+
+        WithTempDir(root =>
+        {
+            var value = Write(root, "enum.proto", """
+                syntax = "proto3";
+                enum Kind {
+                  KIND_UNSPECIFIED = 0;
+                  KIND_VALUE = 999999999999999999999999;
+                }
+                """);
+            Throws(() => ProtoSchema.ParseFiles([value]), "invalid enum number");
         });
     }
 
