@@ -52,7 +52,7 @@ function Resolve-GodotDotNet {
     if (-not [string]::IsNullOrWhiteSpace($env:GODOT_BIN)) {
         $Candidates += $env:GODOT_BIN
     }
-    foreach ($Name in @("godot_mono", "godot4_mono", "godot", "godot4")) {
+    foreach ($Name in @("godot_mono", "godot4_mono", "godot_console", "godot", "godot4")) {
         $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
         if ($null -ne $Command) {
             $Candidates += $Command.Source
@@ -64,6 +64,15 @@ function Resolve-GodotDotNet {
             continue
         }
         $Executable = Get-Item -LiteralPath $Candidate
+        if ($null -ne $Executable.LinkType -and $null -ne $Executable.Target) {
+            $TargetPath = @($Executable.Target)[0]
+            if (-not [IO.Path]::IsPathRooted($TargetPath)) {
+                $TargetPath = Join-Path $Executable.DirectoryName $TargetPath
+            }
+            if (Test-Path -LiteralPath $TargetPath -PathType Leaf) {
+                $Executable = Get-Item -LiteralPath $TargetPath
+            }
+        }
         $GodotSharp = Join-Path $Executable.DirectoryName "GodotSharp"
         if ($Executable.Name -match '(?i)mono' -or (Test-Path -LiteralPath $GodotSharp -PathType Container)) {
             return $Executable.FullName

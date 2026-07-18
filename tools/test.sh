@@ -67,18 +67,24 @@ pack_after="$(cd "${TEST_ROOT}" && find pack/config -type f -print0 | sort -z | 
 }
 dotnet build "${TEST_ROOT}/fw_audit.csproj" -c Release
 
-GODOT_DOTNET="${GODOT_BIN:-}"
-if [[ -z "${GODOT_DOTNET}" ]]; then
-  for candidate in godot_mono godot4_mono godot godot4; do
-    if command -v "${candidate}" >/dev/null 2>&1; then
-      resolved="$(readlink -f "$(command -v "${candidate}")")"
-      if [[ "$(basename "${resolved}")" =~ [Mm][Oo][Nn][Oo] ]] || [[ -d "$(dirname "${resolved}")/GodotSharp" ]]; then
-        GODOT_DOTNET="${resolved}"
-        break
-      fi
-    fi
-  done
+GODOT_DOTNET=""
+godot_candidates=()
+if [[ -n "${GODOT_BIN:-}" ]]; then
+  godot_candidates+=("${GODOT_BIN}")
 fi
+for candidate in godot_mono godot4_mono godot_console godot godot4; do
+  if command -v "${candidate}" >/dev/null 2>&1; then
+    godot_candidates+=("$(command -v "${candidate}")")
+  fi
+done
+for candidate in "${godot_candidates[@]}"; do
+  [[ -f "${candidate}" || -L "${candidate}" ]] || continue
+  resolved="$(readlink -f "${candidate}")"
+  if [[ "$(basename "${resolved}")" =~ [Mm][Oo][Nn][Oo] ]] || [[ -d "$(dirname "${resolved}")/GodotSharp" ]]; then
+    GODOT_DOTNET="${resolved}"
+    break
+  fi
+done
 
 if [[ -n "${GODOT_DOTNET}" && -x "${GODOT_DOTNET}" ]]; then
   dotnet build "${TEST_ROOT}/fw_audit.csproj" -c Debug
