@@ -11,6 +11,7 @@ static class TestRunner
             .. BridgeTests.Cases,
             .. ConfigTests.Cases,
             .. RuntimeTests.Cases,
+            .. ApiTests.Cases,
         ];
 
         var failures = new List<string>();

@@ -2,13 +2,19 @@ extends SceneTree
 
 const BindingScript = preload("res://fw/scripts/fw/vu/_binding.gd")
 const PoolScript = preload("res://fw/scripts/fw/rt/pool/_pool.gd")
+const AssetScript = preload("res://fw/scripts/fw/rt/_asset.gd")
 const AppRootScript = preload("res://fw/scripts/fw/rt/system/_app_root.gd")
+const BaseModeScript = preload("res://fw/scripts/fw/rt/system/_base_mode.gd")
+const BaseSystemScript = preload("res://fw/scripts/fw/rt/system/_base_system.gd")
 const SystemManagerScript = preload("res://fw/scripts/fw/rt/system/_system_manager.gd")
 const ViewStoreScript = preload("res://fw/scripts/fw/vu/_view_store.gd")
+const ViewRootScript = preload("res://fw/scripts/fw/vu/_view_root.gd")
+const FFxScript = preload("res://fw/scripts/fw/vu/fx/_fx.gd")
 const FFormScript = preload("res://fw/scripts/fw/vu/ui/form/_form.gd")
 const FFormLogicScript = preload("res://fw/scripts/fw/vu/ui/form/_form_logic.gd")
 const FFormsScript = preload("res://fw/scripts/fw/vu/ui/form/_forms.gd")
 const FUIScript = preload("res://fw/scripts/fw/vu/ui/_ui.gd")
+const FWidgetScript = preload("res://fw/scripts/fw/vu/ui/widget/_widget.gd")
 
 var _failures: Array[String] = []
 
@@ -77,6 +83,7 @@ func _init() -> void:
 
 
 func _run() -> void:
+	_test_public_api()
 	_test_binding()
 	_test_pool()
 	_test_view_store()
@@ -90,6 +97,28 @@ func _run() -> void:
 	for failure in _failures:
 		printerr("[runtime-test] %s" % failure)
 	quit(1)
+
+
+func _test_public_api() -> void:
+	_check_methods(AssetScript.new(), [&"load", &"unload"], "FAsset")
+	_check_methods(PoolScript.new(), [&"setup", &"register_prefab", &"spawn", &"recycle", &"flush"], "FPool")
+	_check_methods(BaseModeScript.new(), [&"enter", &"tick", &"exit", &"add_system", &"init_systems"], "BaseMode")
+	_check_methods(BaseSystemScript.new(), [&"init", &"tick", &"shutdown"], "BaseSystem")
+	_check_methods(SystemManagerScript.new(), [&"set_phase_order", &"add_system", &"init_all", &"tick", &"shutdown_all"], "SystemManager")
+	_check_methods(FUIScript.new(), [&"setup", &"clear", &"open", &"close", &"close_all"], "FUI")
+	_check_methods(ViewRootScript.new(), [&"setup", &"clear", &"apply"], "FViewRoot")
+	_check_methods(FFormScript.new(), [&"setup", &"clear", &"apply"], "FForm")
+	_check_methods(FWidgetScript.new(), [&"setup", &"clear", &"apply"], "FWidget")
+	var fx: Variant = FFxScript.new()
+	_check(fx.has_signal(&"finished"), "FFx must keep the finished signal")
+	_check_methods(fx, [&"setup", &"clear", &"play"], "FFx")
+
+
+func _check_methods(instance: Variant, methods: Array[StringName], label: String) -> void:
+	for method in methods:
+		_check(instance.has_method(method), "%s must keep method %s" % [label, method])
+	if instance is Node:
+		instance.free()
 
 
 func _test_binding() -> void:
