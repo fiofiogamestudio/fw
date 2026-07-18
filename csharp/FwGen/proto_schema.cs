@@ -3,6 +3,20 @@ using System.Text.RegularExpressions;
 
 sealed class ProtoSchema
 {
+    private static readonly HashSet<string> PortableScalarTypes = new(StringComparer.Ordinal)
+    {
+        "string",
+        "bool",
+        "float",
+        "double",
+        "int32",
+        "int64",
+        "uint32",
+        "uint64",
+        "sint32",
+        "sint64",
+    };
+
     private static readonly HashSet<string> ScalarTypes = new(StringComparer.Ordinal)
     {
         "double",
@@ -26,6 +40,11 @@ sealed class ProtoSchema
     public Dictionary<string, ProtoEnum> Enums { get; } = new(StringComparer.Ordinal);
     public string Package { get; private set; } = "";
     public HashSet<string> SourceFiles { get; } = new(StringComparer.Ordinal);
+
+    public static bool IsPortableScalar(string type)
+    {
+        return PortableScalarTypes.Contains(type);
+    }
 
     public static ProtoSchema ParseFiles(IEnumerable<string> files)
     {

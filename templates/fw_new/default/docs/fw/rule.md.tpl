@@ -48,6 +48,7 @@
 - 生成文件统一使用 `_` 前缀，表示用户不应直接修改。
 - 生成的 GDScript 文件统一放在 `scripts/_gen`。
 - 生成的 C# 文件统一放在 `csharp/_gen`。
+- system schema 必须在写出任何产物前完成生成标识符校验；bridge/config schema 必须先完成目标端能力校验。无法正确生成的声明必须直接失败。
 - Godot 和 C# 共享 `system / context / phase / refs / config / state` 主干。
 - 共享的是运行范式，不是所有文件后缀。
 
@@ -78,6 +79,7 @@
 - bridge 派生的输入命令、事件和字典字段合同由生成器生成。
 - bridge 的生成合同和基础 codec 放在 `csharp/_gen`。
 - fwgen 只支持文档声明的 proto3 子集；未知语法、重复字段或未闭合结构必须直接失败，不得静默忽略。
+- bridge 字段只允许文档声明的可移植标量、同 schema message 与 enum；不得接受 codec 无法双端还原的标量。
 - proto enum 未赋值时保持 unspecified 空值，不得擅自选择第一个业务枚举；数值保持 proto3 零值。
 - intent action、event 和 packet 的 variant root 各自只能有一个 oneof group。
 - 联机 wire codec 必须能被 Godot 客户端和纯 C# DS 同时读取；不得依赖 Godot 引擎私有二进制格式作为网络协议。
@@ -93,6 +95,7 @@
 - 玩法参数优先配置化。
 - 生成配置文件不得作为规则事实源。
 - config 的生成合同放在 `csharp/_gen`。
+- config 字段只允许文档声明的标量、`Fixed32` 与同 schema message；未支持的 enum 或标量必须在生成前失败。
 - `Fixed32` 是可选的空 marker，表示 signed Q24.8；不得给 marker 添加字段或改变 256 scale。
 - config pack 必须包含 magic、版本、schema hash、payload length 和 payload checksum，并使用原子替换写入。
 - config pack 的 C# 编解码合同只允许由纯 C# `FwRuntime.ConfigPack` 实现；生成器和生成 codec 不得各自复制格式解析。

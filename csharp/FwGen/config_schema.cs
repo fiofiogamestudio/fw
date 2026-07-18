@@ -9,6 +9,7 @@ static class ConfigSchema
             ? Directory.GetFiles(schemaDir, "*.proto").OrderBy(item => item, StringComparer.Ordinal)
             : []);
         ValidateFixed32(schema);
+        ValidateSupportedTypes(schema);
         return schema;
     }
 
@@ -74,6 +75,29 @@ static class ConfigSchema
         if (schema.Messages.TryGetValue("Fixed32", out var marker) && marker.Fields.Count != 0)
         {
             throw new InvalidOperationException("Fixed32 is a reserved empty marker for signed Q24.8 config values");
+        }
+    }
+
+    private static void ValidateSupportedTypes(ProtoSchema schema)
+    {
+        foreach (var message in schema.Messages.Values)
+        {
+            foreach (var field in message.Fields)
+            {
+                if (schema.Enums.ContainsKey(field.Type))
+                {
+                    throw new InvalidOperationException(
+                        $"{message.SourcePath}:{field.LineNo} config field `{message.Name}.{field.Name}` uses enum `{field.Type}`; config enums are not supported"
+                    );
+                }
+                if (ProtoSchema.IsPortableScalar(field.Type) || schema.Messages.ContainsKey(field.Type))
+                {
+                    continue;
+                }
+                throw new InvalidOperationException(
+                    $"{message.SourcePath}:{field.LineNo} config field `{message.Name}.{field.Name}` uses unsupported scalar `{field.Type}`"
+                );
+            }
         }
     }
 

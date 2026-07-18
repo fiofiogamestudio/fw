@@ -7,6 +7,7 @@ static class RuntimeTests
     internal static TestCase[] Cases =>
     [
         new("generation lock excludes writers", TestGenerationLock),
+        new("path containment follows platform case rules", TestPathContainmentCaseRules),
         new("wire frame round trip", TestWireFrameRoundTrip),
         new("wire frame rejects tampering", TestWireFrameTampering),
         new("wire frame rejects malformed headers", TestWireFrameHeaders),
@@ -26,7 +27,29 @@ static class RuntimeTests
             {
                 using var second = GenerationLock.Acquire(root, TimeSpan.FromMilliseconds(25));
             }, "timed out waiting");
+            if (OperatingSystem.IsWindows())
+            {
+                Throws(() =>
+                {
+                    using var alias = GenerationLock.Acquire(root.ToUpperInvariant(), TimeSpan.FromMilliseconds(25));
+                }, "timed out waiting");
+            }
         });
+    }
+
+    private static void TestPathContainmentCaseRules()
+    {
+        string parent = Path.Combine(Path.GetTempPath(), "fw-case-root");
+        string child = Path.Combine(parent, "child");
+        True(FwCheck.IsUnderPath(child, parent), "direct child path");
+        True(FwCheck.IsUnderPath(child, Path.GetPathRoot(parent)!), "filesystem root path");
+
+        string caseAlias = parent.ToUpperInvariant();
+        Equal(
+            OperatingSystem.IsWindows(),
+            FwCheck.IsUnderPath(child, caseAlias),
+            "platform path casing"
+        );
     }
 
     private static void TestWireFrameRoundTrip()

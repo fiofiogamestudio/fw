@@ -9,7 +9,27 @@ static class BridgeSchema
         {
             throw new InvalidOperationException("bridge schema must declare one shared package");
         }
+        ValidateSupportedTypes(schema);
         return schema;
+    }
+
+    private static void ValidateSupportedTypes(ProtoSchema schema)
+    {
+        foreach (var message in schema.Messages.Values)
+        {
+            foreach (var field in message.Fields)
+            {
+                if (ProtoSchema.IsPortableScalar(field.Type)
+                    || schema.Messages.ContainsKey(field.Type)
+                    || schema.Enums.ContainsKey(field.Type))
+                {
+                    continue;
+                }
+                throw new InvalidOperationException(
+                    $"{message.SourcePath}:{field.LineNo} bridge field `{message.Name}.{field.Name}` uses unsupported scalar `{field.Type}`"
+                );
+            }
+        }
     }
 
     internal static string[] SchemaFiles(string schemaDir)

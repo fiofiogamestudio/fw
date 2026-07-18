@@ -38,7 +38,7 @@
 - C# core system 当前共享聚合 `CoreContext`，结构仍是 `Refs / Config / State`。
 - 两端统一的是生命周期、phase 和 context 三分法，不要求 context 实例粒度完全相同。
 - 当聚合 `CoreContext` 变大时，可拆成 typed context slice；system 只接收需要的 Config/State/Refs。
-- schema 会校验重复 system、重复 phase、未知 phase、缺失脚本/context/type 和无效 refs。
+- schema 会校验重复 system、重复 phase、未知 phase、缺失脚本/context/type、无效 refs，以及映射到同一 C#/GDScript 标识符的 system/phase 名。
 
 ## Core
 - C# core 是玩法权威；Godot 只消费 view、event 和配置。
@@ -68,7 +68,7 @@
 - proto 是合同 DSL，当前不是严格 protobuf wire runtime。
 - bridge 只接受固定五文件；parser 先收集完整文件集，再验证 import、共享 package 和类型引用。import 禁止父目录穿越、大小写漂移与歧义匹配。
 - 支持的 proto3 子集：`syntax`、`package`、`import`、`message`、`enum`、普通字段、`repeated`、`oneof`。
-- 支持标量、同 schema message 和 enum 类型。
+- bridge 字段支持 `string / bool / float / double / int32 / int64 / uint32 / uint64 / sint32 / sint64`、同 schema message 和 enum；其他 protobuf 标量在生成前失败。
 - `optional`、`map`、`service`、`option`、`reserved` 等未声明语法会直接报错。
 - parser 会拒绝未知类型、重复 message/enum、重复 field 名/编号、重复 enum 名/编号、非法 tag、proto3 enum 首项非零和未闭合 block。
 - `fwgen bridge` 生成 Godot 统一入口、C# bridge 类型、基础 codec、intent/event/packet codec。
@@ -79,6 +79,7 @@
 
 ## Config
 - `fwgen config` 从 config schema 生成 Godot config 入口、C# typed config、路径常量和 codec。
+- config 字段支持 bridge 的基础标量、空 `Fixed32` marker 和同 schema message；enum、`bytes`、`fixed*`、`sfixed*` 当前不进入生成阶段。
 - `config_check` 检查 schema 与 `data/config` 的字段一致性。
 - `config_pack` 把源配置打包到 `pack/config`。
 - config pack 使用 76-byte `WCFG` header，校验版本、schema SHA-256、payload length 和 payload SHA-256；纯 C# `Fw.Rt.Config.ConfigPack` 是格式实现，生成器负责调用它，生成 codec 只负责文件读取与 typed 映射。
@@ -100,8 +101,8 @@
 - `tools/test.ps1`、`tools/test.sh` 会构建 runtime/generator，运行生成器测试，并在全新临时目录验证 `new -> check -> config_pack -> build`。
 - 测试会比较规范源与模板镜像，并验证重复生成、重复打包的内容完全一致。
 - 本地存在 Godot .NET 时继续执行 headless editor 扫描、编辑器改写后的二次 check/build、runtime 故障注入和主场景启动；可用 `GODOT_BIN` 显式指定可执行文件。
-- `.github/workflows/ci.yml` 在 Windows 与 Linux 安装固定 Godot .NET，并执行同一完整测试链，不跳过 Godot。
-- `fw/csharp/Directory.Build.props` 统一 FwGen、FwRuntime 与测试工程的 target framework，并与宿主保持一致。
+- `.github/workflows/ci.yml` 使用只读仓库权限，在 Windows 与 Linux 安装固定 Godot .NET，并执行同一完整测试链；同一引用的新任务会取消旧任务，单个 job 最长运行 30 分钟。
+- `fw/csharp/Directory.Build.props` 统一 FwGen、FwRuntime 与测试工程的 target framework，并把 C# 警告视为错误；默认模板对宿主使用同一规则。
 - `fw/tests/runtime_test.gd` 覆盖 Godot 公共 API 合同、binding 所有权、pool 状态互斥、ViewStore 缓存、UI wrapper/form logic、失效 UI stack、GDScript system 与 mode 回滚；普通 Godot `ERROR` 默认会让测试失败，仅显式故障注入可放行。
 
 ## 治理

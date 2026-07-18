@@ -5,6 +5,7 @@ static class BridgeTests
     internal static TestCase[] Cases =>
     [
         new("bridge uses proto zero defaults", TestBridgeZeroDefaults),
+        new("bridge rejects unsupported scalars", TestUnsupportedBridgeScalar),
     ];
 
     private static void TestBridgeZeroDefaults()
@@ -84,6 +85,29 @@ static class BridgeTests
                 events.Contains("BridgeCodec.ReadString", StringComparison.Ordinal)
                     || events.Contains("ev.Payload", StringComparison.Ordinal),
                 "event codec generated"
+            );
+        });
+    }
+
+    private static void TestUnsupportedBridgeScalar()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/bridge/value.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/intent.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/view.proto", """
+                syntax = "proto3";
+                package audit.bridge;
+                message GameView {
+                  bytes payload = 1;
+                }
+                """);
+            Write(root, "schema/bridge/event.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/packet.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+
+            Throws(
+                () => BridgeSchema.Read(Path.Combine(root, "schema", "bridge")),
+                "unsupported scalar `bytes`"
             );
         });
     }

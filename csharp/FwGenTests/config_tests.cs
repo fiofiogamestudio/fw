@@ -9,6 +9,8 @@ static class ConfigTests
         new("config pack rejects malformed input", TestConfigPackMalformedInput),
         new("config pack rejects every single-byte mutation", TestConfigPackMutationSweep),
         new("invalid Fixed32 marker fails", TestInvalidFixed32Marker),
+        new("config enum fields fail early", TestConfigEnumField),
+        new("config unsupported scalars fail early", TestUnsupportedConfigScalar),
         new("config reference validation", TestConfigReferenceValidation),
         new("duplicate config key fails", TestDuplicateConfigKey),
     ];
@@ -112,6 +114,44 @@ static class ConfigTests
             Write(root, "data/config/game.csv.txt", "key,speed\ndefault,1.0\n");
             var config = FwConfig.Load(root);
             Throws(() => ConfigGen.Check(root, config), "reserved empty marker");
+        });
+    }
+
+    private static void TestConfigEnumField()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/game.proto", """
+                syntax = "proto3";
+                enum Difficulty {
+                  DIFFICULTY_UNSPECIFIED = 0;
+                  DIFFICULTY_NORMAL = 1;
+                }
+                message GameConfig {
+                  Difficulty difficulty = 1;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "config enums are not supported"
+            );
+        });
+    }
+
+    private static void TestUnsupportedConfigScalar()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/game.proto", """
+                syntax = "proto3";
+                message GameConfig {
+                  fixed64 seed = 1;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "unsupported scalar `fixed64`"
+            );
         });
     }
 

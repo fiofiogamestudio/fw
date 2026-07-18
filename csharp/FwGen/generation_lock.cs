@@ -15,8 +15,9 @@ sealed class GenerationLock : IDisposable
         var wait = timeout ?? TimeSpan.FromSeconds(15);
         var lockDir = Path.Combine(Path.GetTempPath(), "fwgen-locks");
         Directory.CreateDirectory(lockDir);
-        var normalizedRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(normalizedRoot))).ToLowerInvariant();
+        var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var lockIdentity = OperatingSystem.IsWindows() ? normalizedRoot.ToUpperInvariant() : normalizedRoot;
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(lockIdentity))).ToLowerInvariant();
         var path = Path.Combine(lockDir, hash + ".lock");
         var deadline = DateTime.UtcNow + wait;
 

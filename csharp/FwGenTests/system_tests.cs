@@ -7,6 +7,8 @@ static class SystemTests
         new("valid system schema", TestValidSystemSchema),
         new("duplicate core system fails", TestDuplicateCoreSystem),
         new("unknown core phase fails", TestUnknownCorePhase),
+        new("generated system name collision fails", TestGeneratedSystemNameCollision),
+        new("generated phase name collision fails", TestGeneratedPhaseNameCollision),
         new("project name validation", TestProjectNameValidation),
         new("fw config rejects unknown keys", TestUnknownFwConfigKey),
         new("fw config contains paths", TestFwConfigPathContainment),
@@ -85,6 +87,42 @@ static class SystemTests
                 type = "SimulationSystem"
                 """);
             Throws(() => SystemSchemaParser.Parse(root, schemaPath), "outside phases.order");
+        });
+    }
+
+    private static void TestGeneratedSystemNameCollision()
+    {
+        WithTempDir(root =>
+        {
+            var schemaPath = WriteMinimalGodot(root, """
+                [core.phases]
+                order = ["simulation"]
+
+                [core.system.game_loop]
+                phase = "simulation"
+                type = "GameLoopSystem"
+
+                [core.system.game__loop]
+                phase = "simulation"
+                type = "OtherLoopSystem"
+                """);
+            Throws(() => SystemSchemaParser.Parse(root, schemaPath), "same generated identifier");
+        });
+    }
+
+    private static void TestGeneratedPhaseNameCollision()
+    {
+        WithTempDir(root =>
+        {
+            var schemaPath = WriteMinimalGodot(root, """
+                [core.phases]
+                order = ["pre_tick", "pre__tick"]
+
+                [core.system.game]
+                phase = "pre_tick"
+                type = "GameSystem"
+                """);
+            Throws(() => SystemSchemaParser.Parse(root, schemaPath), "same generated identifier");
         });
     }
 

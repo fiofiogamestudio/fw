@@ -3,6 +3,18 @@ using System.Text.Json;
 
 static class FwCheck
 {
+    internal static bool IsUnderPath(string path, string parent)
+    {
+        string fullPath = Path.GetFullPath(path);
+        string fullParent = Path.TrimEndingDirectorySeparator(Path.GetFullPath(parent));
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        string parentPrefix = Path.EndsInDirectorySeparator(fullParent)
+            ? fullParent
+            : fullParent + Path.DirectorySeparatorChar;
+        return fullPath.Equals(fullParent, comparison)
+            || fullPath.StartsWith(parentPrefix, comparison);
+    }
+
     private static readonly string[] GdSuffixes =
     [
         "_app",
@@ -583,15 +595,16 @@ static class FwCheck
             {
                 string expected = Path.GetFileNameWithoutExtension(file);
                 string text = File.ReadAllText(file, Encoding.UTF8);
-                var match = System.Text.RegularExpressions.Regex.Match(
+                var matches = System.Text.RegularExpressions.Regex.Matches(
                     text,
                     @"\bpublic\s+(?:sealed\s+)?partial\s+class\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(?:Godot\.)?Node\b"
                 );
-                if (!match.Success)
+                if (matches.Count != 1)
                 {
-                    Error($"{Rel(file)} must expose one public partial Godot.Node bridge entry");
+                    Error($"{Rel(file)} must expose exactly one public partial Godot.Node bridge entry");
                     continue;
                 }
+                var match = matches[0];
                 if (!string.Equals(match.Groups[1].Value, expected, StringComparison.Ordinal))
                 {
                     Error($"{Rel(file)} class `{match.Groups[1].Value}` must exactly match filename `{expected}`");
@@ -754,11 +767,7 @@ static class FwCheck
 
         private bool IsUnder(string path, string parent)
         {
-            string fullPath = Path.GetFullPath(path);
-            string fullParent = Path.GetFullPath(parent).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            return fullPath.Equals(fullParent, StringComparison.OrdinalIgnoreCase)
-                || fullPath.StartsWith(fullParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-                || fullPath.StartsWith(fullParent + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            return IsUnderPath(path, parent);
         }
 
         private string Rel(string path)
