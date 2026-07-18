@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.3 - 2026-07-19
+
 - System、Bridge 与 Config schema 共用生成标识符冲突校验，并在写出产物前拒绝 C#/GDScript 名称归一化、保留名和后缀折叠冲突。
 
 ## 0.1.2 - 2026-07-18
