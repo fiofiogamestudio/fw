@@ -5,13 +5,13 @@ static class BridgeCodec
 {
     internal static void Stage(GenerationBatch batch, string root, FwConfig config, BridgeModel model)
     {
-        GenerateCodecCs(batch, root, config);
+        GenerateCodecCs(batch, root, config, model);
         GenerateIntentCodecCs(batch, root, config, model);
         GenerateEventCodecCs(batch, root, config, model);
         GeneratePacketCodecCs(batch, root, config, model);
     }
 
-    private static void GenerateCodecCs(GenerationBatch batch, string root, FwConfig config)
+    private static void GenerateCodecCs(GenerationBatch batch, string root, FwConfig config, BridgeModel model)
     {
         var output = config.BridgeCodecCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
@@ -26,7 +26,7 @@ static class BridgeCodec
         text.AppendLine();
         text.AppendLine("public static class BridgeCodec");
         text.AppendLine("{");
-        text.AppendLine("    public const int ProtocolVersion = 1;");
+        text.AppendLine($"    public const int ProtocolVersion = {model.ProtocolVersion};");
         text.AppendLine();
         text.AppendLine("    public static GdDictionary Packet(string type)");
         text.AppendLine("    {");

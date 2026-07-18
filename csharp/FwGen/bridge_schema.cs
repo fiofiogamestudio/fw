@@ -1,8 +1,10 @@
+using System.Security.Cryptography;
 using System.Text;
 
 sealed class BridgeModel
 {
     internal required ProtoSchema Schema { get; init; }
+    internal required int ProtocolVersion { get; init; }
     internal required ProtoEnum[] ValueEnums { get; init; }
     internal required ProtoMessage[] ViewMessages { get; init; }
     internal required string[] FieldNames { get; init; }
@@ -34,6 +36,7 @@ static class BridgeSchema
         var model = new BridgeModel
         {
             Schema = schema,
+            ProtocolVersion = ComputeProtocolVersion(schema),
             ValueEnums = EnumsInFile(schema, "value.proto"),
             ViewMessages = MessagesInFile(schema, "view.proto")
                 .Where(item => item.Fields.All(field => !field.IsOneof))
@@ -58,6 +61,57 @@ static class BridgeSchema
         };
         ValidateGeneratedIdentifiers(model);
         return model;
+    }
+
+    internal static int ComputeProtocolVersion(ProtoSchema schema)
+    {
+        var signature = new StringBuilder("fw.bridge.protocol.v1\n");
+        signature.Append("package|").Append(schema.Package).Append('\n');
+
+        foreach (var protoEnum in schema.Enums.Values.OrderBy(item => item.Name, StringComparer.Ordinal))
+        {
+            signature.Append("enum|")
+                .Append(SourceRole(protoEnum.SourcePath)).Append('|')
+                .Append(protoEnum.Name).Append('\n');
+            foreach (var value in protoEnum.Values
+                .OrderBy(item => item.Number)
+                .ThenBy(item => item.Name, StringComparer.Ordinal))
+            {
+                signature.Append("value|")
+                    .Append(value.Number).Append('|')
+                    .Append(value.Name).Append('\n');
+            }
+        }
+
+        foreach (var message in schema.Messages.Values.OrderBy(item => item.Name, StringComparer.Ordinal))
+        {
+            signature.Append("message|")
+                .Append(SourceRole(message.SourcePath)).Append('|')
+                .Append(message.Name).Append('\n');
+            foreach (var field in message.Fields
+                .OrderBy(item => item.Number)
+                .ThenBy(item => item.Name, StringComparer.Ordinal))
+            {
+                signature.Append("field|")
+                    .Append(field.Number).Append('|')
+                    .Append(field.Name).Append('|')
+                    .Append(field.Type).Append('|')
+                    .Append(field.IsRepeated ? '1' : '0').Append('|')
+                    .Append(field.OneofGroup).Append('\n');
+            }
+        }
+
+        byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(signature.ToString()));
+        int version = ((digest[0] & 0x7f) << 24)
+            | (digest[1] << 16)
+            | (digest[2] << 8)
+            | digest[3];
+        return version == 0 ? 1 : version;
+    }
+
+    private static string SourceRole(string path)
+    {
+        return (Path.GetFileName(path) ?? "").ToLowerInvariant();
     }
 
     private static void ValidateSupportedTypes(ProtoSchema schema)
