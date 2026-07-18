@@ -19,6 +19,9 @@
 - 构建 SDK：`.NET SDK 10.0.201`；只负责还原和编译，不改变游戏程序集的 API 基线。
 - Target framework：`net8.0`；游戏、DS 与 `FwRuntime` 保持一致，命令行工具在缺少 8 运行时时允许 `Major` 向前运行。
 - 自动验证平台：Windows 与 Linux；macOS 在成为发布目标前再加入 CI。
+- Git tag 提供人类可读的 SemVer 版本，宿主 submodule commit 提供实际的精确版本锁定；二者职责不同。
+- 公共兼容边界覆盖 Godot runtime、`FwRuntime`、配置入口、生成命令、schema 子集和生成合同。内部生成器类型与实现文件不属于宿主 API。
+- `_fwgen_manifest.json` 负责发现生成器、输入或产物漂移，但不代替版本号；宿主升级必须同时审阅 submodule 指针与生成差异。
 
 ## Runtime
 - Godot 运行链是 `AppRoot -> BaseMode -> SystemManager`。
@@ -93,13 +96,13 @@
 - `new` 在返回成功前自动完成生成、`config_check` 和 `fw check`。
 
 ## 测试
-- `FwGenTests` 按 `proto / system / bridge / config / runtime` 分组，覆盖合法/非法 proto、import/package/oneof、proto 零值、system 回滚、生成锁、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、pack runtime 解码与长度边界。
+- `FwGenTests` 按 `proto / system / bridge / config / runtime / api` 分组，覆盖合法/非法 proto、import/package/oneof、proto 零值、system phase/回滚/fault 清理、生成锁、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、数字溢出、格式头、版本、校验和、长度边界、逐字节变异和 C# 公共 API 合同。
 - `tools/test.ps1`、`tools/test.sh` 会构建 runtime/generator，运行生成器测试，并在全新临时目录验证 `new -> check -> config_pack -> build`。
 - 测试会比较规范源与模板镜像，并验证重复生成、重复打包的内容完全一致。
 - 本地存在 Godot .NET 时继续执行 headless editor 扫描、编辑器改写后的二次 check/build、runtime 故障注入和主场景启动；可用 `GODOT_BIN` 显式指定可执行文件。
 - `.github/workflows/ci.yml` 在 Windows 与 Linux 安装固定 Godot .NET，并执行同一完整测试链，不跳过 Godot。
 - `fw/csharp/Directory.Build.props` 统一 FwGen、FwRuntime 与测试工程的 target framework，并与宿主保持一致。
-- `fw/tests/runtime_test.gd` 覆盖 binding 所有权、pool 状态互斥、ViewStore 缓存、UI wrapper/form logic、失效 UI stack、GDScript system 与 mode 回滚；普通 Godot `ERROR` 默认会让测试失败，仅显式故障注入可放行。
+- `fw/tests/runtime_test.gd` 覆盖 Godot 公共 API 合同、binding 所有权、pool 状态互斥、ViewStore 缓存、UI wrapper/form logic、失效 UI stack、GDScript system 与 mode 回滚；普通 Godot `ERROR` 默认会让测试失败，仅显式故障注入可放行。
 
 ## 治理
 - `fw/docs` 与 `fw/.codex/skills/fw/SKILL.md` 是框架规范源。

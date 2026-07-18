@@ -159,6 +159,13 @@
 - `project.godot [dotnet].project/assembly_name` 必须等于 `fw.toml [project].name`。
 - 本地和 CI 必须执行相同的 generator test、模板生成、Release/Debug 构建和 Godot headless 测试。
 
+### 兼容
+- 框架公共合同包括 Godot 基类与 service、`FwRuntime` 公共 API、`fw.toml`、生成命令、schema 子集和生成类型；改名、删除或改变既有语义都属于兼容性变更。
+- 对外发布使用 Semantic Versioning Git tag；破坏兼容性升级 major，向后兼容能力升级 minor，只修复既有行为升级 patch。
+- 宿主工程必须通过 submodule commit 锁定精确框架版本，不跟随浮动分支运行或发布。
+- 框架升级后必须重新生成并完成 check、build、test；submodule 指针与对应生成产物必须在同一宿主变更中收束。
+- 破坏性变更必须在 `CHANGELOG.md` 说明影响和迁移方法，不允许只靠编译错误提示使用者猜测。
+
 ### 复用
 - 具体玩法留在宿主项目。
 - 同一 feature 内先局部实现。

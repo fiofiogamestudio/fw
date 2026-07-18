@@ -64,6 +64,8 @@ just build
 
 `new` 会在返回成功前完成生成、配置检查和框架检查。测试会在临时目录创建全新工程，并验证生成、篡改检测、配置打包、Release/Debug 构建、Godot 运行时和主场景启动。
 
+宿主通过 submodule commit 锁定实际框架版本；升级时选择明确的 SemVer tag 或 commit，并把更新后的 `fw` 指针与重新生成的 `_gen` 产物放在同一宿主提交中。
+
 ## Hook
 框架维护者需要时显式启用：
 

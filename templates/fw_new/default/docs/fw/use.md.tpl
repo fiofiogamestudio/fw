@@ -62,6 +62,14 @@
 - 冷缓存较慢时可用 `FW_GODOT_EDITOR_TIMEOUT_SECONDS` 和 `FW_GODOT_RUN_TIMEOUT_SECONDS` 调整 headless 超时；默认分别为 90 秒和 30 秒。
 - 正式提交不应使用 `-SkipGodot`；该参数只用于明确缺少 Godot 的临时环境。
 
+## 升级
+1. 保持宿主工作区可区分，记录当前 `fw` submodule commit。
+2. 把 `fw` 切换到目标 SemVer tag 或明确 commit，不直接依赖远端浮动分支。
+3. 依次运行 system、bridge、config 生成和 `config_check`，再运行 `check`、`build`、`test`。
+4. 审阅公共 API、schema 合同和生成产物差异；按 `CHANGELOG.md` 完成必要迁移。
+5. 验证通过后，在同一宿主变更中提交 `fw` 指针和对应生成产物，避免其他电脑检出不一致组合。
+6. 任一步失败时先恢复旧 submodule commit，不手改 `_gen` 产物绕过检查。
+
 ## Hook
 - 框架维护者可显式启用：`git -C fw config core.hooksPath hooks`。
 - hook 只同步 `fw` 自己的 skill/docs 到默认模板。
