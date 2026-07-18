@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.1.0 - 2026-07-18
+
 - System runtime 增加显式生命周期、初始化回滚和幂等 shutdown。
 - Pool、binding、view store、UI wrapper/form logic、UI stack 和 mode 切换补齐失效对象与失败回滚处理。
 - Bridge parser 增加 import/package/oneof 校验，拒绝 import 穿越与歧义；生成器统一 proto3 零值并只解析一次 schema。
