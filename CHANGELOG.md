@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Bridge/Config 先解析为单一语义模型，校验器与两端 renderer 共用 root、enum、字段和生成命名结果。
+- System、Bridge、Config 与 Config Pack 改为批次事务提交；代码、旧产物删除和 manifest 任一步失败都会回滚，配置打包同时清理过期 `.bin`。
+- C# 与 Godot 增加自动发现的精确公共 API snapshot，覆盖继承、默认值、常量、属性访问器、事件和运算符；生成事务补齐新增、替换、删除与故障回滚测试。
+
 ## 0.1.3 - 2026-07-19
 
 - System、Bridge 与 Config schema 共用生成标识符冲突校验，并在写出产物前拒绝 C#/GDScript 名称归一化、保留名和后缀折叠冲突。

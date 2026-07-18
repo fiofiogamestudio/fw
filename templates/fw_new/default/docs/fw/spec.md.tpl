@@ -91,21 +91,25 @@
 - 默认模板是最小但完整的 `Godot intent -> C# GameSystem -> view/event -> Godot VM` 计数器闭环，不默认塞入网络、DS 或具体世界玩法。
 
 ## 生成
-- `BridgeGen`、`ConfigGen` 只编排流程；`BridgeSchema`、`ConfigSchema` 解析语义模型，`BridgeGd / BridgeTypes / BridgeCodec` 与 `ConfigGd / ConfigCs / ConfigData` 单向消费模型。各阶段是独立类型，不共享 partial 私有状态，也不形成新命令或新合同。
+- `SystemGen`、`BridgeGen`、`ConfigGen` 只编排流程；schema 层先解析并校验完整语义模型，Godot/C# renderer 只消费同一模型，不再各自推断 root、enum 或字段集合。
+- `BridgeModel` 固定一次解析得到 intent/action/event/packet root、enum、view 和字段集合；`ConfigModel` 固定一次解析得到 message、root、字段集合与 schema hash。校验器和 renderer 因此不会使用两套命名或分类规则。
 - 所有输出使用确定性排序；重复生成内容保持一致。
-- 单个文件先写同目录临时文件，再原子替换目标，避免留下半写文件。
+- `system / bridge / config / config_pack` 先把本次写入和删除全部放入内存批次，再准备同目录临时文件并提交；进程内任一步失败都会逆序恢复旧文件，新建文件会删除。
+- 生成清单与对应代码在同一批次提交；清单 hash 直接基于待提交字节计算，不会提前认可磁盘旧产物。
+- 内容未变化的文件不会重写；`config_pack` 同批删除不再对应当前 config root 的旧 `.bin`。
 - `csharp/_gen/_fwgen_manifest.json` 记录生成器、输入和完整输出集合的 hash；`fw check` 拒绝缺失、过期、集合异常或被手改的生成产物。
 - `fw check` 同时检查路径、目录、角色后缀、禁止引用以及 system/bridge/config schema。
 - `new` 在返回成功前自动完成生成、`config_check` 和 `fw check`。
 
 ## 测试
-- `FwGenTests` 按 `proto / system / bridge / config / runtime / api` 分组，覆盖合法/非法 proto、import/package/oneof、proto 零值、生成标识符冲突、system phase/回滚/fault 清理、生成锁、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、数字溢出、格式头、版本、校验和、长度边界、逐字节变异和 C# 公共 API 合同。
+- `FwGenTests` 按 `proto / system / bridge / config / runtime / api` 分组，覆盖合法/非法 proto、import/package/oneof、proto 零值、生成标识符冲突、system phase/回滚/fault 清理、生成锁、批次新增/替换/删除回滚、生成清单、config pack 和 wire frame，包括 import 穿越/歧义、数字溢出、格式头、版本、校验和、长度边界与逐字节变异。
 - `tools/test.ps1`、`tools/test.sh` 会构建 runtime/generator，运行生成器测试，并在全新临时目录验证 `new -> check -> config_pack -> build`。
 - 测试会比较规范源与模板镜像，并验证重复生成、重复打包的内容完全一致。
 - 本地存在 Godot .NET 时继续执行 headless editor 扫描、编辑器改写后的二次 check/build、runtime 故障注入和主场景启动；可用 `GODOT_BIN` 显式指定可执行文件。
 - `.github/workflows/ci.yml` 使用只读仓库权限，在 Windows 与 Linux 安装固定 Godot .NET，并执行同一完整测试链；同一引用的新任务会取消旧任务，单个 job 最长运行 30 分钟。
 - `fw/csharp/Directory.Build.props` 统一 FwGen、FwRuntime 与测试工程的 target framework，并把 C# 警告视为错误；默认模板对宿主使用同一规则。
-- `fw/tests/runtime_test.gd` 覆盖 Godot 公共 API 合同、binding 所有权、pool 状态互斥、ViewStore 缓存、UI wrapper/form logic、失效 UI stack、GDScript system 与 mode 回滚；普通 Godot `ERROR` 默认会让测试失败，仅显式故障注入可放行。
+- C# snapshot 冻结 `Fw.Rt.*` 的公开类型、继承关系、构造、字段、属性访问器、事件、方法和运算符；Godot snapshot 自动扫描 `fw/scripts/fw` 下全部 `class_name`，冻结直接基类、方法签名与默认值、signal、属性和常量值。
+- `fw/tests/runtime_test.gd` 还覆盖 binding 所有权、pool 状态互斥、ViewStore 缓存、UI wrapper/form logic、失效 UI stack、GDScript system 与 mode 回滚；普通 Godot `ERROR` 默认会让测试失败，仅显式故障注入可放行。
 
 ## 治理
 - `fw/docs` 与 `fw/.codex/skills/fw/SKILL.md` 是框架规范源。

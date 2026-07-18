@@ -20,6 +20,8 @@
 - 完整构建：`fw/tools/build.ps1`。
 - 完整测试：`fw/tools/test.ps1`。
 - Unix 使用同名 `.sh` 脚本；Windows/Unix 默认 build 流程一致。
+- `system / bridge / config / config_pack` 都按批次提交；命令中途失败时保留调用前的完整产物与 manifest，不需要手工修补 `_gen`。
+- `config_pack` 会删除已不再对应当前 config root 的旧 `.bin`，`pack/config` 不应存放手写文件。
 
 ## 修改 System
 1. 修改 `schema/systems.toml`。
@@ -61,6 +63,7 @@
 - 本机安装 Godot .NET 时，测试会额外执行 headless 脚本扫描和主场景启动；可用 `GODOT_BIN` 指定版本，或用 `-SkipGodot` 跳过。
 - 冷缓存较慢时可用 `FW_GODOT_EDITOR_TIMEOUT_SECONDS` 和 `FW_GODOT_RUN_TIMEOUT_SECONDS` 调整 headless 超时；默认分别为 90 秒和 30 秒。
 - 正式提交不应使用 `-SkipGodot`；该参数只用于明确缺少 Godot 的临时环境。
+- 公共 API snapshot 变化默认直接失败。只有确认该变化符合 SemVer 和迁移要求后，框架维护者才可临时设置 `FW_UPDATE_API=1`，分别运行 FwGenTests 与 Godot runtime test 更新基线；随后必须取消变量、审阅 diff 并重新完整测试。
 
 ## 升级
 1. 保持宿主工作区可区分，记录当前 `fw` submodule commit。
