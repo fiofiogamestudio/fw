@@ -10,6 +10,7 @@ static class BridgeSchema
             throw new InvalidOperationException("bridge schema must declare one shared package");
         }
         ValidateSupportedTypes(schema);
+        ValidateGeneratedIdentifiers(schema);
         return schema;
     }
 
@@ -30,6 +31,259 @@ static class BridgeSchema
                 );
             }
         }
+    }
+
+    private static void ValidateGeneratedIdentifiers(ProtoSchema schema)
+    {
+        var intentRoot = FindIntentRoot(schema);
+        var actionRoot = FindActionRoot(schema);
+        var eventRoot = FindOneofRoot(schema, "event.proto");
+        var buttonEnum = FindButtonEnum(schema);
+        var packetEnum = FindPacketEnum(schema);
+
+        ValidateFieldConstants(schema);
+        ValidateEnumConstants(schema, buttonEnum, packetEnum);
+        ValidateTopLevelTypes(schema, intentRoot, actionRoot, eventRoot, buttonEnum);
+        ValidateIntentMembers(schema, intentRoot, actionRoot, buttonEnum);
+        ValidateEventMembers(schema, eventRoot);
+        ValidateGdWrappers(schema, eventRoot);
+    }
+
+    private static void ValidateFieldConstants(ProtoSchema schema)
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated BridgeField type", "BridgeField"),
+        };
+        names.AddRange(schema.Messages.Values
+            .SelectMany(message => message.Fields)
+            .Select(field => field.Name)
+            .Append("kind")
+            .Append("type")
+            .Distinct(StringComparer.Ordinal)
+            .Select(name => (name, Pascal(name))));
+        TextUtil.ValidateGeneratedNames("bridge field constant", names);
+    }
+
+    private static void ValidateEnumConstants(
+        ProtoSchema schema,
+        ProtoEnum? buttonEnum,
+        ProtoEnum? packetEnum
+    )
+    {
+        foreach (var protoEnum in EnumsInFile(schema, "value.proto"))
+        {
+            var className = BridgeEnumClass(protoEnum.Name);
+            TextUtil.ValidateGeneratedNames(
+                $"bridge enum `{protoEnum.Name}`",
+                protoEnum.Values.Where(item => item.Number != 0)
+                    .Select(item => (item.Name, Pascal(EnumTail(item.Name))))
+                    .Prepend(($"generated {className} type", className))
+            );
+        }
+        if (buttonEnum != null)
+        {
+            TextUtil.ValidateGeneratedNames(
+                $"bridge button enum `{buttonEnum.Name}`",
+                buttonEnum.Values.Where(item => item.Number != 0)
+                    .Select(item => (item.Name, Pascal(EnumTail(item.Name))))
+                    .Prepend(("generated BridgeButton type", "BridgeButton"))
+            );
+        }
+        if (packetEnum != null)
+        {
+            TextUtil.ValidateGeneratedNames(
+                $"bridge packet enum `{packetEnum.Name}`",
+                packetEnum.Values.Where(item => item.Number != 0)
+                    .Select(item => (item.Name, Pascal(PacketValueName(item.Name))))
+                    .Prepend(("generated BridgePacketType type", "BridgePacketType"))
+            );
+        }
+    }
+
+    private static void ValidateTopLevelTypes(
+        ProtoSchema schema,
+        ProtoMessage? intentRoot,
+        ProtoMessage? actionRoot,
+        ProtoMessage? eventRoot,
+        ProtoEnum? buttonEnum
+    )
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated BridgeField", "BridgeField"),
+            ("generated BridgePacketType", "BridgePacketType"),
+        };
+        names.AddRange(EnumsInFile(schema, "value.proto")
+            .Select(item => ($"value enum {item.Name}", BridgeEnumClass(item.Name))));
+        if (buttonEnum != null)
+        {
+            names.Add(($"button enum {buttonEnum.Name}", "BridgeButton"));
+        }
+        if (intentRoot != null)
+        {
+            names.Add(($"intent root {intentRoot.Name}", intentRoot.Name));
+        }
+        if (actionRoot != null)
+        {
+            names.Add(($"action root {actionRoot.Name}", actionRoot.Name));
+            foreach (var variant in actionRoot.Fields.Where(item => item.IsOneof))
+            {
+                if (schema.Messages.TryGetValue(variant.Type, out var payload))
+                {
+                    names.Add(($"action variant {variant.Name}", payload.Name));
+                }
+            }
+        }
+        if (eventRoot != null)
+        {
+            names.Add(("generated CoreEvent", RuntimeEventType(eventRoot)));
+            foreach (var variant in eventRoot.Fields.Where(item => item.IsOneof))
+            {
+                if (schema.Messages.TryGetValue(variant.Type, out var payload))
+                {
+                    names.Add(($"event variant {variant.Name}", payload.Name));
+                }
+            }
+        }
+        TextUtil.ValidateGeneratedNames("bridge C# type", names);
+    }
+
+    private static void ValidateIntentMembers(
+        ProtoSchema schema,
+        ProtoMessage? intentRoot,
+        ProtoMessage? actionRoot,
+        ProtoEnum? buttonEnum
+    )
+    {
+        if (actionRoot != null)
+        {
+            var actionMembers = new List<(string Source, string Identifier)>
+            {
+                ("enclosing action type", actionRoot.Name),
+                ("generated Kind property", "Kind"),
+                ("generated Payload property", "Payload"),
+                ("generated As method", "As"),
+            };
+            actionMembers.AddRange(actionRoot.Fields.Where(item => item.IsOneof)
+                .Select(item => ($"variant {item.Name}", Pascal(item.Name))));
+            actionMembers.AddRange(VariantFields(schema, actionRoot)
+                .Select(item => ($"payload field {item.Name}", Pascal(item.Name))));
+            TextUtil.ValidateGeneratedNames($"bridge action `{actionRoot.Name}` member", actionMembers);
+
+            foreach (var variant in actionRoot.Fields.Where(item => item.IsOneof))
+            {
+                if (schema.Messages.TryGetValue(variant.Type, out var payload))
+                {
+                    ValidateMessageMembers(payload, $"bridge action payload `{payload.Name}`");
+                }
+            }
+        }
+
+        if (intentRoot == null)
+        {
+            return;
+        }
+        var intentMembers = intentRoot.Fields.Where(item => !item.IsOneof)
+            .Select(item => ($"field {item.Name}", IntentPropertyName(item)))
+            .ToList();
+        intentMembers.Add(("enclosing intent type", intentRoot.Name));
+        if (buttonEnum != null)
+        {
+            intentMembers.AddRange(buttonEnum.Values.Where(item => item.Number != 0)
+                .Select(item => ($"button {item.Name}", "Btn" + Pascal(EnumTail(item.Name)))));
+        }
+        var properties = intentRoot.Fields.Where(item => !item.IsOneof)
+            .Select(IntentPropertyName)
+            .ToHashSet(StringComparer.Ordinal);
+        if (properties.Contains("Hold") && properties.Contains("Down") && properties.Contains("Up"))
+        {
+            intentMembers.Add(("generated IsHold method", "IsHold"));
+            intentMembers.Add(("generated IsDown method", "IsDown"));
+            intentMembers.Add(("generated IsUp method", "IsUp"));
+        }
+        TextUtil.ValidateGeneratedNames($"bridge intent `{intentRoot.Name}` member", intentMembers);
+    }
+
+    private static void ValidateEventMembers(ProtoSchema schema, ProtoMessage? eventRoot)
+    {
+        if (eventRoot == null)
+        {
+            return;
+        }
+        var eventMembers = new List<(string Source, string Identifier)>
+        {
+            ("enclosing event type", RuntimeEventType(eventRoot)),
+            ("generated Type property", "Type"),
+            ("generated Payload property", "Payload"),
+            ("generated As method", "As"),
+        };
+        eventMembers.AddRange(eventRoot.Fields.Where(item => item.IsOneof)
+            .Select(item => ($"variant {item.Name}", ClassNameForEvent(item.Type))));
+        eventMembers.AddRange(VariantFields(schema, eventRoot)
+            .Select(item => ($"payload field {item.Name}", Pascal(item.Name))));
+        TextUtil.ValidateGeneratedNames($"bridge event `{eventRoot.Name}` member", eventMembers);
+
+        foreach (var variant in eventRoot.Fields.Where(item => item.IsOneof))
+        {
+            if (schema.Messages.TryGetValue(variant.Type, out var payload))
+            {
+                ValidateMessageMembers(payload, $"bridge event payload `{payload.Name}`");
+            }
+        }
+    }
+
+    private static void ValidateMessageMembers(ProtoMessage message, string label)
+    {
+        TextUtil.ValidateGeneratedNames(
+            label + " member",
+            message.Fields.Select(item => ($"field {item.Name}", Pascal(item.Name)))
+                .Prepend(("enclosing type", message.Name))
+        );
+    }
+
+    private static void ValidateGdWrappers(ProtoSchema schema, ProtoMessage? eventRoot)
+    {
+        var viewMessages = MessagesInFile(schema, "view.proto")
+            .Where(item => item.Fields.All(field => !field.IsOneof))
+            .ToArray();
+        TextUtil.ValidateGeneratedNames(
+            "bridge GDScript view type",
+            viewMessages.Select(item => (item.Name, ClassNameForView(item.Name)))
+        );
+        foreach (var message in viewMessages)
+        {
+            ValidateGdWrapperMembers(schema, message, $"bridge view `{message.Name}`");
+        }
+
+        if (eventRoot == null)
+        {
+            return;
+        }
+        var eventTypes = new List<(string Source, string Identifier)> { ("generated Bus", "Bus") };
+        foreach (var variant in eventRoot.Fields.Where(item => item.IsOneof))
+        {
+            eventTypes.Add(($"variant {variant.Name}", ClassNameForEvent(variant.Type)));
+            if (schema.Messages.TryGetValue(variant.Type, out var message))
+            {
+                ValidateGdWrapperMembers(schema, message, $"bridge event `{message.Name}`");
+            }
+        }
+        TextUtil.ValidateGeneratedNames("bridge GDScript event type", eventTypes);
+    }
+
+    private static void ValidateGdWrapperMembers(ProtoSchema schema, ProtoMessage message, string label)
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated wrap method", "wrap"),
+            ("generated raw method", "raw"),
+        };
+        names.AddRange(message.Fields.Select(item => ($"field {item.Name}", item.Name)));
+        names.AddRange(message.Fields
+            .Where(item => item.IsRepeated && !IsIntLike(item.Type) && schema.Messages.ContainsKey(item.Type))
+            .Select(item => ($"field {item.Name} wrapper", item.Name + "_wrapped")));
+        TextUtil.ValidateGeneratedNames(label + " GDScript member", names);
     }
 
     internal static string[] SchemaFiles(string schemaDir)
@@ -243,18 +497,16 @@ static class BridgeSchema
         return string.Join("_", parts.Skip(2)).ToLowerInvariant();
     }
 
+    internal static string PacketValueName(string value)
+    {
+        return value.StartsWith("PACKET_TYPE_", StringComparison.Ordinal)
+            ? value["PACKET_TYPE_".Length..].ToLowerInvariant()
+            : EnumTail(value);
+    }
+
     internal static string Pascal(string value)
     {
-        var text = new StringBuilder();
-        foreach (var part in value.Split('_', StringSplitOptions.RemoveEmptyEntries))
-        {
-            text.Append(char.ToUpperInvariant(part[0]));
-            if (part.Length > 1)
-            {
-                text.Append(part[1..].ToLowerInvariant());
-            }
-        }
-        return text.Length == 0 ? "Value" : text.ToString();
+        return TextUtil.SchemaPascal(value);
     }
 
     internal static string Camel(string value)

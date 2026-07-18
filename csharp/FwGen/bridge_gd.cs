@@ -122,9 +122,7 @@ static class BridgeGd
         {
             foreach (var value in protoEnum.Values.Where(item => item.Number != 0))
             {
-                var name = value.Name.StartsWith("PACKET_TYPE_", StringComparison.Ordinal)
-                    ? value.Name["PACKET_TYPE_".Length..].ToLowerInvariant()
-                    : EnumTail(value.Name);
+                var name = PacketValueName(value.Name);
                 text.AppendLine($"\tconst {GdConstName(name)} := \"{name}\"");
             }
         }

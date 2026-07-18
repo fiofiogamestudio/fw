@@ -10,6 +10,7 @@ static class ConfigSchema
             : []);
         ValidateFixed32(schema);
         ValidateSupportedTypes(schema);
+        ValidateGeneratedIdentifiers(schema);
         return schema;
     }
 
@@ -99,6 +100,98 @@ static class ConfigSchema
                 );
             }
         }
+    }
+
+    private static void ValidateGeneratedIdentifiers(ProtoSchema schema)
+    {
+        var messages = schema.Messages.Values
+            .Where(item => item.Name != "Fixed32")
+            .ToArray();
+
+        ValidateCsTypes(messages);
+        ValidateFieldConstants(schema);
+        ValidateMessageMembers(messages);
+        ValidateConfigRoots(messages);
+        ValidateGdParsers(messages);
+    }
+
+    private static void ValidateCsTypes(IEnumerable<ProtoMessage> messages)
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated ConfigField", "ConfigField"),
+            ("generated ConfigPath", "ConfigPath"),
+            ("generated ConfigCodec", "ConfigCodec"),
+        };
+        names.AddRange(messages.Select(item => ($"message {item.Name}", ConfigClassName(item.Name))));
+        TextUtil.ValidateGeneratedNames("config C# type", names);
+    }
+
+    private static void ValidateFieldConstants(ProtoSchema schema)
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated ConfigField type", "ConfigField"),
+        };
+        names.AddRange(schema.Messages.Values
+            .SelectMany(message => message.Fields)
+            .Select(field => field.Name)
+            .Append("key")
+            .Distinct(StringComparer.Ordinal)
+            .Select(name => (name, TextUtil.SchemaPascal(name))));
+        TextUtil.ValidateGeneratedNames("config field constant", names);
+    }
+
+    private static void ValidateMessageMembers(IEnumerable<ProtoMessage> messages)
+    {
+        foreach (var message in messages)
+        {
+            TextUtil.ValidateGeneratedNames(
+                $"config message `{message.Name}` member",
+                message.Fields.Select(item => (item.Name, TextUtil.SchemaPascal(item.Name)))
+                    .Prepend(("enclosing type", ConfigClassName(message.Name)))
+            );
+        }
+    }
+
+    private static void ValidateConfigRoots(IEnumerable<ProtoMessage> messages)
+    {
+        var roots = messages
+            .Where(item => item.Name.EndsWith("Config", StringComparison.Ordinal))
+            .Select(item => (Source: item.Name, Name: TextUtil.Snake(item.Name[..^"Config".Length])))
+            .ToArray();
+        TextUtil.ValidateGeneratedNames(
+            "config root",
+            roots.Select(item => (item.Source, item.Name))
+        );
+
+        var pathMembers = new List<(string Source, string Identifier)>
+        {
+            ("generated AllSourcePaths", "AllSourcePaths"),
+            ("generated AllPackPaths", "AllPackPaths"),
+        };
+        foreach (var root in roots)
+        {
+            var identifier = TextUtil.SchemaPascal(root.Name);
+            pathMembers.Add(($"root {root.Source} source", identifier + "Source"));
+            pathMembers.Add(($"root {root.Source} pack", identifier + "Pack"));
+        }
+        TextUtil.ValidateGeneratedNames("config path member", pathMembers);
+    }
+
+    private static void ValidateGdParsers(IEnumerable<ProtoMessage> messages)
+    {
+        var names = new List<(string Source, string Identifier)>
+        {
+            ("generated scalar int parser", "int"),
+            ("generated scalar bool parser", "bool"),
+            ("generated scalar fixed parser", "fixed"),
+            ("generated scalar float parser", "float"),
+            ("generated scalar string parser", "string"),
+            ("generated scalar array parser", "array"),
+        };
+        names.AddRange(messages.Select(item => ($"message {item.Name}", TextUtil.Snake(item.Name))));
+        TextUtil.ValidateGeneratedNames("config GDScript parser", names);
     }
 
     internal sealed record ConfigRoot(

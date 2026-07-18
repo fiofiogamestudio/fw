@@ -11,6 +11,10 @@ static class ConfigTests
         new("invalid Fixed32 marker fails", TestInvalidFixed32Marker),
         new("config enum fields fail early", TestConfigEnumField),
         new("config unsupported scalars fail early", TestUnsupportedConfigScalar),
+        new("config rejects generated field collisions", TestGeneratedConfigFieldCollision),
+        new("config rejects generated type collisions", TestGeneratedConfigTypeCollision),
+        new("config rejects generated parser collisions", TestGeneratedConfigParserCollision),
+        new("config rejects enclosing member collisions", TestConfigEnclosingMemberCollision),
         new("config reference validation", TestConfigReferenceValidation),
         new("duplicate config key fails", TestDuplicateConfigKey),
     ];
@@ -151,6 +155,78 @@ static class ConfigTests
             Throws(
                 () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
                 "unsupported scalar `fixed64`"
+            );
+        });
+    }
+
+    private static void TestGeneratedConfigFieldCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/game.proto", """
+                syntax = "proto3";
+                message GameConfig {
+                  string player_id = 1;
+                  string player__id = 2;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "same generated identifier"
+            );
+        });
+    }
+
+    private static void TestGeneratedConfigTypeCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/game.proto", """
+                syntax = "proto3";
+                message GameConfig {
+                  string title = 1;
+                }
+                message CoreConfig {
+                  string name = 1;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "same generated identifier"
+            );
+        });
+    }
+
+    private static void TestGeneratedConfigParserCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/game.proto", """
+                syntax = "proto3";
+                message Int {
+                  int32 value = 1;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "same generated identifier"
+            );
+        });
+    }
+
+    private static void TestConfigEnclosingMemberCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/config/item.proto", """
+                syntax = "proto3";
+                message Item {
+                  string item = 1;
+                }
+                """);
+            Throws(
+                () => ConfigSchema.Read(Path.Combine(root, "schema", "config")),
+                "same generated identifier"
             );
         });
     }

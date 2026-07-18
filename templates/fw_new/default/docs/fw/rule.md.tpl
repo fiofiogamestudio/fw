@@ -48,7 +48,7 @@
 - 生成文件统一使用 `_` 前缀，表示用户不应直接修改。
 - 生成的 GDScript 文件统一放在 `scripts/_gen`。
 - 生成的 C# 文件统一放在 `csharp/_gen`。
-- system schema 必须在写出任何产物前完成生成标识符校验；bridge/config schema 必须先完成目标端能力校验。无法正确生成的声明必须直接失败。
+- system/bridge/config schema 必须在写出任何产物前完成目标端能力与生成标识符校验。无法正确生成的声明必须直接失败。
 - Godot 和 C# 共享 `system / context / phase / refs / config / state` 主干。
 - 共享的是运行范式，不是所有文件后缀。
 

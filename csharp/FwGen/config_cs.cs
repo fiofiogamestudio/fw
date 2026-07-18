@@ -646,16 +646,7 @@ static class ConfigCs
 
     private static string Pascal(string value)
     {
-        var text = new StringBuilder();
-        foreach (var part in value.Split('_', StringSplitOptions.RemoveEmptyEntries))
-        {
-            text.Append(char.ToUpperInvariant(part[0]));
-            if (part.Length > 1)
-            {
-                text.Append(part[1..].ToLowerInvariant());
-            }
-        }
-        return text.Length == 0 ? "Value" : text.ToString();
+        return TextUtil.SchemaPascal(value);
     }
 
     private static string EscapeCs(string value)

@@ -454,6 +454,49 @@ static class TextUtil
         return text.Length == 0 ? "Game" : text.ToString();
     }
 
+    public static string SchemaPascal(string value)
+    {
+        var text = new StringBuilder();
+        foreach (var part in value.Split('_', StringSplitOptions.RemoveEmptyEntries))
+        {
+            text.Append(char.ToUpperInvariant(part[0]));
+            if (part.Length > 1)
+            {
+                text.Append(part[1..].ToLowerInvariant());
+            }
+        }
+        return text.Length == 0 ? "Value" : text.ToString();
+    }
+
+    public static void ValidateGeneratedNames(
+        string label,
+        IEnumerable<(string Source, string Identifier)> names
+    )
+    {
+        var items = names.ToArray();
+        foreach (var item in items.Where(item => string.IsNullOrWhiteSpace(item.Identifier)))
+        {
+            throw new InvalidOperationException(
+                $"{label} name `{item.Source}` produces an empty generated identifier"
+            );
+        }
+
+        foreach (var group in items.GroupBy(item => item.Identifier, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal))
+        {
+            var sources = group.Select(item => item.Source)
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(item => item, StringComparer.Ordinal)
+                .ToArray();
+            if (sources.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"{label} names `{string.Join("`, `", sources)}` produce the same generated identifier `{group.Key}`"
+                );
+            }
+        }
+    }
+
     public static void WriteText(string path, string text)
     {
         var fullPath = Path.GetFullPath(path);

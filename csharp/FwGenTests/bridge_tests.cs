@@ -6,6 +6,9 @@ static class BridgeTests
     [
         new("bridge uses proto zero defaults", TestBridgeZeroDefaults),
         new("bridge rejects unsupported scalars", TestUnsupportedBridgeScalar),
+        new("bridge rejects generated name collisions", TestGeneratedBridgeNameCollision),
+        new("bridge rejects generated type collisions", TestGeneratedBridgeTypeCollision),
+        new("bridge rejects enclosing member collisions", TestBridgeEnclosingMemberCollision),
     ];
 
     private static void TestBridgeZeroDefaults()
@@ -108,6 +111,84 @@ static class BridgeTests
             Throws(
                 () => BridgeSchema.Read(Path.Combine(root, "schema", "bridge")),
                 "unsupported scalar `bytes`"
+            );
+        });
+    }
+
+    private static void TestGeneratedBridgeNameCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/bridge/value.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/intent.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/view.proto", """
+                syntax = "proto3";
+                package audit.bridge;
+                message GameView {
+                  string player_id = 1;
+                  string player__id = 2;
+                }
+                """);
+            Write(root, "schema/bridge/event.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/packet.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+
+            Throws(
+                () => BridgeSchema.Read(Path.Combine(root, "schema", "bridge")),
+                "same generated identifier"
+            );
+        });
+    }
+
+    private static void TestGeneratedBridgeTypeCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/bridge/value.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/intent.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/view.proto", """
+                syntax = "proto3";
+                package audit.bridge;
+                message GameView {
+                  string title = 1;
+                }
+                message Game {
+                  string name = 1;
+                }
+                """);
+            Write(root, "schema/bridge/event.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/packet.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+
+            Throws(
+                () => BridgeSchema.Read(Path.Combine(root, "schema", "bridge")),
+                "same generated identifier"
+            );
+        });
+    }
+
+    private static void TestBridgeEnclosingMemberCollision()
+    {
+        WithTempDir(root =>
+        {
+            Write(root, "schema/bridge/value.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/intent.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/view.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+            Write(root, "schema/bridge/event.proto", """
+                syntax = "proto3";
+                package audit.bridge;
+                message ItemEvent {
+                  string item_event = 1;
+                }
+                message EventEnvelope {
+                  oneof event {
+                    ItemEvent item = 1;
+                  }
+                }
+                """);
+            Write(root, "schema/bridge/packet.proto", "syntax = \"proto3\";\npackage audit.bridge;\n");
+
+            Throws(
+                () => BridgeSchema.Read(Path.Combine(root, "schema", "bridge")),
+                "same generated identifier"
             );
         });
     }

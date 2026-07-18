@@ -220,8 +220,14 @@ static class SystemSchemaParser
             throw new InvalidOperationException($"{path}: [{runtime.Runtime}.phases].order cannot be empty");
         }
 
-        ValidateGeneratedNames(path, runtime, "system", runtime.Systems.Select(item => item.Id));
-        ValidateGeneratedNames(path, runtime, "phase", runtime.PhaseOrder);
+        TextUtil.ValidateGeneratedNames(
+            $"{path}: {runtime.Runtime} system",
+            runtime.Systems.Select(item => (item.Id, TextUtil.PascalName(item.Id)))
+        );
+        TextUtil.ValidateGeneratedNames(
+            $"{path}: {runtime.Runtime} phase",
+            runtime.PhaseOrder.Select(item => (item, TextUtil.PascalName(item)))
+        );
 
         var knownPhases = runtime.PhaseOrder.ToHashSet(StringComparer.Ordinal);
         var knownSystems = runtime.Systems.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
@@ -270,30 +276,6 @@ static class SystemSchemaParser
                 throw new InvalidOperationException($"{path}:{system.LineNo} core system `{system.Id}` needs type");
             }
         }
-    }
-
-    private static void ValidateGeneratedNames(
-        string path,
-        RuntimeSystemSchema runtime,
-        string label,
-        IEnumerable<string> names
-    )
-    {
-        var collision = names
-            .GroupBy(TextUtil.PascalName, StringComparer.Ordinal)
-            .Select(group => new
-            {
-                Generated = group.Key,
-                Sources = group.Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal).ToArray(),
-            })
-            .FirstOrDefault(group => group.Sources.Length > 1);
-        if (collision == null)
-        {
-            return;
-        }
-        throw new InvalidOperationException(
-            $"{path}: {runtime.Runtime} {label} names `{string.Join("`, `", collision.Sources)}` produce the same generated identifier `{collision.Generated}`"
-        );
     }
 
     private static void ValidatePhaseOrder(string path, int lineNo, RuntimeSystemSchema runtime)
