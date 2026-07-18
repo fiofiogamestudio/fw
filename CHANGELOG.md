@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.1.1 - 2026-07-18
+
+- 测试工程改用独立的框架源码夹具，避免符号链接路径身份导致 MSBuild reference assembly 竞态。
+- Godot .NET 测试统一识别 `GODOT_BIN`、`GODOT` 与 `GODOT4`，并使用无窗口原生进程启动，兼容 Windows CI 的非交互会话。
+
 ## 0.1.0 - 2026-07-18
 
 - System runtime 增加显式生命周期、初始化回滚和幂等 shutdown。
