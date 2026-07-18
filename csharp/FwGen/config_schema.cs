@@ -1,8 +1,35 @@
 using System.Security.Cryptography;
 using System.Text;
 
+sealed class ConfigModel
+{
+    internal required ProtoSchema Schema { get; init; }
+    internal required string SchemaHash { get; init; }
+    internal required ProtoMessage[] Messages { get; init; }
+    internal required string[] FieldNames { get; init; }
+    internal required ConfigSchema.ConfigRoot[] Roots { get; init; }
+}
+
 static class ConfigSchema
 {
+    internal static ConfigModel Resolve(string root, FwConfig config)
+    {
+        var schemaDir = config.ConfigSchemaDir(root);
+        var schema = Read(schemaDir);
+        return new ConfigModel
+        {
+            Schema = schema,
+            SchemaHash = Hash(schemaDir),
+            Messages = schema.Messages.Values
+                .Where(item => item.Name != "Fixed32")
+                .OrderBy(item => item.Name.EndsWith("Config", StringComparison.Ordinal) ? 1 : 0)
+                .ThenBy(item => item.Name, StringComparer.Ordinal)
+                .ToArray(),
+            FieldNames = GeneratedFieldNames(schema),
+            Roots = ConfigRoots(root, config, schema),
+        };
+    }
+
     internal static ProtoSchema Read(string schemaDir)
     {
         var schema = ProtoSchema.ParseFiles(Directory.Exists(schemaDir)
@@ -42,6 +69,17 @@ static class ConfigSchema
                 return new ConfigRoot(rootName, item, isJson, sourcePath, packPath);
             })
             .OrderBy(item => item.Name, StringComparer.Ordinal)
+            .ToArray();
+    }
+
+    internal static string[] GeneratedFieldNames(ProtoSchema schema)
+    {
+        return schema.Messages.Values
+            .SelectMany(message => message.Fields)
+            .Select(field => field.Name)
+            .Append("key")
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(item => item, StringComparer.Ordinal)
             .ToArray();
     }
 
@@ -133,11 +171,7 @@ static class ConfigSchema
         {
             ("generated ConfigField type", "ConfigField"),
         };
-        names.AddRange(schema.Messages.Values
-            .SelectMany(message => message.Fields)
-            .Select(field => field.Name)
-            .Append("key")
-            .Distinct(StringComparer.Ordinal)
+        names.AddRange(GeneratedFieldNames(schema)
             .Select(name => (name, TextUtil.SchemaPascal(name))));
         TextUtil.ValidateGeneratedNames("config field constant", names);
     }

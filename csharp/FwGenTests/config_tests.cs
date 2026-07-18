@@ -34,7 +34,9 @@ static class ConfigTests
             var config = FwConfig.Load(root);
             ConfigGen.Check(root, config);
             ConfigGen.Generate(root, config);
+            Write(root, "pack/config/stale.bin", "stale");
             ConfigGen.Pack(root, config);
+            True(!File.Exists(Path.Combine(root, "pack/config/stale.bin")), "stale config pack cleanup");
 
             byte[] bytes = File.ReadAllBytes(Path.Combine(root, "pack/config/game.bin"));
             Equal("WCFG", System.Text.Encoding.ASCII.GetString(bytes, 0, 4), "config pack magic");

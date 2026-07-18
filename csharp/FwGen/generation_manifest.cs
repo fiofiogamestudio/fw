@@ -30,7 +30,15 @@ static class GenerationManifest
 
     public static void UpdateSystem(string root, FwConfig config)
     {
-        Update(
+        var batch = new GenerationBatch(root);
+        StageSystem(batch, root, config);
+        batch.Commit();
+    }
+
+    internal static void StageSystem(GenerationBatch batch, string root, FwConfig config)
+    {
+        Stage(
+            batch,
             root,
             config,
             "system",
@@ -41,8 +49,16 @@ static class GenerationManifest
 
     public static void UpdateBridge(string root, FwConfig config)
     {
+        var batch = new GenerationBatch(root);
+        StageBridge(batch, root, config);
+        batch.Commit();
+    }
+
+    internal static void StageBridge(GenerationBatch batch, string root, FwConfig config)
+    {
         var inputs = SchemaFiles(config.BridgeSchemaDir(root)).Append(Path.Combine(root, "fw.toml"));
-        Update(
+        Stage(
+            batch,
             root,
             config,
             "bridge",
@@ -60,7 +76,15 @@ static class GenerationManifest
 
     public static void UpdateConfig(string root, FwConfig config)
     {
-        Update(
+        var batch = new GenerationBatch(root);
+        StageConfig(batch, root, config);
+        batch.Commit();
+    }
+
+    internal static void StageConfig(GenerationBatch batch, string root, FwConfig config)
+    {
+        Stage(
+            batch,
             root,
             config,
             "config",
@@ -112,7 +136,8 @@ static class GenerationManifest
         );
     }
 
-    private static void Update(
+    private static void Stage(
+        GenerationBatch batch,
         string root,
         FwConfig config,
         string command,
@@ -120,10 +145,11 @@ static class GenerationManifest
         IEnumerable<string> outputs
     )
     {
-        Update(root, config, command, HashInputs(root, inputs), outputs);
+        Stage(batch, root, config, command, HashInputs(root, inputs), outputs);
     }
 
-    private static void Update(
+    private static void Stage(
+        GenerationBatch batch,
         string root,
         FwConfig config,
         string command,
@@ -144,11 +170,11 @@ static class GenerationManifest
                 .Select(item => new GenerationManifestFile
                 {
                     Path = Relative(root, item),
-                    Hash = HashFile(item),
+                    Hash = HashOutput(batch, item),
                 })
                 .ToList(),
         };
-        TextUtil.WriteText(manifestPath, JsonSerializer.Serialize(model, JsonOptions) + "\n");
+        batch.StageText(manifestPath, JsonSerializer.Serialize(model, JsonOptions) + "\n");
     }
 
     private static void VerifySection(
@@ -301,6 +327,11 @@ static class GenerationManifest
     private static string GeneratorHash(string root)
     {
         var generatorDir = Path.Combine(root, "fw", "csharp", "FwGen");
+        if (!Directory.Exists(generatorDir))
+        {
+            return Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(GenerationManifest).Assembly.Location)))
+                .ToLowerInvariant();
+        }
         var inputs = Directory.GetFiles(generatorDir, "*.cs", SearchOption.TopDirectoryOnly)
             .Append(Path.Combine(generatorDir, "FwGen.csproj"))
             .Append(Path.Combine(root, "fw", "csharp", "Directory.Build.props"));
@@ -316,7 +347,17 @@ static class GenerationManifest
         return Convert.ToHexString(SHA256.HashData(NormalizedBytes(path))).ToLowerInvariant();
     }
 
+    private static string HashOutput(GenerationBatch batch, string path)
+    {
+        return Convert.ToHexString(SHA256.HashData(NormalizedBytes(path, batch.ReadBytes(path)))).ToLowerInvariant();
+    }
+
     private static byte[] NormalizedBytes(string path)
+    {
+        return NormalizedBytes(path, File.ReadAllBytes(path));
+    }
+
+    private static byte[] NormalizedBytes(string path, byte[] content)
     {
         var extension = Path.GetExtension(path);
         var isText = extension.Equals(".cs", StringComparison.OrdinalIgnoreCase)
@@ -329,9 +370,9 @@ static class GenerationManifest
             || extension.Equals(".props", StringComparison.OrdinalIgnoreCase);
         if (!isText)
         {
-            return File.ReadAllBytes(path);
+            return content;
         }
-        var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n").Replace('\r', '\n');
+        var text = Encoding.UTF8.GetString(content).Replace("\r\n", "\n").Replace('\r', '\n');
         return Encoding.UTF8.GetBytes(text);
     }
 

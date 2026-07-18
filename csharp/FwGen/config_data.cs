@@ -86,14 +86,33 @@ static class ConfigData
             throw new InvalidOperationException($"config schema has no packable *Config messages: {schemaDir}");
         }
 
-        Directory.CreateDirectory(packDir);
+        var batch = new GenerationBatch(root);
+        var outputs = new List<(string RootName, string Path)>();
         foreach (var message in roots)
         {
             var rootName = TextUtil.Snake(message.Name[..^"Config".Length]);
             var entries = PackConfigData(dataDir, schema, message, rootName);
             var output = Path.Combine(packDir, $"{rootName}.bin");
-            WriteConfigPack(output, entries, schemaHash);
-            Console.WriteLine($"packed config {rootName}: {output}");
+            batch.StageBytes(output, EncodeConfigPack(entries, schemaHash));
+            outputs.Add((rootName, output));
+        }
+        var expected = outputs.Select(item => Path.GetFullPath(item.Path)).ToHashSet(
+            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal
+        );
+        if (Directory.Exists(packDir))
+        {
+            foreach (var path in Directory.GetFiles(packDir, "*.bin", SearchOption.TopDirectoryOnly))
+            {
+                if (!expected.Contains(Path.GetFullPath(path)))
+                {
+                    batch.StageDelete(path);
+                }
+            }
+        }
+        batch.Commit();
+        foreach (var output in outputs)
+        {
+            Console.WriteLine($"packed config {output.RootName}: {output.Path}");
         }
     }
 
@@ -368,25 +387,10 @@ static class ConfigData
         return (int)scaled;
     }
 
-    private static void WriteConfigPack(string output, object entries, byte[] schemaHash)
+    private static byte[] EncodeConfigPack(object entries, byte[] schemaHash)
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(output) ?? ".");
         var payload = JsonSerializer.SerializeToUtf8Bytes(entries);
-        byte[] outputBytes = ConfigPack.Encode(payload, schemaHash);
-
-        var temp = output + $".tmp.{Guid.NewGuid():N}";
-        try
-        {
-            File.WriteAllBytes(temp, outputBytes);
-            File.Move(temp, output, true);
-        }
-        finally
-        {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
-        }
+        return ConfigPack.Encode(payload, schemaHash);
     }
 
     private static void CheckConfigData(string dataDir, ProtoMessage message)

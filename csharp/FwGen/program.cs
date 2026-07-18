@@ -21,17 +21,13 @@ static class FwGen
             {
                 case "system":
                     var systemSchema = SystemSchemaParser.Parse(root, config.SystemsSchemaPath(root));
-                    SystemGen.Generate(root, config, systemSchema.Godot);
-                    CoreSystemGen.Generate(root, config, systemSchema.Core);
-                    GenerationManifest.UpdateSystem(root, config);
+                    SystemGen.Generate(root, config, systemSchema);
                     break;
                 case "bridge":
                     BridgeGen.Generate(root, config);
-                    GenerationManifest.UpdateBridge(root, config);
                     break;
                 case "config":
                     ConfigGen.Generate(root, config);
-                    GenerationManifest.UpdateConfig(root, config);
                     break;
                 case "config_check":
                     ConfigGen.Check(root, config);

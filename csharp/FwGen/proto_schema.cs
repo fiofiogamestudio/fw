@@ -497,31 +497,7 @@ static class TextUtil
         }
     }
 
-    public static void WriteText(string path, string text)
-    {
-        var fullPath = Path.GetFullPath(path);
-        var dir = Path.GetDirectoryName(fullPath);
-        if (!string.IsNullOrEmpty(dir))
-        {
-            Directory.CreateDirectory(dir);
-        }
-
-        var temp = fullPath + $".tmp.{Guid.NewGuid():N}";
-        try
-        {
-            File.WriteAllText(temp, StripTrailingWhitespace(text), new UTF8Encoding(false));
-            File.Move(temp, fullPath, true);
-        }
-        finally
-        {
-            if (File.Exists(temp))
-            {
-                File.Delete(temp);
-            }
-        }
-    }
-
-    private static string StripTrailingWhitespace(string text)
+    internal static string NormalizeText(string text)
     {
         var normalized = text.Replace("\r\n", "\n");
         return string.Join("\n", normalized.Split('\n').Select(line => line.TrimEnd()));

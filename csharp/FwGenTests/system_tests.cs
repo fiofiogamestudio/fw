@@ -13,7 +13,9 @@ static class SystemTests
         new("fw config rejects unknown keys", TestUnknownFwConfigKey),
         new("fw config contains paths", TestFwConfigPathContainment),
         new("manifest requires complete outputs", TestManifestOutputSet),
-        new("atomic text write", TestAtomicWrite),
+        new("generation batch normalizes text", TestGenerationBatchText),
+        new("generation batch rejects conflicting targets", TestGenerationBatchTargets),
+        new("generation batch rolls back all outputs", TestGenerationBatchRollback),
     ];
 
     private static void TestValidSystemSchema()
@@ -226,15 +228,68 @@ static class SystemTests
         });
     }
 
-    private static void TestAtomicWrite()
+    private static void TestGenerationBatchText()
     {
         WithTempDir(root =>
         {
             var path = Path.Combine(root, "out", "value.txt");
-            TextUtil.WriteText(path, "first  \n");
-            TextUtil.WriteText(path, "second  \n");
+            var first = new GenerationBatch(root);
+            first.StageText(path, "first  \r\n");
+            first.Commit();
+            var second = new GenerationBatch(root);
+            second.StageText(path, "second  \n");
+            second.Commit();
             Equal("second\n", File.ReadAllText(path), "atomic output");
-            Equal(0, Directory.GetFiles(Path.GetDirectoryName(path)!, "*.tmp.*").Length, "temporary files");
+            Equal(0, Directory.GetFiles(Path.GetDirectoryName(path)!, "*.fwgen.*").Length, "transaction artifacts");
+        });
+    }
+
+    private static void TestGenerationBatchRollback()
+    {
+        WithTempDir(root =>
+        {
+            var replaced = Write(root, "out/replaced.txt", "old replaced\n");
+            var created = Path.Combine(root, "out", "created.txt");
+            var deleted = Write(root, "out/deleted.txt", "old deleted\n");
+            var failure = Write(root, "out/failure.txt", "old failure\n");
+            var applyCount = 0;
+            var batch = new GenerationBatch(root, _ =>
+            {
+                applyCount++;
+                if (applyCount == 4)
+                {
+                    throw new IOException("injected commit failure");
+                }
+            });
+            batch.StageText(replaced, "new replaced\n");
+            batch.StageText(created, "new created\n");
+            batch.StageDelete(deleted);
+            batch.StageDelete(failure);
+
+            Throws<IOException>(batch.Commit, "generation batch failure");
+            Equal("old replaced\n", File.ReadAllText(replaced), "replaced output rollback");
+            True(!File.Exists(created), "created output rollback");
+            Equal("old deleted\n", File.ReadAllText(deleted), "deleted output rollback");
+            Equal("old failure\n", File.ReadAllText(failure), "failed output unchanged");
+            Equal(0, Directory.GetFiles(Path.Combine(root, "out"), "*.fwgen.*").Length, "transaction artifacts");
+        });
+    }
+
+    private static void TestGenerationBatchTargets()
+    {
+        WithTempDir(root =>
+        {
+            var path = Path.Combine(root, "out", "value.txt");
+            var duplicate = new GenerationBatch(root);
+            duplicate.StageText(path, "first\n");
+            Throws(() => duplicate.StageText(path, "second\n"), "written more than once");
+
+            var conflict = new GenerationBatch(root);
+            conflict.StageText(path, "value\n");
+            Throws(() => conflict.StageDelete(path), "both written and deleted");
+
+            var escape = new GenerationBatch(root);
+            Throws(() => escape.StageText("../outside.txt", "value\n"), "escapes project root");
         });
     }
 

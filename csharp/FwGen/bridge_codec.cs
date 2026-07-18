@@ -3,15 +3,15 @@ using static BridgeSchema;
 
 static class BridgeCodec
 {
-    internal static void Write(string root, FwConfig config, ProtoSchema schema)
+    internal static void Stage(GenerationBatch batch, string root, FwConfig config, BridgeModel model)
     {
-        GenerateCodecCs(root, config);
-        GenerateIntentCodecCs(root, config, schema);
-        GenerateEventCodecCs(root, config, schema);
-        GeneratePacketCodecCs(root, config, schema);
+        GenerateCodecCs(batch, root, config);
+        GenerateIntentCodecCs(batch, root, config, model);
+        GenerateEventCodecCs(batch, root, config, model);
+        GeneratePacketCodecCs(batch, root, config, model);
     }
 
-    private static void GenerateCodecCs(string root, FwConfig config)
+    private static void GenerateCodecCs(GenerationBatch batch, string root, FwConfig config)
     {
         var output = config.BridgeCodecCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
@@ -116,14 +116,19 @@ static class BridgeCodec
         text.AppendLine("        return true;");
         text.AppendLine("    }");
         text.AppendLine("}");
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated bridge csharp codec: {output}");
+        batch.StageText(output, text.ToString());
     }
 
-    private static void GenerateIntentCodecCs(string root, FwConfig config, ProtoSchema schema)
+    private static void GenerateIntentCodecCs(
+        GenerationBatch batch,
+        string root,
+        FwConfig config,
+        BridgeModel model
+    )
     {
+        var schema = model.Schema;
         var output = config.BridgeIntentCodecCsPath(root);
-        var intentRoot = FindIntentRoot(schema)
+        var intentRoot = model.IntentRoot
             ?? throw new InvalidOperationException("intent.proto has no root message");
         var intentFields = intentRoot.Fields.Where(item => !item.IsOneof).OrderBy(item => item.Number).ToArray();
         var playerIdField = intentFields.FirstOrDefault(field => field.Type == "PlayerId" || field.Name == "player_id");
@@ -165,24 +170,24 @@ static class BridgeCodec
         for (var index = 0; index < intentFields.Length; index++)
         {
             var field = intentFields[index];
-            var expression = IntentDecodeExpression(schema, field, playerIdField, FindActionRoot(schema));
+            var expression = IntentDecodeExpression(schema, field, playerIdField, model.ActionRoot);
             var suffix = index + 1 == intentFields.Length ? "" : ",";
             text.AppendLine($"            {expression}{suffix}");
         }
         text.AppendLine("        );");
         text.AppendLine("    }");
         text.AppendLine();
-        RenderInputActionDecoder(text, schema);
+        RenderInputActionDecoder(text, model);
         text.AppendLine("}");
-        TextUtil.WriteText(output, text.ToString());
-        DeleteLegacyFile(Path.Combine(Path.GetDirectoryName(output) ?? root, "_input_codec.cs"));
-        Console.WriteLine($"generated bridge intent codec: {output}");
+        batch.StageText(output, text.ToString());
+        batch.StageDelete(Path.Combine(Path.GetDirectoryName(output) ?? root, "_input_codec.cs"));
     }
 
-    private static void RenderInputActionDecoder(StringBuilder text, ProtoSchema schema)
+    private static void RenderInputActionDecoder(StringBuilder text, BridgeModel model)
     {
-        var actionRoot = FindActionRoot(schema);
-        var intentRoot = FindIntentRoot(schema);
+        var schema = model.Schema;
+        var actionRoot = model.ActionRoot;
+        var intentRoot = model.IntentRoot;
         if (actionRoot == null || intentRoot == null)
         {
             return;
@@ -205,7 +210,7 @@ static class BridgeCodec
         text.AppendLine("        {");
         text.AppendLine("            Kind = kind,");
         text.AppendLine("            Payload = DecodeActionPayload(kind, action),");
-        foreach (var field in ActionFields(schema))
+        foreach (var field in model.ActionFields)
         {
             text.AppendLine($"            {Pascal(field.Name)} = {ReadExpression(schema, "action", field)},");
         }
@@ -233,16 +238,6 @@ static class BridgeCodec
         text.AppendLine("            _ => null,");
         text.AppendLine("        };");
         text.AppendLine("    }");
-    }
-
-    private static ProtoField[] ActionFields(ProtoSchema schema)
-    {
-        var actionRoot = FindActionRoot(schema);
-        if (actionRoot == null)
-        {
-            return [];
-        }
-        return VariantFields(schema, actionRoot);
     }
 
     private static string ReadExpression(ProtoSchema schema, string source, ProtoField field)
@@ -293,10 +288,16 @@ static class BridgeCodec
         return "0";
     }
 
-    private static void GenerateEventCodecCs(string root, FwConfig config, ProtoSchema schema)
+    private static void GenerateEventCodecCs(
+        GenerationBatch batch,
+        string root,
+        FwConfig config,
+        BridgeModel model
+    )
     {
+        var schema = model.Schema;
         var output = config.BridgeEventCodecCsPath(root);
-        var eventRoot = FindOneofRoot(schema, "event.proto")
+        var eventRoot = model.EventRoot
             ?? throw new InvalidOperationException("event.proto has no oneof root message");
         var eventTypeName = RuntimeEventType(eventRoot);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
@@ -322,14 +323,19 @@ static class BridgeCodec
         text.AppendLine("        return output;");
         text.AppendLine("    }");
         text.AppendLine();
-        RenderEventEncoder(text, schema);
+        RenderEventEncoder(text, model);
         text.AppendLine("}");
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated bridge event codec: {output}");
+        batch.StageText(output, text.ToString());
     }
 
-    private static void GeneratePacketCodecCs(string root, FwConfig config, ProtoSchema schema)
+    private static void GeneratePacketCodecCs(
+        GenerationBatch batch,
+        string root,
+        FwConfig config,
+        BridgeModel model
+    )
     {
+        var schema = model.Schema;
         var output = config.BridgePacketCodecCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
         var text = new StringBuilder();
@@ -344,13 +350,13 @@ static class BridgeCodec
         text.AppendLine("public static class PacketCodec");
         text.AppendLine("{");
 
-        foreach (var payload in PacketPayloadFields(schema))
+        foreach (var payload in model.PacketPayloads)
         {
             RenderPacketCreator(text, schema, payload);
             text.AppendLine();
         }
 
-        foreach (var payload in PacketPayloadFields(schema))
+        foreach (var payload in model.PacketPayloads)
         {
             RenderPacketReader(text, schema, payload);
             text.AppendLine();
@@ -439,20 +445,7 @@ static class BridgeCodec
         text.AppendLine("        return true;");
         text.AppendLine("    }");
         text.AppendLine("}");
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated bridge packet codec: {output}");
-    }
-
-    private static ProtoField[] PacketPayloadFields(ProtoSchema schema)
-    {
-        var packet = FindOneofRoot(schema, "packet.proto");
-        if (packet == null)
-        {
-            return [];
-        }
-        return packet.Fields
-            .Where(field => field.IsOneof)
-            .ToArray();
+        batch.StageText(output, text.ToString());
     }
 
     private static void RenderPacketCreator(StringBuilder text, ProtoSchema schema, ProtoField payload)
@@ -603,9 +596,10 @@ static class BridgeCodec
         };
     }
 
-    private static void RenderEventEncoder(StringBuilder text, ProtoSchema schema)
+    private static void RenderEventEncoder(StringBuilder text, BridgeModel model)
     {
-        var eventRoot = FindOneofRoot(schema, "event.proto")
+        var schema = model.Schema;
+        var eventRoot = model.EventRoot
             ?? throw new InvalidOperationException("event.proto has no oneof root message");
         var eventTypeName = RuntimeEventType(eventRoot);
         text.AppendLine($"    private static GdDictionary EncodeOne({eventTypeName} ev)");
@@ -635,11 +629,4 @@ static class BridgeCodec
         text.AppendLine("    }");
     }
 
-    private static void DeleteLegacyFile(string path)
-    {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
-    }
 }

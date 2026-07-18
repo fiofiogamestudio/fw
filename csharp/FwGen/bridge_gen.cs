@@ -3,12 +3,15 @@ static class BridgeGen
     public static void Generate(string root, FwConfig config)
     {
         var gdDir = config.GodotGenDir(root);
-        Directory.CreateDirectory(gdDir);
         var schema = BridgeSchema.Read(config.BridgeSchemaDir(root));
+        var batch = new GenerationBatch(root);
 
-        BridgeGd.Write(gdDir, schema);
-        BridgeTypes.Write(root, config, schema);
-        BridgeCodec.Write(root, config, schema);
+        BridgeGd.Stage(batch, gdDir, schema);
+        BridgeTypes.Stage(batch, root, config, schema);
+        BridgeCodec.Stage(batch, root, config, schema);
+        GenerationManifest.StageBridge(batch, root, config);
+        batch.Commit();
         Console.WriteLine($"generated bridge gd scripts: {gdDir}");
+        Console.WriteLine($"generated bridge csharp types: {config.BridgeTypesCsPath(root)}");
     }
 }

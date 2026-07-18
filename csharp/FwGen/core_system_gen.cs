@@ -2,12 +2,11 @@ using System.Text;
 
 static class CoreSystemGen
 {
-    public static void Generate(string root, FwConfig config, RuntimeSystemSchema schema)
+    internal static void Stage(GenerationBatch batch, string root, FwConfig config, RuntimeSystemSchema schema)
     {
         var output = config.CoreSystemsCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
-        TextUtil.WriteText(output, Render(schema, rootNamespace));
-        Console.WriteLine($"generated core systems: {output}");
+        batch.StageText(output, Render(schema, rootNamespace));
     }
 
     private static string Render(RuntimeSystemSchema schema, string rootNamespace)

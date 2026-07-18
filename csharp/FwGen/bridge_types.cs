@@ -3,8 +3,9 @@ using static BridgeSchema;
 
 static class BridgeTypes
 {
-    internal static void Write(string root, FwConfig config, ProtoSchema schema)
+    internal static void Stage(GenerationBatch batch, string root, FwConfig config, BridgeModel model)
     {
+        var schema = model.Schema;
         var output = config.BridgeTypesCsPath(root);
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
         var text = new StringBuilder();
@@ -17,49 +18,39 @@ static class BridgeTypes
         text.AppendLine();
         text.AppendLine($"namespace {rootNamespace}.Core;");
         text.AppendLine();
-        RenderBridgeFields(text, schema);
+        RenderBridgeFields(text, model);
         text.AppendLine();
-        RenderBridgeEnums(text, schema);
+        RenderBridgeEnums(text, model);
         text.AppendLine();
-        RenderPacketTypes(text, schema);
+        RenderPacketTypes(text, model);
         text.AppendLine();
-        RenderOneofPayloadTypes(text, schema, FindActionRoot(schema));
+        RenderOneofPayloadTypes(text, schema, model.ActionRoot);
         text.AppendLine();
-        RenderActionCs(text, schema);
+        RenderActionCs(text, model);
         text.AppendLine();
-        RenderIntentCs(text, schema);
+        RenderIntentCs(text, model);
         text.AppendLine();
-        RenderOneofPayloadTypes(text, schema, FindOneofRoot(schema, "event.proto"));
+        RenderOneofPayloadTypes(text, schema, model.EventRoot);
         text.AppendLine();
-        RenderCoreEventCs(text, schema);
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated bridge csharp types: {output}");
+        RenderCoreEventCs(text, model);
+        batch.StageText(output, text.ToString());
     }
 
-    private static void RenderBridgeFields(StringBuilder text, ProtoSchema schema)
+    private static void RenderBridgeFields(StringBuilder text, BridgeModel model)
     {
-        var fields = schema.Messages.Values
-            .SelectMany(message => message.Fields)
-            .Select(field => field.Name)
-            .Append("kind")
-            .Append("type")
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(item => item, StringComparer.Ordinal)
-            .ToArray();
-
         text.AppendLine("public static class BridgeField");
         text.AppendLine("{");
-        foreach (var field in fields)
+        foreach (var field in model.FieldNames)
         {
             text.AppendLine($"    public const string {Pascal(field)} = \"{field}\";");
         }
         text.AppendLine("}");
     }
 
-    private static void RenderBridgeEnums(StringBuilder text, ProtoSchema schema)
+    private static void RenderBridgeEnums(StringBuilder text, BridgeModel model)
     {
         var renderedAny = false;
-        foreach (var protoEnum in EnumsInFile(schema, "value.proto"))
+        foreach (var protoEnum in model.ValueEnums)
         {
             if (renderedAny)
             {
@@ -69,7 +60,7 @@ static class BridgeTypes
             renderedAny = true;
         }
 
-        var buttonEnum = FindButtonEnum(schema);
+        var buttonEnum = model.ButtonEnum;
         if (buttonEnum != null)
         {
             if (renderedAny)
@@ -80,11 +71,11 @@ static class BridgeTypes
         }
     }
 
-    private static void RenderPacketTypes(StringBuilder text, ProtoSchema schema)
+    private static void RenderPacketTypes(StringBuilder text, BridgeModel model)
     {
         text.AppendLine("public static class BridgePacketType");
         text.AppendLine("{");
-        var protoEnum = FindPacketEnum(schema);
+        var protoEnum = model.PacketEnum;
         if (protoEnum != null)
         {
             foreach (var value in protoEnum.Values.Where(item => item.Number != 0))
@@ -152,9 +143,10 @@ static class BridgeTypes
         }
     }
 
-    private static void RenderActionCs(StringBuilder text, ProtoSchema schema)
+    private static void RenderActionCs(StringBuilder text, BridgeModel model)
     {
-        var actionRoot = FindActionRoot(schema);
+        var schema = model.Schema;
+        var actionRoot = model.ActionRoot;
         if (actionRoot == null)
         {
             return;
@@ -166,7 +158,7 @@ static class BridgeTypes
             text.AppendLine($"    public const string {Pascal(variant.Name)} = \"{variant.Name}\";");
         }
 
-        var fields = VariantFields(schema, actionRoot);
+        var fields = model.ActionFields;
         text.AppendLine();
         text.AppendLine("    public string Kind { get; init; } = \"\";");
         text.AppendLine("    public object? Payload { get; init; }");
@@ -179,15 +171,16 @@ static class BridgeTypes
         text.AppendLine("}");
     }
 
-    private static void RenderIntentCs(StringBuilder text, ProtoSchema schema)
+    private static void RenderIntentCs(StringBuilder text, BridgeModel model)
     {
-        var intentRoot = FindIntentRoot(schema);
+        var schema = model.Schema;
+        var intentRoot = model.IntentRoot;
         if (intentRoot == null)
         {
             return;
         }
         var fields = intentRoot.Fields.Where(item => !item.IsOneof).OrderBy(item => item.Number).ToArray();
-        var buttonEnum = FindButtonEnum(schema);
+        var buttonEnum = model.ButtonEnum;
         text.AppendLine($"public readonly struct {intentRoot.Name}");
         text.AppendLine("{");
         if (buttonEnum != null)
@@ -230,9 +223,10 @@ static class BridgeTypes
         text.AppendLine("}");
     }
 
-    private static void RenderCoreEventCs(StringBuilder text, ProtoSchema schema)
+    private static void RenderCoreEventCs(StringBuilder text, BridgeModel model)
     {
-        var eventRoot = FindOneofRoot(schema, "event.proto");
+        var schema = model.Schema;
+        var eventRoot = model.EventRoot;
         if (eventRoot == null)
         {
             return;
@@ -245,7 +239,7 @@ static class BridgeTypes
             text.AppendLine($"    public const string {ClassNameForEvent(variant.Type)} = \"{ClassNameForEvent(variant.Type)}\";");
         }
 
-        var fields = VariantFields(schema, eventRoot);
+        var fields = model.EventFields;
         text.AppendLine();
         text.AppendLine("    public string Type { get; init; } = \"\";");
         text.AppendLine("    public object? Payload { get; init; }");

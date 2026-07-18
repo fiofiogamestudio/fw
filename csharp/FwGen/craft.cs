@@ -21,13 +21,9 @@ static class Craft
         CopyTemplate(templateRoot, root, name, options.Force);
         var nextConfig = FwConfig.Load(root);
         var systemSchema = SystemSchemaParser.Parse(root, nextConfig.SystemsSchemaPath(root));
-        SystemGen.Generate(root, nextConfig, systemSchema.Godot);
-        CoreSystemGen.Generate(root, nextConfig, systemSchema.Core);
-        GenerationManifest.UpdateSystem(root, nextConfig);
+        SystemGen.Generate(root, nextConfig, systemSchema);
         BridgeGen.Generate(root, nextConfig);
-        GenerationManifest.UpdateBridge(root, nextConfig);
         ConfigGen.Generate(root, nextConfig);
-        GenerationManifest.UpdateConfig(root, nextConfig);
         ConfigGen.Check(root, nextConfig);
         FwCheck.Run(root, nextConfig);
         Console.WriteLine($"created fw project scaffold: {root}");
@@ -38,6 +34,7 @@ static class Craft
         var fullOutputRoot = Path.GetFullPath(outputRoot);
         var outputPrefix = fullOutputRoot + Path.DirectorySeparatorChar;
         var projectNamespace = TextUtil.PascalName(projectName);
+        var batch = new GenerationBatch(fullOutputRoot);
         foreach (var source in Directory.GetFiles(templateRoot, "*", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(templateRoot, source);
@@ -66,8 +63,9 @@ static class Craft
                 .Replace("__PROJECT_NAME_PASCAL__", projectNamespace, StringComparison.Ordinal)
                 .Replace("__PROJECT_NAME__", projectName, StringComparison.Ordinal)
                 .Replace("__LIB_NAME__", Slug(projectName), StringComparison.Ordinal);
-            TextUtil.WriteText(target, text);
+            batch.StageText(target, text);
         }
+        batch.Commit();
     }
 
     internal static void ValidateProjectName(string value)

@@ -2,26 +2,28 @@ using System.Text;
 
 static class SystemGen
 {
-    public static void Generate(string root, FwConfig config, RuntimeSystemSchema schema)
+    public static void Generate(string root, FwConfig config, SystemSchema schema)
+    {
+        var batch = new GenerationBatch(root);
+        Stage(batch, root, config, schema.Godot);
+        CoreSystemGen.Stage(batch, root, config, schema.Core);
+        GenerationManifest.StageSystem(batch, root, config);
+        batch.Commit();
+        Console.WriteLine($"generated godot systems: {config.GodotSystemsGdPath(root)}");
+        Console.WriteLine($"generated core systems: {config.CoreSystemsCsPath(root)}");
+    }
+
+    internal static void Stage(GenerationBatch batch, string root, FwConfig config, RuntimeSystemSchema schema)
     {
         var output = config.GodotSystemsGdPath(root);
-        DeleteLegacyGraph(config.GodotGenDir(root));
-        TextUtil.WriteText(output, RenderSystems(schema));
-        Console.WriteLine($"generated godot systems: {output}");
+        DeleteLegacyGraph(batch, config.GodotGenDir(root));
+        batch.StageText(output, RenderSystems(schema));
     }
 
-    private static void DeleteLegacyGraph(string godotGenDir)
+    private static void DeleteLegacyGraph(GenerationBatch batch, string godotGenDir)
     {
-        DeleteIfExists(Path.Combine(godotGenDir, "_godot_system_graph.gd"));
-        DeleteIfExists(Path.Combine(godotGenDir, "_godot_system_graph.gd.uid"));
-    }
-
-    private static void DeleteIfExists(string path)
-    {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
+        batch.StageDelete(Path.Combine(godotGenDir, "_godot_system_graph.gd"));
+        batch.StageDelete(Path.Combine(godotGenDir, "_godot_system_graph.gd.uid"));
     }
 
     private static string RenderRefs(RuntimeSystemSchema model)

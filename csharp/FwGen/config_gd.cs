@@ -3,25 +3,24 @@ using static ConfigSchema;
 
 static class ConfigGd
 {
-    internal static void Write(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    internal static void Stage(
+        GenerationBatch batch,
+        string root,
+        FwConfig config,
+        ConfigModel model
+    )
     {
-        var messages = schema.Messages.Values
-            .Where(item => item.Name != "Fixed32")
-            .OrderBy(item => item.Name.EndsWith("Config", StringComparison.Ordinal) ? 1 : 0)
-            .ThenBy(item => item.Name, StringComparer.Ordinal)
-            .ToArray();
-        var roots = ConfigRoots(root, config, schema);
+        var schema = model.Schema;
 
         var text = new StringBuilder();
-        text.Append(GdRuntimePrelude(schemaHash));
-        RenderGdDefaults(text, messages, schema);
-        RenderGdParsers(text, messages, schema, false);
-        RenderGdParsers(text, messages, schema, true);
-        RenderGdLoaders(text, roots, schema);
+        text.Append(GdRuntimePrelude(model.SchemaHash));
+        RenderGdDefaults(text, model.Messages, schema);
+        RenderGdParsers(text, model.Messages, schema, false);
+        RenderGdParsers(text, model.Messages, schema, true);
+        RenderGdLoaders(text, model.Roots, schema);
 
         var output = config.ConfigGdPath(root);
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated config gd script: {output}");
+        batch.StageText(output, text.ToString());
     }
 
     private static string GdRuntimePrelude(string schemaHash)

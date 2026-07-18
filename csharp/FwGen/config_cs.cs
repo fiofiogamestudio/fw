@@ -3,23 +3,27 @@ using static ConfigSchema;
 
 static class ConfigCs
 {
-    internal static void Write(string root, FwConfig config, ProtoSchema schema, string schemaHash)
+    internal static void Stage(
+        GenerationBatch batch,
+        string root,
+        FwConfig config,
+        ConfigModel model
+    )
     {
+        var schema = model.Schema;
         var rootNamespace = TextUtil.PascalName(config.ProjectName());
-        var roots = ConfigRoots(root, config, schema);
-        GenerateContract(config.ConfigContractCsPath(root), schema, rootNamespace, roots);
-        GenerateCodec(config.ConfigCodecCsPath(root), schema, rootNamespace, schemaHash);
+        GenerateContract(batch, config.ConfigContractCsPath(root), model, rootNamespace);
+        GenerateCodec(batch, config.ConfigCodecCsPath(root), schema, rootNamespace, model.SchemaHash);
     }
 
     private static void GenerateContract(
+        GenerationBatch batch,
         string output,
-        ProtoSchema schema,
-        string rootNamespace,
-        IEnumerable<ConfigRoot> roots
+        ConfigModel model,
+        string rootNamespace
     )
     {
-        var messages = schema.Messages.Values
-            .Where(item => item.Name != "Fixed32")
+        var messages = model.Messages
             .OrderBy(item => item.Name == "GameConfig" ? "CoreConfig" : item.Name, StringComparer.Ordinal)
             .ToArray();
 
@@ -29,9 +33,9 @@ static class ConfigCs
         text.AppendLine();
         text.AppendLine($"namespace {rootNamespace}.Core;");
         text.AppendLine();
-        RenderConfigFields(text, schema);
+        RenderConfigFields(text, model.FieldNames);
         text.AppendLine();
-        RenderConfigPaths(text, roots);
+        RenderConfigPaths(text, model.Roots);
         text.AppendLine();
         foreach (var message in messages)
         {
@@ -40,14 +44,13 @@ static class ConfigCs
             text.AppendLine("{");
             foreach (var field in message.Fields)
             {
-                text.AppendLine($"    public {CsConfigType(field.Type, field.IsRepeated)} {Pascal(field.Name)} {{ get; init; }}{CsConfigInit(field, schema)}");
+                text.AppendLine($"    public {CsConfigType(field.Type, field.IsRepeated)} {Pascal(field.Name)} {{ get; init; }}{CsConfigInit(field, model.Schema)}");
             }
             text.AppendLine("}");
             text.AppendLine();
         }
 
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated config csharp contract: {output}");
+        batch.StageText(output, text.ToString());
     }
 
     private static void RenderConfigPaths(StringBuilder text, IEnumerable<ConfigRoot> roots)
@@ -82,6 +85,7 @@ static class ConfigCs
     }
 
     private static void GenerateCodec(
+        GenerationBatch batch,
         string output,
         ProtoSchema schema,
         string rootNamespace,
@@ -116,20 +120,11 @@ static class ConfigCs
         RenderConfigPackReaders(text, schema, packMessages, schemaHash);
         RenderConfigCsvRuntime(text);
         text.AppendLine("}");
-        TextUtil.WriteText(output, text.ToString());
-        Console.WriteLine($"generated config csharp codec: {output}");
+        batch.StageText(output, text.ToString());
     }
 
-    private static void RenderConfigFields(StringBuilder text, ProtoSchema schema)
+    private static void RenderConfigFields(StringBuilder text, IEnumerable<string> fields)
     {
-        var fields = schema.Messages.Values
-            .SelectMany(message => message.Fields)
-            .Select(field => field.Name)
-            .Append("key")
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(item => item, StringComparer.Ordinal)
-            .ToArray();
-
         text.AppendLine("public static class ConfigField");
         text.AppendLine("{");
         foreach (var field in fields)
