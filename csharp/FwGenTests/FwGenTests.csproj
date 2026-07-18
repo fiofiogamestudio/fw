@@ -9,4 +9,7 @@
     <ProjectReference Include="../FwGen/FwGen.csproj" />
     <ProjectReference Include="../FwRuntime/FwRuntime.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../tests/contracts/csharp_api.txt" Link="contracts/csharp_api.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

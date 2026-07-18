@@ -1,0 +1,45 @@
+type static class Fw.Rt.Bridge.WireFrame
+  static method System.Boolean HasHeader(System.ReadOnlySpan<System.Byte> value)
+  static method System.Byte[] Decode(System.ReadOnlySpan<System.Byte> frame, Fw.Rt.Bridge.WireFrameOptions options = null)
+  static method System.Byte[] Encode(System.ReadOnlySpan<System.Byte> decoded, Fw.Rt.Bridge.WireFrameOptions options = null)
+type sealed class Fw.Rt.Bridge.WireFrameOptions : System.IEquatable<Fw.Rt.Bridge.WireFrameOptions>
+  ctor(System.Int32 CompressionThresholdBytes = 900, System.Int32 MaxDecodedBytes = 1048576, System.Int32 MaxEncodedBytes = 1048576)
+  method Fw.Rt.Bridge.WireFrameOptions <Clone>$()
+  method System.Boolean Equals(Fw.Rt.Bridge.WireFrameOptions other)
+  method System.Boolean Equals(System.Object obj)
+  method System.Int32 GetHashCode()
+  method System.String ToString()
+  method System.Void Deconstruct(out System.Int32 CompressionThresholdBytes, out System.Int32 MaxDecodedBytes, out System.Int32 MaxEncodedBytes)
+  property System.Int32 CompressionThresholdBytes {get;init;}
+  property System.Int32 MaxDecodedBytes {get;init;}
+  property System.Int32 MaxEncodedBytes {get;init;}
+  static method System.Boolean op_Equality(Fw.Rt.Bridge.WireFrameOptions left, Fw.Rt.Bridge.WireFrameOptions right)
+  static method System.Boolean op_Inequality(Fw.Rt.Bridge.WireFrameOptions left, Fw.Rt.Bridge.WireFrameOptions right)
+type static class Fw.Rt.Config.ConfigPack
+  const System.Int32 HeaderSize = 76
+  const System.Int32 Version = 1
+  static method System.Byte[] Encode(System.ReadOnlySpan<System.Byte> payload, System.ReadOnlySpan<System.Byte> schemaHash)
+  static method System.Collections.Generic.Dictionary<System.String,System.Text.Json.JsonElement> Decode(System.ReadOnlyMemory<System.Byte> pack, System.String expectedSchemaHash)
+type interface Fw.Rt.Systems.ISystem<TContext>
+  method System.Void Init(TContext context)
+  method System.Void Shutdown()
+  method System.Void Tick(System.Single dt)
+type sealed class Fw.Rt.Systems.SystemRuntime
+  ctor()
+  method System.Boolean Has(System.String id)
+  method System.Void Add<TContext>(System.String id, Fw.Rt.Systems.ISystem<TContext> system, TContext context, System.String phase = "")
+  method System.Void InitAll()
+  method System.Void SetPhaseOrder(System.Collections.Generic.IEnumerable<System.String> order)
+  method System.Void ShutdownAll()
+  method System.Void Tick(System.Single dt)
+  method TContext GetContext<TContext>(System.String id)
+  property Fw.Rt.Systems.SystemRuntimeState State {get;}
+  property System.Boolean IsRunning {get;}
+  property System.Collections.Generic.IReadOnlyList<System.String> PhaseOrder {get;}
+type enum Fw.Rt.Systems.SystemRuntimeState : System.Int32
+  const Fw.Rt.Systems.SystemRuntimeState Created = 0
+  const Fw.Rt.Systems.SystemRuntimeState Faulted = 3
+  const Fw.Rt.Systems.SystemRuntimeState Initializing = 1
+  const Fw.Rt.Systems.SystemRuntimeState Running = 2
+  const Fw.Rt.Systems.SystemRuntimeState Stopped = 5
+  const Fw.Rt.Systems.SystemRuntimeState Stopping = 4

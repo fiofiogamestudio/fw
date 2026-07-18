@@ -1,0 +1,507 @@
+{
+	"AppRoot": {
+		"base": "Node",
+		"constants": [],
+		"methods": [
+			"asset()->Nil;defaults=[]",
+			"mode_host()->Node;defaults=[]",
+			"on_app_ready()->Nil;defaults=[]",
+			"on_mode_switch_failed(_mode:Nil)->Nil;defaults=[]",
+			"pool()->Nil;defaults=[]",
+			"switch_mode(mode:Nil, context:Nil)->Nil;defaults=[null]",
+			"ui()->Nil;defaults=[]",
+			"ui_root()->CanvasLayer;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"BaseMode": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"add_system(id:StringName, system:Nil, context:Nil, phase:StringName)->bool;defaults=[null, &\"\"]",
+			"asset()->Nil;defaults=[]",
+			"bind_system_refs(refs:Dictionary)->bool;defaults=[]",
+			"enter(root:Nil, context:Nil)->bool;defaults=[null]",
+			"enter_error()->String;defaults=[]",
+			"exit()->Nil;defaults=[]",
+			"fail_enter(message:String)->bool;defaults=[]",
+			"handle_input(_event:InputEvent)->Nil;defaults=[]",
+			"init_systems()->bool;defaults=[]",
+			"is_entered()->bool;defaults=[]",
+			"mode_host()->Node;defaults=[]",
+			"pool()->Nil;defaults=[]",
+			"set_system_phase_order(order:Array)->Nil;defaults=[]",
+			"tick(dt:float)->Nil;defaults=[]",
+			"ui()->Nil;defaults=[]",
+			"ui_root()->Node;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"BaseSystem": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"init(context:Nil)->bool;defaults=[]",
+			"shutdown()->Nil;defaults=[]",
+			"tick(_dt:float)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FAsset": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"load(path:String)->Resource;defaults=[]",
+			"unload(path:String)->Nil;defaults=[\"\"]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FBinding": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"bind_signal(emitter:Object, signal_name:StringName, callable:Callable, flags:int)->Nil;defaults=[0]",
+			"bind_view_model(vm:Nil, callable:Callable, immediate:bool)->Nil;defaults=[true]",
+			"bind_vm(vm:Nil, callable:Callable, immediate:bool)->Nil;defaults=[true]",
+			"clear()->Nil;defaults=[]",
+			"unbind()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FBusy": {
+		"base": "FForm",
+		"constants": [],
+		"methods": [
+			"set_busy_visible(value:bool)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FCSharp": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"create_node(script_path:String)->Node;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FDialog": {
+		"base": "FForm",
+		"constants": [],
+		"methods": [
+			"cancel()->Nil;defaults=[]",
+			"confirm()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": [
+			"cancelled()",
+			"confirmed()"
+		]
+	},
+	"FForm": {
+		"base": "FWidget",
+		"constants": [],
+		"methods": [
+			"assign_form_id(id:StringName)->Nil;defaults=[]",
+			"assign_runtime(ui:Nil, layer:StringName, id:StringName)->Nil;defaults=[]",
+			"form_context()->Nil;defaults=[]",
+			"form_id()->StringName;defaults=[]",
+			"layer()->StringName;defaults=[]",
+			"setup(context:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"tick(_dt:float)->Nil;defaults=[]",
+			"ui()->Nil;defaults=[]",
+			"ui_event()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FFormLogic": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"apply_props(props:Dictionary)->Nil;defaults=[]",
+			"attach_ui(ui:Nil)->Nil;defaults=[]",
+			"bind_signal(emitter:Object, signal_name:StringName, callable:Callable, flags:int)->Nil;defaults=[0]",
+			"bind_view_model(vm:Nil, callable:Callable, immediate:bool)->Nil;defaults=[true]",
+			"bind_vm(vm:Nil, callable:Callable, immediate:bool)->Nil;defaults=[true]",
+			"binding()->Nil;defaults=[]",
+			"close()->Nil;defaults=[]",
+			"detach_ui()->Nil;defaults=[]",
+			"form()->Nil;defaults=[]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"get_ref(key:StringName)->Node;defaults=[]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"open(layer:StringName, id:StringName, packed_scene:PackedScene, context:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"require_node(path:NodePath)->Node;defaults=[]",
+			"require_ref(key:StringName, expected_type:Nil)->Node;defaults=[null]",
+			"resolved_props()->Dictionary;defaults=[]",
+			"set_view_model(vm:Nil)->Nil;defaults=[]",
+			"ui()->Nil;defaults=[]",
+			"ui_event()->Nil;defaults=[]",
+			"view_model()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FForms": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"close(id:StringName)->Nil;defaults=[]",
+			"close_all()->Nil;defaults=[]",
+			"get_form(id:StringName)->Nil;defaults=[]",
+			"has(id:StringName)->bool;defaults=[]",
+			"open(id:StringName, packed_scene:PackedScene, context:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"setup(host:CanvasLayer)->Nil;defaults=[]",
+			"ui()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FFx": {
+		"base": "Node3D",
+		"constants": [],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"create_fx_tween()->Tween;defaults=[]",
+			"finish()->Nil;defaults=[]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"on_clear()->Nil;defaults=[]",
+			"on_setup()->Nil;defaults=[]",
+			"owner()->Nil;defaults=[]",
+			"play(_payload:Nil)->Nil;defaults=[]",
+			"setup(owner:Nil, props:Dictionary)->Nil;defaults=[null, null]"
+		],
+		"properties": [],
+		"signals": [
+			"finished()"
+		]
+	},
+	"FList": {
+		"base": "FWidget",
+		"constants": [],
+		"methods": [
+			"apply(vm:Nil, _dt:float)->Nil;defaults=[0.0]",
+			"clear_items()->Nil;defaults=[]",
+			"clear_selection()->Nil;defaults=[]",
+			"items()->Array;defaults=[]",
+			"press_index(index:int, additive:bool)->Nil;defaults=[false]",
+			"refresh()->Nil;defaults=[]",
+			"refresh_item(index:int)->Nil;defaults=[]",
+			"select_index(index:int, additive:bool)->Nil;defaults=[false]",
+			"selected_indices()->Array[int];defaults=[]",
+			"selection()->Nil;defaults=[]",
+			"set_items(items:Array)->Nil;defaults=[]",
+			"toggle_index(index:int)->Nil;defaults=[]"
+		],
+		"properties": [
+			"allow_multi_select:bool",
+			"content_ref_key:StringName",
+			"item_scene:PackedScene",
+			"template_ref_key:StringName"
+		],
+		"signals": [
+			"item_pressed(index:int, data:Nil)"
+		]
+	},
+	"FListItem": {
+		"base": "FWidget",
+		"constants": [],
+		"methods": [
+			"bind_item(owner_list:Nil, index:int, data:Nil, selected:bool)->Nil;defaults=[]",
+			"item_data()->Nil;defaults=[]",
+			"item_index()->int;defaults=[]",
+			"owner_list()->Nil;defaults=[]",
+			"render_item(_data:Nil, _index:int, _selected:bool)->Nil;defaults=[]",
+			"set_selected(selected:bool)->Nil;defaults=[]",
+			"set_template_mode(value:bool)->Nil;defaults=[]"
+		],
+		"properties": [
+			"template_mode:bool"
+		],
+		"signals": []
+	},
+	"FNodePool": {
+		"base": "FPool",
+		"constants": [],
+		"methods": [],
+		"properties": [],
+		"signals": []
+	},
+	"FPool": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"flush(key:String)->Nil;defaults=[\"\"]",
+			"recycle(node:Node)->Nil;defaults=[]",
+			"register_prefab(key:String, packed_scene:PackedScene, warmup:int)->Nil;defaults=[0]",
+			"setup(default_parent:Node)->Nil;defaults=[]",
+			"spawn(key:String, parent:Node, owner:Nil, props:Dictionary)->Node;defaults=[null, null, null]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FProps": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"apply_props(overrides:Dictionary)->Nil;defaults=[]",
+			"clear()->Nil;defaults=[]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"resolved_props()->Dictionary;defaults=[]",
+			"set_prop(key:StringName, value:Nil)->Nil;defaults=[]",
+			"setup(defaults:Nil, overrides:Dictionary)->Nil;defaults=[null]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FRefs": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"get_ref(key:StringName)->Node;defaults=[]",
+			"has_ref(key:StringName)->bool;defaults=[]",
+			"require_ref(key:StringName, expected_type:Nil)->Node;defaults=[null]",
+			"set_ref(key:StringName, raw_path:Nil)->Nil;defaults=[]",
+			"setup(owner:Node, source:Nil)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FSelection": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"is_selected(index:int)->bool;defaults=[]",
+			"primary_index()->int;defaults=[]",
+			"select(index:int, additive:bool)->Nil;defaults=[false]",
+			"selected_indices()->Array[int];defaults=[]",
+			"setup(allow_multi:bool)->Nil;defaults=[false]",
+			"toggle(index:int)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": [
+			"changed()"
+		]
+	},
+	"FTabs": {
+		"base": "FWidget",
+		"constants": [],
+		"methods": [
+			"select_tab(index:int)->Nil;defaults=[]",
+			"selected_index()->int;defaults=[]"
+		],
+		"properties": [
+			"button_ref_keys:Array[21:]",
+			"page_ref_keys:Array[21:]"
+		],
+		"signals": [
+			"tab_changed(index:int)"
+		]
+	},
+	"FToast": {
+		"base": "FForm",
+		"constants": [],
+		"methods": [],
+		"properties": [
+			"duration_seconds:float"
+		],
+		"signals": []
+	},
+	"FTooltip": {
+		"base": "FForm",
+		"constants": [],
+		"methods": [
+			"show_at(screen_position:Vector2)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FUI": {
+		"base": "RefCounted",
+		"constants": [
+			"LAYER_HUD:StringName=&\"hud\"",
+			"LAYER_MODAL:StringName=&\"modal\"",
+			"LAYER_POPUP:StringName=&\"popup\"",
+			"LAYER_SCREEN:StringName=&\"screen\"",
+			"LAYER_TOAST:StringName=&\"toast\"",
+			"LAYER_TOOLTIP:StringName=&\"tooltip\""
+		],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"close(id:StringName)->Nil;defaults=[]",
+			"close_all()->Nil;defaults=[]",
+			"close_layer(layer:StringName)->Nil;defaults=[]",
+			"close_top(layer:StringName)->Nil;defaults=[]",
+			"get_form(id:StringName)->Nil;defaults=[]",
+			"has(id:StringName)->bool;defaults=[]",
+			"layer_root(layer:StringName)->Control;defaults=[]",
+			"open(layer:StringName, id:StringName, packed_scene:PackedScene, context:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"root()->Control;defaults=[]",
+			"setup(host:CanvasLayer)->Nil;defaults=[]",
+			"top_form(layer:StringName)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FUIEvent": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"clear()->Nil;defaults=[]",
+			"emit_event(kind:StringName, payload:Nil)->Nil;defaults=[null]",
+			"off(kind:StringName, callable:Callable)->Nil;defaults=[]",
+			"on(kind:StringName, callable:Callable)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": [
+			"emitted(kind:StringName, payload:Nil)"
+		]
+	},
+	"FViewModel": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"assign(values:Dictionary)->Nil;defaults=[]",
+			"clear_values()->Nil;defaults=[]",
+			"get_value(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"notify_changed(key:StringName)->Nil;defaults=[]",
+			"set_value(key:StringName, value:Nil)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": [
+			"changed(key:StringName)"
+		]
+	},
+	"FViewRoot": {
+		"base": "Node3D",
+		"constants": [],
+		"methods": [
+			"apply(_vm:Nil, _dt:float)->Nil;defaults=[0.0]",
+			"apply_props(overrides:Dictionary)->Nil;defaults=[]",
+			"clear()->Nil;defaults=[]",
+			"clear_bindings()->Nil;defaults=[]",
+			"create_binding()->Nil;defaults=[]",
+			"emit_action(name:StringName, payload:Dictionary)->Nil;defaults=[null]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"get_ref(key:StringName)->Node;defaults=[]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"has_ref(key:StringName)->bool;defaults=[]",
+			"on_clear()->Nil;defaults=[]",
+			"on_setup()->Nil;defaults=[]",
+			"owner()->Nil;defaults=[]",
+			"prop_store()->Nil;defaults=[]",
+			"ref_store()->Nil;defaults=[]",
+			"register_ref(key:StringName, raw_path:Nil)->Nil;defaults=[]",
+			"register_refs(values:Dictionary)->Nil;defaults=[]",
+			"require_node(path:NodePath)->Node;defaults=[]",
+			"require_ref(key:StringName, expected_type:Nil)->Node;defaults=[null]",
+			"resolved_props()->Dictionary;defaults=[]",
+			"set_view_model(vm:Nil)->Nil;defaults=[]",
+			"setup(owner:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"view_model()->Nil;defaults=[]"
+		],
+		"properties": [
+			"props:Dictionary[4:;0:]",
+			"refs:Dictionary[4:;22:]"
+		],
+		"signals": [
+			"action(name:StringName, payload:Dictionary)"
+		]
+	},
+	"FViewStore": {
+		"base": "RefCounted",
+		"constants": [],
+		"methods": [
+			"apply_props(overrides:Dictionary)->Nil;defaults=[]",
+			"clear()->Nil;defaults=[]",
+			"clear_bindings()->Nil;defaults=[]",
+			"create_binding()->Nil;defaults=[]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"get_ref(key:StringName)->Node;defaults=[]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"has_ref(key:StringName)->bool;defaults=[]",
+			"prop_store()->Nil;defaults=[]",
+			"ref_store()->Nil;defaults=[]",
+			"require_node(path:NodePath)->Node;defaults=[]",
+			"require_ref(key:StringName, expected_type:Nil)->Node;defaults=[null]",
+			"resolved_props()->Dictionary;defaults=[]",
+			"set_ref(key:StringName, raw_path:Nil)->Nil;defaults=[]",
+			"set_refs(values:Dictionary)->Nil;defaults=[]",
+			"set_view_model(vm:Nil)->Nil;defaults=[]",
+			"setup(owner:Node, refs:Dictionary, props:Dictionary, overrides:Dictionary)->Nil;defaults=[null]",
+			"view_model()->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	},
+	"FWidget": {
+		"base": "Control",
+		"constants": [],
+		"methods": [
+			"apply(_vm:Nil, _dt:float)->Nil;defaults=[0.0]",
+			"apply_props(props:Dictionary)->Nil;defaults=[]",
+			"clear()->Nil;defaults=[]",
+			"clear_bindings()->Nil;defaults=[]",
+			"create_binding()->Nil;defaults=[]",
+			"emit_action(name:StringName, payload:Dictionary)->Nil;defaults=[null]",
+			"get_prop(key:StringName, fallback:Nil)->Nil;defaults=[null]",
+			"get_ref(key:StringName)->Node;defaults=[]",
+			"has_prop(key:StringName)->bool;defaults=[]",
+			"has_ref(key:StringName)->bool;defaults=[]",
+			"is_setup()->bool;defaults=[]",
+			"on_clear()->Nil;defaults=[]",
+			"on_setup()->Nil;defaults=[]",
+			"owner_form()->Nil;defaults=[]",
+			"prop_store()->Nil;defaults=[]",
+			"ref_store()->Nil;defaults=[]",
+			"require_node(path:NodePath)->Node;defaults=[]",
+			"require_ref(key:StringName, expected_type:Nil)->Node;defaults=[null]",
+			"resolved_props()->Dictionary;defaults=[]",
+			"set_view_model(vm:Nil)->Nil;defaults=[]",
+			"setup(owner:Nil, props:Dictionary)->Nil;defaults=[null, null]",
+			"skip_auto_widget_setup()->bool;defaults=[]",
+			"view_model()->Nil;defaults=[]"
+		],
+		"properties": [
+			"props:Dictionary[4:;0:]",
+			"refs:Dictionary[4:;22:]"
+		],
+		"signals": [
+			"action(name:StringName, payload:Dictionary)"
+		]
+	},
+	"SystemManager": {
+		"base": "RefCounted",
+		"constants": [
+			"LifecycleState:Dictionary={\n\"CREATED\": 0,\n\"FAULTED\": 3,\n\"INITIALIZING\": 1,\n\"RUNNING\": 2,\n\"STOPPED\": 5,\n\"STOPPING\": 4\n}"
+		],
+		"methods": [
+			"add_system(id:StringName, system:Nil, context:Nil, phase:StringName)->bool;defaults=[null, &\"\"]",
+			"bind_refs(graph_refs:Dictionary)->bool;defaults=[]",
+			"get_context(id:StringName)->Nil;defaults=[]",
+			"get_system(index:int)->Nil;defaults=[]",
+			"has_system(id:StringName)->bool;defaults=[]",
+			"init_all()->bool;defaults=[]",
+			"is_running()->bool;defaults=[]",
+			"lifecycle_state()->SystemManager.LifecycleState;defaults=[]",
+			"remove_system(system:Nil)->bool;defaults=[]",
+			"set_phase_order(order:Array)->Nil;defaults=[]",
+			"shutdown_all()->Nil;defaults=[]",
+			"tick(dt:float)->Nil;defaults=[]"
+		],
+		"properties": [],
+		"signals": []
+	}
+}
