@@ -56,6 +56,19 @@ export function assertPhysicalDirectory(root) {
   }
 }
 
+export function physicalProjectPath(root) {
+  assertPhysicalDirectory(root); // Never erase link evidence by resolving first.
+  let cursor = path.resolve(root);
+  const missing = [];
+  while (!fs.existsSync(cursor)) {
+    const parent = path.dirname(cursor);
+    if (parent === cursor) fail('unsafe-path', 'Project target has no existing filesystem root.');
+    missing.unshift(path.basename(cursor));
+    cursor = parent;
+  }
+  return path.join(fs.realpathSync.native(cursor), ...missing);
+}
+
 function pathIdentity(value) {
   const physical = fs.realpathSync.native(value).replaceAll('\\', '/');
   return process.platform === 'win32' ? physical.toLowerCase() : physical;
@@ -90,7 +103,7 @@ export function makeManifest(preset, extras = [], app) {
 export function findWorkspace(start) {
   let root = path.resolve(start);
   while (true) {
-    if (fs.existsSync(path.join(root, manifestName))) return root;
+    if (fs.existsSync(path.join(root, manifestName))) return fs.realpathSync.native(root);
     if (fs.existsSync(path.join(root, '.git')) || path.dirname(root) === root) fail('workspace-not-found', `No ${manifestName} at this Git workspace. Run fw init explicitly.`);
     root = path.dirname(root);
   }

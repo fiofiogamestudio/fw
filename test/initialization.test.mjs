@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { git, run } from '../src/process.mjs';
+import { git, run, powershell } from '../src/process.mjs';
 import { gitlink, moduleDefinitions } from '../src/workspace.mjs';
 
 const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,7 +26,7 @@ test('real CLI new preview/apply/resume and pinned sync use one direct component
   const remote = path.join(temp, 'fwa-source');
   init(remote);
   write(remote, 'package.json', '{"name":"fwa","type":"module"}\n');
-  write(remote, 'bin/fwa.js', "import fs from 'node:fs'; import path from 'node:path'; const root=process.argv[process.argv.indexOf('--project')+1]; if(process.argv[2] !== 'init') process.exit(2); fs.mkdirSync(path.join(root,'.fwa'),{recursive:true}); if(!fs.existsSync(path.join(root,'.fwa','project.json'))) fs.writeFileSync(path.join(root,'.fwa','project.json'), '{}'); console.log(JSON.stringify({ok:true,initialized:true}));\n");
+  write(remote, 'bin/fwa.js', "import fs from 'node:fs'; import path from 'node:path'; const root=process.argv[process.argv.indexOf('--project')+1]; if(process.argv[2] !== 'init') process.exit(2); fs.mkdirSync(path.join(root,'.fwa'),{recursive:true}); if(!fs.existsSync(path.join(root,'.fwa','project.json'))) fs.writeFileSync(path.join(root,'.fwa','project.json'), JSON.stringify({projectRoot:root})); console.log(JSON.stringify({ok:true,initialized:true}));\n");
   commit(remote);
   const bundle = path.join(temp, 'fw-bundle');
   init(bundle);
@@ -34,7 +34,8 @@ test('real CLI new preview/apply/resume and pinned sync use one direct component
   git(bundle, ['submodule', 'add', '--name', 'fwa', remote, 'fwa']);
   commit(bundle);
   const cli = path.join(bundle, 'bin/fw.mjs');
-  const target = path.join(temp, 'Agent Project');
+  const alias = process.platform === 'win32' ? run(powershell(), ['-NoProfile', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:FW_TEST_LONG_PATH).ShortPath'], { env: { ...process.env, FW_TEST_LONG_PATH: temp } }).stdout : temp;
+  const target = path.join(alias, 'Agent Project');
   const before = gitlink(bundle, 'fwa');
   let result = run(process.execPath, [cli, 'new', target, '--preset', 'agent'], { allowFailure: true });
   assert.equal(result.status, 0, result.stderr);
@@ -46,6 +47,7 @@ test('real CLI new preview/apply/resume and pinned sync use one direct component
   assert.equal(fs.existsSync(path.join(target, 'fwe')), false);
   assert.equal(fs.existsSync(path.join(target, '.codex')), false);
   assert.equal(fs.existsSync(path.join(target, '.fwa', 'project.json')), true);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(target, '.fwa', 'project.json'), 'utf8')).projectRoot, fs.realpathSync.native(target), 'components must receive canonical project identity, not a short-name alias');
   assert.equal(gitlink(target, 'fwa', 'index'), before);
   assert.equal(gitlink(target, 'fwa'), null);
   assert.equal(git(target, ['check-ignore', '.fwa/project.json']).status, 0);

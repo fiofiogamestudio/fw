@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, canonicalRepository } from '../src/workspace.mjs';
+import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, physicalProjectPath, canonicalRepository } from '../src/workspace.mjs';
 import { parseArgs, planCreation, editorCommand } from '../src/cli.mjs';
 import { git, run, powershell } from '../src/process.mjs';
 
@@ -69,6 +69,7 @@ test('safe binding rejects a junction escape', t => {
   fs.symlinkSync(outside, path.join(host, 'fwa'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.throws(() => safeChild(host, 'fwa/package.json'), /link/);
   assert.throws(() => assertPhysicalDirectory(path.join(host, 'fwa', 'new-project')), /link/);
+  assert.throws(() => physicalProjectPath(path.join(host, 'fwa', 'new-project')), /link/);
   fs.symlinkSync(path.join(outside, 'missing'), path.join(host, 'broken'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.throws(() => safeChild(host, 'broken/config.json'), /link/);
   assert.throws(() => assertPhysicalDirectory(path.join(host, 'broken', 'new-project')), /link/);
@@ -81,6 +82,7 @@ test('Git roots and local origins accept physical Windows short-name aliases', {
   assert.doesNotThrow(() => assertGitRoot(short));
   assert.doesNotThrow(() => assertPhysicalDirectory(path.join(short, 'new-project')));
   assert.equal(canonicalRepository(root), canonicalRepository(short));
+  assert.equal(physicalProjectPath(path.join(short, 'new-project')), path.join(fs.realpathSync.native(root), 'new-project'));
   assert.equal(safeChild(short, 'fwa'), path.join(fs.realpathSync.native(root), 'fwa'));
   fs.mkdirSync(path.join(root, 'inside'));
   assert.throws(() => assertGitRoot(path.join(short, 'inside')), /Git root/);
@@ -152,8 +154,10 @@ test('editor routes to sibling components with explicit project and safe options
   for (const id of ['fwe', 'fwa']) {
     const source = path.join(root, `source-${id}`); component(source, id); add(root, source, id);
   }
-  const invocation = editorCommand(root, makeManifest('agent-ui'), { port: '3220', 'allow-write': true });
+  const alias = process.platform === 'win32' ? run(powershell(), ['-NoProfile', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:FW_TEST_LONG_PATH).ShortPath'], { env: { ...process.env, FW_TEST_LONG_PATH: root } }).stdout : root;
+  const invocation = editorCommand(alias, makeManifest('agent-ui'), { port: '3220', 'allow-write': true });
   const physicalRoot = fs.realpathSync.native(root);
+  assert.equal(invocation.args[invocation.args.indexOf('--project') + 1], physicalRoot);
   assert.ok(invocation.args.includes(path.join(physicalRoot, 'fwe')));
   assert.ok(invocation.args.includes('--allow-write'));
   assert.equal(invocation.args[0], path.join(physicalRoot, 'fwa', 'bin/fwa.js'));
@@ -165,7 +169,7 @@ test('workspace discovery stops at a nested Git boundary', t => {
   const root = fixture(t); repository(root);
   write(root, 'fw.workspace.json', makeManifest('agent'));
   fs.mkdirSync(path.join(root, 'game'));
-  assert.equal(findWorkspace(path.join(root, 'game')), root);
+  assert.equal(findWorkspace(path.join(root, 'game')), fs.realpathSync.native(root));
   repository(path.join(root, 'nested'));
   assert.throws(() => findWorkspace(path.join(root, 'nested')), /No fw.workspace/);
 });

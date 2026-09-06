@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, assertPhysicalDirectory } from './workspace.mjs';
+import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, physicalProjectPath } from './workspace.mjs';
 import { fail, git, launch, powershell, run } from './process.mjs';
 
 export const fwRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -72,8 +72,9 @@ function installArgs(root, catalog, apply) {
 }
 
 export function planCreation(directory, options, source = fwRoot) {
-  const root = path.resolve(directory);
-  if (root === path.parse(root).root || directory.split(/[\\/]/).includes('..')) fail('unsafe-path', 'Choose a non-root project directory without parent traversal.');
+  const requested = path.resolve(directory);
+  if (requested === path.parse(requested).root || directory.split(/[\\/]/).includes('..')) fail('unsafe-path', 'Choose a non-root project directory without parent traversal.');
+  const root = physicalProjectPath(requested);
   const manifest = makeManifest(options.preset ?? 'godot-agent', options.with?.split(',') ?? [], options['editor-app']);
   const name = options.name ?? path.basename(root);
   const scaffold = manifest.components.includes('fwc') && manifest.preset !== 'workbench';
@@ -88,7 +89,6 @@ function initialize(kind, positional, options) {
   if (kind === 'init' && positional.length !== 1) fail('invalid-arguments', 'Use fw init [--project <root>] [--preset ...] [--apply].');
   const plan = planCreation(kind === 'new' ? positional[1] : options.project ?? process.cwd(), options);
   const root = plan.project;
-  assertPhysicalDirectory(root);
   if (fs.existsSync(root) && !fs.statSync(root).isDirectory()) fail('unsafe-path', 'Project target must be a directory.');
   if (kind === 'new' && fs.existsSync(root) && fs.readdirSync(root).length) fail('nonempty-project', 'fw new requires an empty target. Use fw init deliberately for an existing Git root.');
   if (kind === 'init') {
@@ -165,6 +165,7 @@ export function doctor(root) {
 }
 
 export function editorCommand(root, manifest, options) {
+  root = fs.realpathSync.native(root); // Every component receives the same project identity, including 8.3 aliases.
   if (!manifest.editor) fail('missing-editor', 'This preset has no editor. Select fwe (and optionally fwa) explicitly.');
   const components = bindings(root, manifest);
   const fwe = components.find(item => item.id === 'fwe');
