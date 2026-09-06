@@ -32,7 +32,7 @@ export function relativePath(value) {
 
 export function safeChild(root, value) {
   const rel = relativePath(value);
-  let cursor = fs.realpathSync(root);
+  let cursor = fs.realpathSync.native(root);
   for (const part of rel.split('/')) {
     cursor = path.join(cursor, part);
     let info;
@@ -40,6 +40,25 @@ export function safeChild(root, value) {
     if (info?.isSymbolicLink()) fail('linked-path', `Component/config path cannot traverse a link: ${cursor}`);
   }
   return cursor;
+}
+
+export function assertPhysicalDirectory(root) {
+  // Inspect links directly: native realpath also expands legitimate NTFS 8.3
+  // aliases, so a textual spelling change is not evidence of a junction.
+  let cursor = path.resolve(root);
+  while (true) {
+    let info;
+    try { info = fs.lstatSync(cursor); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    if (info?.isSymbolicLink()) fail('linked-path', 'Project directory cannot be routed through a symlink/junction.');
+    const parent = path.dirname(cursor);
+    if (parent === cursor) return;
+    cursor = parent;
+  }
+}
+
+function pathIdentity(value) {
+  const physical = fs.realpathSync.native(value).replaceAll('\\', '/');
+  return process.platform === 'win32' ? physical.toLowerCase() : physical;
 }
 
 export function validateManifest(value) {
@@ -79,7 +98,7 @@ export function findWorkspace(start) {
 
 export function assertGitRoot(root) {
   const top = git(root, ['rev-parse', '--show-toplevel']).stdout;
-  if (fs.realpathSync(top).toLowerCase() !== fs.realpathSync(root).toLowerCase()) fail('not-git-root', `Expected a Git root, not a directory inside another repository: ${root}`);
+  if (pathIdentity(top) !== pathIdentity(root)) fail('not-git-root', `Expected a Git root, not a directory inside another repository: ${root}`);
 }
 
 function parseModules(raw) {
@@ -165,6 +184,6 @@ export function bindings(root, manifest) {
 export function canonicalRepository(value) {
   const github = /^(?:https:\/\/github\.com\/|git@github\.com:)([^/]+)\/([^/]+?)\/?$/i.exec(value);
   if (github) return `github.com/${github[1]}/${github[2].replace(/\.git$/i, '')}`.toLowerCase();
-  if (fs.existsSync(value)) return fs.realpathSync(value).replaceAll('\\', '/');
+  if (fs.existsSync(value)) return pathIdentity(value);
   return value.replace(/\/$/, '');
 }

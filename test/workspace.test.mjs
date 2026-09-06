@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace } from '../src/workspace.mjs';
+import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, canonicalRepository } from '../src/workspace.mjs';
 import { parseArgs, planCreation, editorCommand } from '../src/cli.mjs';
-import { git } from '../src/process.mjs';
+import { git, run, powershell } from '../src/process.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fw-workspace-test-'));
@@ -68,8 +68,22 @@ test('safe binding rejects a junction escape', t => {
   fs.mkdirSync(host); fs.mkdirSync(outside);
   fs.symlinkSync(outside, path.join(host, 'fwa'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.throws(() => safeChild(host, 'fwa/package.json'), /link/);
+  assert.throws(() => assertPhysicalDirectory(path.join(host, 'fwa', 'new-project')), /link/);
   fs.symlinkSync(path.join(outside, 'missing'), path.join(host, 'broken'), process.platform === 'win32' ? 'junction' : 'dir');
   assert.throws(() => safeChild(host, 'broken/config.json'), /link/);
+  assert.throws(() => assertPhysicalDirectory(path.join(host, 'broken', 'new-project')), /link/);
+});
+
+test('Git roots and local origins accept physical Windows short-name aliases', { skip: process.platform !== 'win32' }, t => {
+  const root = fixture(t); repository(root);
+  const short = run(powershell(), ['-NoProfile', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:FW_TEST_LONG_PATH).ShortPath'], { env: { ...process.env, FW_TEST_LONG_PATH: root } }).stdout;
+  if (short.toLowerCase() === root.toLowerCase()) return t.skip('8.3 aliases are disabled on this fixture volume.');
+  assert.doesNotThrow(() => assertGitRoot(short));
+  assert.doesNotThrow(() => assertPhysicalDirectory(path.join(short, 'new-project')));
+  assert.equal(canonicalRepository(root), canonicalRepository(short));
+  assert.equal(safeChild(short, 'fwa'), path.join(fs.realpathSync.native(root), 'fwa'));
+  fs.mkdirSync(path.join(root, 'inside'));
+  assert.throws(() => assertGitRoot(path.join(short, 'inside')), /Git root/);
 });
 
 test('FW remote is never an FWC identity; explicit FWC remote supports old section name', t => {
@@ -139,9 +153,10 @@ test('editor routes to sibling components with explicit project and safe options
     const source = path.join(root, `source-${id}`); component(source, id); add(root, source, id);
   }
   const invocation = editorCommand(root, makeManifest('agent-ui'), { port: '3220', 'allow-write': true });
-  assert.ok(invocation.args.includes(path.join(root, 'fwe')));
+  const physicalRoot = fs.realpathSync.native(root);
+  assert.ok(invocation.args.includes(path.join(physicalRoot, 'fwe')));
   assert.ok(invocation.args.includes('--allow-write'));
-  assert.equal(invocation.args[0], path.join(root, 'fwa', 'bin/fwa.js'));
+  assert.equal(invocation.args[0], path.join(physicalRoot, 'fwa', 'bin/fwa.js'));
   assert.throws(() => editorCommand(root, makeManifest('agent-ui'), { port: '0' }), /port/);
   assert.throws(() => editorCommand(root, makeManifest('agent-ui'), { port: '3220oops' }), /port/);
 });

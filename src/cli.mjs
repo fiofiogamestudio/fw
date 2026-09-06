@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot } from './workspace.mjs';
+import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, assertPhysicalDirectory } from './workspace.mjs';
 import { fail, git, launch, powershell, run } from './process.mjs';
 
 export const fwRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -80,12 +80,6 @@ export function planCreation(directory, options, source = fwRoot) {
   if (scaffold && !/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) fail('invalid-name', 'Godot/C# project name must start with a letter and contain only letters, digits and underscores; use --name.');
   const catalog = releaseCatalog(source, manifest.components);
   return { ok: true, mode: options.apply ? 'apply' : 'preview', project: root, name, manifest, components: catalog, scaffold, skillsInstalled: false };
-}
-
-function assertPhysicalDirectory(root) {
-  let cursor = path.resolve(root);
-  while (!fs.existsSync(cursor)) cursor = path.dirname(cursor);
-  if (fs.realpathSync(cursor).toLowerCase() !== cursor.toLowerCase()) fail('linked-path', 'Project directory cannot be routed through a symlink/junction.');
 }
 
 function initialize(kind, positional, options) {
