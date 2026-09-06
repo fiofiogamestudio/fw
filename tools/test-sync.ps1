@@ -262,7 +262,7 @@ try {
     Assert-True -Condition (-not $unbornVerify.Report.host.head -and $unbornVerify.Report.components[0].verificationScope -eq 'host-gitlink') -Message 'An unborn host was treated as a verified standalone repository.'
     $onlyModulesPath = Join-Path $onlyPath '.gitmodules'
     $onlyModulesBytes = [System.IO.File]::ReadAllBytes($onlyModulesPath)
-    Remove-Item -LiteralPath $onlyModulesPath
+    Remove-Item -LiteralPath $onlyModulesPath -Force
     $brokenRegistration = Invoke-FwSync -ToolArguments @('verify', '-ProjectRoot', $onlyPath, '-Json') -ExpectedExitCodes @(2)
     Assert-True -Condition ($brokenRegistration.Report.components[0].repositoryMode -eq 'submodule' -and $brokenRegistration.Report.components[0].verificationScope -eq 'host-gitlink') -Message 'Missing registration silently downgraded a gitlink to standalone verification.'
     [System.IO.File]::WriteAllBytes($onlyModulesPath, $onlyModulesBytes)
