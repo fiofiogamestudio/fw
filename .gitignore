@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+reports/
+.fw/
+.fwa/
+*.log
+*.tgz

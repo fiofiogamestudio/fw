@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "preset": "workbench",
+  "components": ["fwc", "fwe", "fwa", "fws"],
+  "editor": { "kind": "fwa" }
+}

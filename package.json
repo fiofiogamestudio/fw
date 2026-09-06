@@ -1,0 +1,16 @@
+{
+  "name": "fw",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Thin workspace composition and lifecycle tools for the FW family.",
+  "fwWorkspace": true,
+  "type": "module",
+  "engines": { "node": ">=20.10.0" },
+  "bin": { "fw": "bin/fw.mjs" },
+  "scripts": {
+    "test": "node --import ./test/environment.mjs --test test/*.test.mjs",
+    "test:sync": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File tools/test-sync.ps1 -KeepFixture",
+    "doctor": "node bin/fw.mjs doctor --project ."
+  }
+}

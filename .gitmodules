@@ -1,0 +1,12 @@
+[submodule "fw"]
+	path = fwc
+	url = https://github.com/fiofiogamestudio/fwc.git
+[submodule "fwe"]
+	path = fwe
+	url = https://github.com/fiofiogamestudio/fwe.git
+[submodule "fwa"]
+	path = fwa
+	url = https://github.com/fiofiogamestudio/fwa.git
+[submodule "fws"]
+	path = fws
+	url = https://github.com/fiofiogamestudio/fws.git
