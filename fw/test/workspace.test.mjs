@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, physicalProjectPath, canonicalRepository } from '../src/workspace.mjs';
-import { parseArgs, planCreation, editorCommand } from '../src/cli.mjs';
+import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, physicalProjectPath, canonicalRepository, fwRepositoryRoot } from '../src/workspace.mjs';
+import { parseArgs, planCreation, editorCommand, validateRuntimeReport, validateGodotVersion } from '../src/cli.mjs';
 import { git, run, powershell } from '../src/process.mjs';
 
 function fixture(t) {
@@ -134,6 +134,19 @@ test('unborn bundle fails rather than pinning a floating branch', t => {
   assert.throws(() => releaseCatalog(root, ['fwe']));
 });
 
+test('nested FW program reads the outer committed component pins and rejects unrelated nested packages', t => {
+  const temp = fixture(t);
+  const source = path.join(temp, 'source'); component(source, 'fwa');
+  const root = path.join(temp, 'bundle'); repository(root);
+  const program = path.join(root, 'fw');
+  write(program, 'package.json', { name: 'fw', fwWorkspace: true });
+  add(root, source, 'fwa'); commit(root);
+  assert.equal(fwRepositoryRoot(program), fs.realpathSync.native(root));
+  assert.equal(releaseCatalog(program, ['fwa'])[0].revision, gitlink(root, 'fwa'));
+  write(root, 'unrelated/package.json', { name: 'fw', fwWorkspace: true });
+  assert.throws(() => fwRepositoryRoot(path.join(root, 'unrelated')), /direct fw/);
+});
+
 test('binding cannot treat a host subdirectory as a component repository', t => {
   const root = fixture(t); repository(root);
   write(root, '.gitmodules', '[submodule "fwa"]\n path = fwa\n url = local\n');
@@ -155,11 +168,12 @@ test('editor routes to sibling components with explicit project and safe options
     const source = path.join(root, `source-${id}`); component(source, id); add(root, source, id);
   }
   const alias = process.platform === 'win32' ? run(powershell(), ['-NoProfile', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:FW_TEST_LONG_PATH).ShortPath'], { env: { ...process.env, FW_TEST_LONG_PATH: root } }).stdout : root;
-  const invocation = editorCommand(alias, makeManifest('agent-ui'), { port: '3220', 'allow-write': true });
+  const invocation = editorCommand(alias, makeManifest('agent-ui'), { port: '3220', 'allow-write': true, 'review-config': 'tools/review.json' });
   const physicalRoot = fs.realpathSync.native(root);
   assert.equal(invocation.args[invocation.args.indexOf('--project') + 1], physicalRoot);
   assert.ok(invocation.args.includes(path.join(physicalRoot, 'fwe')));
   assert.ok(invocation.args.includes('--allow-write'));
+  assert.equal(invocation.args[invocation.args.indexOf('--review-config') + 1], path.join(physicalRoot, 'tools/review.json'));
   assert.equal(invocation.args[0], path.join(physicalRoot, 'fwa', 'bin/fwa.js'));
   assert.throws(() => editorCommand(root, makeManifest('agent-ui'), { port: '0' }), /port/);
   assert.throws(() => editorCommand(root, makeManifest('agent-ui'), { port: '3220oops' }), /port/);
@@ -176,5 +190,40 @@ test('workspace discovery stops at a nested Git boundary', t => {
 
 test('argument parser rejects typos, duplicated and missing values', () => {
   assert.deepEqual(parseArgs(['deps', 'update', 'fwe', '--to', 'abc', '--apply']).options, { to: 'abc', apply: true });
-  for (const args of [['--unknown'], ['--to'], ['--apply', '--apply'], ['--project', '--apply']]) assert.throws(() => parseArgs(args));
+  assert.equal(parseArgs(['new', 'Game', '--runtime', 'gdscript']).options.runtime, 'gdscript');
+  for (const args of [['--unknown'], ['--to'], ['--apply', '--apply'], ['--project', '--apply'], ['--runtime'], ['--runtime', 'gdscript', '--runtime', 'csharp']]) assert.throws(() => parseArgs(args));
+});
+
+test('runtime selection is passed only for games and never duplicated into the workspace manifest', t => {
+  const temp = fixture(t);
+  const source = path.join(temp, 'source'); component(source, 'fwc');
+  const root = path.join(temp, 'bundle'); repository(root);
+  write(root, 'package.json', { name: 'fw', fwWorkspace: true });
+  add(root, source, 'fwc'); commit(root);
+  const target = path.join(temp, 'Game');
+  const explicit = planCreation(target, { preset: 'godot', runtime: 'gdscript' }, root);
+  assert.equal(explicit.requestedRuntime, 'gdscript');
+  assert.equal(Object.hasOwn(explicit.manifest, 'runtime'), false);
+  assert.deepEqual(explicit.manifest, makeManifest('godot'));
+  // An omitted CLI option must reach FWC as omission, including recovery of GD games.
+  write(target, 'fw.toml', '[runtime]\ngame = "gdscript"\n');
+  assert.equal(planCreation(target, { preset: 'godot' }, root).requestedRuntime, null);
+  assert.throws(() => planCreation(target, { preset: 'godot', runtime: 'javascript' }, root), /csharp or gdscript/);
+  assert.throws(() => planCreation(target, { preset: 'agent', runtime: 'gdscript' }, root), /FWC game preset/);
+  assert.throws(() => planCreation(target, { preset: 'workbench', runtime: 'csharp' }, root), /FWC game preset/);
+  assert.equal(fs.readFileSync(path.join(target, 'fw.toml'), 'utf8'), '[runtime]\ngame = "gdscript"\n');
+});
+
+test('editor requirements come from the game runtime while GDScript accepts standard Godot', () => {
+  const csharp = { game: 'csharp', gameUsesCSharp: true };
+  const gdscript = { game: 'gdscript', gameUsesCSharp: false };
+  const standard = '4.6.2.stable.official.123456789';
+  const mono = '4.6.2.stable.mono.official.123456789';
+  assert.throws(() => validateGodotVersion(standard, csharp), /requires Godot .NET/);
+  assert.equal(validateGodotVersion(mono, csharp).requiresDotnetEditor, true);
+  assert.equal(validateGodotVersion(standard, gdscript).requiresDotnetEditor, false);
+  assert.equal(validateGodotVersion(mono, gdscript).game, 'gdscript');
+  for (const report of [null, {}, { game: 'gdscript', gameUsesCSharp: true }, { game: 'csharp', gameUsesCSharp: 'true' }]) {
+    assert.throws(() => validateRuntimeReport(report), /invalid game runtime/);
+  }
 });

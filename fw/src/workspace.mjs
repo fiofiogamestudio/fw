@@ -158,10 +158,21 @@ export function gitlink(root, rel, source = 'HEAD') {
   return pattern.exec(result.stdout)?.[1] ?? null;
 }
 
-export function releaseCatalog(root, selected) {
-  const pkg = readJson(path.join(root, 'package.json'));
-  if (pkg.name !== 'fw' || pkg.fwWorkspace !== true) fail('not-fw', 'The bootstrap source must be the top-level FW repository.');
+export function fwRepositoryRoot(programRoot) {
+  assertPhysicalDirectory(programRoot);
+  const pkg = readJson(path.join(programRoot, 'package.json'));
+  if (pkg.name !== 'fw' || pkg.fwWorkspace !== true) fail('not-fw', 'Expected the FW program package (name=fw, fwWorkspace=true).');
+  let root = fs.realpathSync.native(programRoot);
+  if (!fs.existsSync(path.join(root, '.git'))) {
+    if (path.basename(root).toLowerCase() !== 'fw') fail('not-fw', 'The FW program must be at the repository root or its direct fw/ directory.');
+    root = path.dirname(root);
+  }
   assertGitRoot(root);
+  return root;
+}
+
+export function releaseCatalog(programRoot, selected) {
+  const root = fwRepositoryRoot(programRoot);
   const defs = moduleDefinitions(root, true);
   return selected.map(id => {
     const definition = defs.find(item => item.id === id);

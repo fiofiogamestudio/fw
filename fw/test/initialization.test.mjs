@@ -30,10 +30,10 @@ test('real CLI new preview/apply/resume and pinned sync use one direct component
   commit(remote);
   const bundle = path.join(temp, 'fw-bundle');
   init(bundle);
-  for (const entry of ['package.json', 'bin', 'src', 'tools']) fs.cpSync(path.join(sourceRoot, entry), path.join(bundle, entry), { recursive: true });
+  for (const entry of ['package.json', 'bin', 'src', 'tools']) fs.cpSync(path.join(sourceRoot, entry), path.join(bundle, 'fw', entry), { recursive: true });
   git(bundle, ['submodule', 'add', '--name', 'fwa', remote, 'fwa']);
   commit(bundle);
-  const cli = path.join(bundle, 'bin/fw.mjs');
+  const cli = path.join(bundle, 'fw/bin/fw.mjs');
   const alias = process.platform === 'win32' ? run(powershell(), ['-NoProfile', '-Command', '(New-Object -ComObject Scripting.FileSystemObject).GetFolder($env:FW_TEST_LONG_PATH).ShortPath'], { env: { ...process.env, FW_TEST_LONG_PATH: temp } }).stdout : temp;
   const target = path.join(alias, 'Agent Project');
   const before = gitlink(bundle, 'fwa');

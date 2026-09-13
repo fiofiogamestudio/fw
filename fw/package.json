@@ -9,6 +9,7 @@
   "engines": { "node": ">=20.10.0" },
   "bin": { "fw": "bin/fw.mjs" },
   "scripts": {
+    "start": "node tools/start.mjs",
     "test": "node --import ./test/environment.mjs --test test/*.test.mjs",
     "test:sync": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File tools/test-sync.ps1 -KeepFixture",
     "doctor": "node bin/fw.mjs doctor --project ."

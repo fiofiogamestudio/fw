@@ -1,19 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, physicalProjectPath } from './workspace.mjs';
+import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, physicalProjectPath, fwRepositoryRoot } from './workspace.mjs';
 import { fail, git, launch, powershell, run } from './process.mjs';
+import { visualCommand } from './visual.mjs';
 
 export const fwRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `FW — workspace composition, not a game runtime
 
-  fw new <directory> --preset godot|godot-agent|agent-ui|agent|editor [--with fws] [--apply]
-  fw init [--project <Git root>] --preset <preset> [--apply]
+  fw new <directory> --preset godot|godot-agent|agent-ui|agent|editor [--runtime csharp|gdscript] [--with fws] [--apply]
+  fw init [--project <Git root>] --preset <preset> [--runtime csharp|gdscript] [--apply]
   fw deps status|sync|install|verify [--project <root>] [--apply]
   fw deps update <fwc|fwe|fwa|fws> --to <revision> [--apply]
   fw deps push <component> [--apply]
   fw doctor [--project <root>]
-  fw editor [--project <root>] [--port <1..65535>] [--allow-write]
+  fw editor [--project <root>] [--port <1..65535>] [--allow-write] [--review-config <file>]
+  fw visual --project <asset project> [--fwv-path <directory>] [--fwe-path <directory>] [--port <1..65535>]
   fw skills install --target <directory> [--apply]
 
 new/init/install use the component commits recorded in this FW release's HEAD.
@@ -28,7 +30,7 @@ export function parseArgs(argv) {
   const positional = [];
   const options = {};
   const flags = new Set(['apply', 'allow-write', 'json', 'help']);
-  const values = new Set(['project', 'preset', 'with', 'name', 'to', 'port', 'target', 'editor-app']);
+  const values = new Set(['project', 'preset', 'with', 'name', 'to', 'port', 'target', 'editor-app', 'fwv-path', 'fwe-path', 'runtime', 'review-config']);
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (!arg.startsWith('--')) { positional.push(arg); continue; }
@@ -78,13 +80,15 @@ export function planCreation(directory, options, source = fwRoot) {
   const manifest = makeManifest(options.preset ?? 'godot-agent', options.with?.split(',') ?? [], options['editor-app']);
   const name = options.name ?? path.basename(root);
   const scaffold = manifest.components.includes('fwc') && manifest.preset !== 'workbench';
+  if (options.runtime !== undefined && !['csharp', 'gdscript'].includes(options.runtime)) fail('invalid-runtime', '--runtime must be csharp or gdscript.');
+  if (options.runtime !== undefined && !scaffold) fail('invalid-runtime', '--runtime requires an FWC game preset.');
   if (scaffold && !/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) fail('invalid-name', 'Godot/C# project name must start with a letter and contain only letters, digits and underscores; use --name.');
   const catalog = releaseCatalog(source, manifest.components);
-  return { ok: true, mode: options.apply ? 'apply' : 'preview', project: root, name, manifest, components: catalog, scaffold, skillsInstalled: false };
+  return { ok: true, mode: options.apply ? 'apply' : 'preview', project: root, name, manifest, components: catalog, scaffold, ...(scaffold ? { requestedRuntime: options.runtime ?? null, runtimeSource: 'fw.toml; new games default to csharp' } : {}), skillsInstalled: false };
 }
 
 function initialize(kind, positional, options) {
-  only(options, ['project', 'preset', 'with', 'name', 'editor-app', 'apply']);
+  only(options, ['project', 'preset', 'with', 'name', 'editor-app', 'runtime', 'apply']);
   if (kind === 'new' && (positional.length !== 2 || options.project)) fail('invalid-arguments', 'Use fw new <directory> [--preset ...] [--apply].');
   if (kind === 'init' && positional.length !== 1) fail('invalid-arguments', 'Use fw init [--project <root>] [--preset ...] [--apply].');
   const plan = planCreation(kind === 'new' ? positional[1] : options.project ?? process.cwd(), options);
@@ -120,7 +124,10 @@ function initialize(kind, positional, options) {
     if (plan.scaffold) {
       const component = moduleDefinitions(root).find(item => item.id === 'fwc');
       const script = safeChild(root, `${component.path}/tools/new.ps1`);
-      run(powershell(), psArgs(script, ['-ProjectRoot', root, '-Name', plan.name, '-FrameworkPath', component.path]), { cwd: root, inherit: true });
+      const args = ['-ProjectRoot', root, '-Name', plan.name, '-FrameworkPath', component.path];
+      // Omission preserves an existing game's choice during init/recovery.
+      if (options.runtime !== undefined) args.push('-Runtime', options.runtime);
+      run(powershell(), psArgs(script, args), { cwd: root, inherit: true });
     }
     if (plan.manifest.components.includes('fwa')) {
       const fwa = moduleDefinitions(root).find(item => item.id === 'fwa');
@@ -140,7 +147,7 @@ export function doctor(root) {
   const checks = [];
   const check = (id, action) => {
     try { const details = action(); checks.push({ id, ok: true, details }); return details; }
-    catch (error) { checks.push({ id, ok: false, error: error.message }); return null; }
+    catch (error) { checks.push({ id, ok: false, error: error.message, ...(error.details ? { details: error.details } : {}) }); return null; }
   };
   check('node', () => { const [major, minor] = process.versions.node.split('.').map(Number); if (major < 20 || (major === 20 && minor < 10)) fail('node-version', 'Node >=20.10.0 required.'); return process.version; });
   check('git', () => run('git', ['--version']).stdout);
@@ -154,14 +161,35 @@ export function doctor(root) {
     return item.actual;
   });
   if (manifest?.components.includes('fwc')) {
-    check('dotnet', () => run('dotnet', ['--version'], { cwd: root }).stdout);
-    check('godot', () => run(process.env.GODOT_BIN || 'godot', ['--version'], { cwd: root }).stdout);
+    const generatorSdk = check('dotnet:generator', () => ({ purpose: 'FWC development-time generator, including GDScript games', version: run('dotnet', ['--version'], { cwd: root }).stdout }));
+    if (fs.existsSync(safeChild(root, 'fw.toml'))) {
+      const runtime = generatorSdk ? check('runtime:game', () => {
+        const component = components?.find(item => item.id === 'fwc');
+        if (!component) fail('missing-component', 'Resolve FWC bindings before checking the game runtime.');
+        const generator = safeChild(root, `${component.path}/csharp/FwGen/FwGen.csproj`);
+        const result = run('dotnet', ['run', '--no-build', '--project', generator, '--', '--root', root, 'runtime'], { cwd: root, allowFailure: true });
+        if (result.status !== 0) fail('runtime-query-failed', 'FWC runtime query failed. Prepare the FwGen tool through new/gen/build and resolve the reported configuration error; doctor never builds it.', { output: result.stderr || result.stdout });
+        return validateRuntimeReport(JSON.parse(result.stdout));
+      }) : null;
+      if (runtime) check('godot:game-editor', () => validateGodotVersion(run(process.env.GODOT_BIN || 'godot', ['--version'], { cwd: root }).stdout, runtime));
+    }
   }
   if (manifest?.editor?.kind === 'fwe') check('editor-app', () => {
     if (!manifest.editor.app) fail('missing-app', 'Set editor.app to your project-relative FWE app configuration.');
     return readJson(safeChild(root, manifest.editor.app)).id;
   });
   return { ok: checks.every(check => check.ok), project: root, checks, components, remoteVerified: false, note: 'doctor is local; deps verify fetches origin and checks publication. Build/runtime verification remains owned by each component.' };
+}
+
+export function validateRuntimeReport(value) {
+  if (!value || !['csharp', 'gdscript'].includes(value.game) || value.gameUsesCSharp !== (value.game === 'csharp')) fail('invalid-runtime-report', 'FWC runtime query returned an invalid game runtime.');
+  return value;
+}
+
+export function validateGodotVersion(version, runtime) {
+  validateRuntimeReport(runtime);
+  if (runtime.gameUsesCSharp && !/(^|[.\s-])mono([.\s-]|$)/i.test(version)) fail('godot-dotnet-required', 'The csharp game runtime requires Godot .NET. Set GODOT_BIN to a Mono editor executable.');
+  return { version, game: runtime.game, requiresDotnetEditor: runtime.gameUsesCSharp };
 }
 
 export function editorCommand(root, manifest, options) {
@@ -175,8 +203,10 @@ export function editorCommand(root, manifest, options) {
     const fwa = components.find(item => item.id === 'fwa');
     args.push(path.join(fwa.root, 'bin/fwa.js'), 'editor', '--project', root, '--fwe-path', fwe.root);
     if (options['allow-write']) args.push('--allow-write');
+    if (options['review-config']) args.push('--review-config', path.resolve(root, options['review-config']));
   } else {
     if (options['allow-write']) fail('invalid-arguments', '--allow-write only applies to the FWA console; FWE domains own their editing capabilities.');
+    if (options['review-config']) fail('invalid-arguments', '--review-config only applies to the FWA development workbench.');
     if (!manifest.editor.app) fail('missing-app', 'Set editor.app to your project-relative FWE app configuration.');
     const app = safeChild(root, manifest.editor.app);
     if (!fs.existsSync(app)) fail('missing-app', `FWE app does not exist: ${app}`);
@@ -191,6 +221,12 @@ export async function main(argv) {
   if (options.help || positional.length === 0) { console.log(usage); return; }
   const command = positional[0];
   if (command === 'new' || command === 'init') return initialize(command, positional, options);
+  if (command === 'visual') {
+    only(options, ['project', 'fwv-path', 'fwe-path', 'port']);
+    if (positional.length !== 1) fail('invalid-arguments', 'visual takes no positional arguments.');
+    const invocation = visualCommand(options.project ?? process.cwd(), options, fwRepositoryRoot(fwRoot));
+    return launch(invocation.executable, invocation.args, invocation.project);
+  }
   if (!['deps', 'doctor', 'editor', 'skills'].includes(command)) fail('invalid-arguments', usage);
   const root = findWorkspace(options.project ?? process.cwd());
   if (command === 'doctor') {
@@ -217,7 +253,7 @@ export async function main(argv) {
     return sync(args);
   }
   if (command === 'editor') {
-    only(options, ['project', 'port', 'allow-write']);
+    only(options, ['project', 'port', 'allow-write', 'review-config']);
     if (positional.length !== 1) fail('invalid-arguments', 'editor takes no positional arguments.');
     const invocation = editorCommand(root, manifest, options);
     return launch(invocation.executable, invocation.args, root);
