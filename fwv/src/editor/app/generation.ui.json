@@ -1,0 +1,825 @@
+{
+  "root": "root",
+  "fields": {
+    "baseUrl": {
+      "label": "Base URL",
+      "type": "string",
+      "control": "url",
+      "default": "https://api.openai.com/v1",
+      "required": true
+    },
+    "model": {
+      "label": "模型名称",
+      "type": "string",
+      "default": "gpt-image-2",
+      "maxLength": 120,
+      "required": true
+    },
+    "protocol": {
+      "label": "接口协议",
+      "type": "string",
+      "options": [
+        {
+          "value": "gpt-image",
+          "label": "GPT Image 协议"
+        },
+        {
+          "value": "openai-compatible",
+          "label": "OpenAI 兼容生图接口"
+        }
+      ],
+      "control": "select",
+      "default": "gpt-image"
+    },
+    "apiKey": {
+      "label": "API Key",
+      "type": "string",
+      "control": "password",
+      "placeholder": "输入 API Key"
+    },
+    "name": {
+      "schemaPath": "generationDrafts[].data.name",
+      "placeholder": "例如：月光药剂图标"
+    },
+    "prompt": {
+      "schemaPath": "generationDrafts[].data.prompt",
+      "placeholder": "描述主体、视角、风格、配色与用途。",
+      "rows": 6
+    },
+    "size": {
+      "schemaPath": "generationDrafts[].data.size",
+      "default": "1024x1024",
+      "placeholder": "例如 1024x1024；按模型支持的尺寸填写"
+    },
+    "quality": {
+      "schemaPath": "generationDrafts[].data.quality",
+      "default": "auto"
+    },
+    "background": {
+      "schemaPath": "generationDrafts[].data.background",
+      "default": "auto"
+    },
+    "referenceAssetId": {
+      "schemaPath": "generationDrafts[].data.referenceAssetId",
+      "control": "select",
+      "options": [
+        {
+          "value": "",
+          "label": "不使用参考图"
+        }
+      ]
+    },
+    "referenceRevisionId": {
+      "schemaPath": "generationDrafts[].data.referenceRevisionId",
+      "control": "select"
+    },
+    "referenceInput": {
+      "label": "本地参考图",
+      "control": "file",
+      "accept": ".png,.jpg,.jpeg,.webp",
+      "hidden": true
+    },
+    "acknowledged": {
+      "label": "我已核对服务商记录，并希望结束本次跟踪。",
+      "type": "boolean"
+    },
+    "jobsSelect": {
+      "label": "本次服务启动以来的任务",
+      "control": "select"
+    }
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "columns",
+          "preset": "workspace",
+          "children": [
+            {
+              "type": "card",
+              "ref": "resultCard",
+              "children": [
+                {
+                  "type": "row",
+                  "children": [
+                    {
+                      "type": "heading",
+                      "text": "预览"
+                    },
+                    {
+                      "type": "badge",
+                      "ref": "jobBadge",
+                      "text": {
+                        "$path": "jobBadgeText",
+                        "default": "尚未开始"
+                      },
+                      "testId": "fwv-generation-job-status",
+                      "attrs": {
+                        "data-status": {
+                          "$path": "jobState",
+                          "default": "idle"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "slot",
+                  "ref": "result",
+                  "testId": "fwv-generation-result",
+                  "preset": [
+                    "preview",
+                    "stage"
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "elapsedText",
+                    "default": ""
+                  },
+                  "ref": "elapsed",
+                  "testId": "fwv-generation-elapsed",
+                  "tone": "muted",
+                  "visible": {
+                    "$path": "elapsedText"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "jobMessageText",
+                    "default": ""
+                  },
+                  "ref": "jobMessage",
+                  "testId": "fwv-generation-job-message",
+                  "tone": {
+                    "$if": [
+                      {
+                        "$path": "jobMessageError"
+                      },
+                      "danger",
+                      "default"
+                    ]
+                  },
+                  "attrs": {
+                    "role": "status",
+                    "data-error": {
+                      "$path": "jobMessageError",
+                      "default": false
+                    }
+                  },
+                  "visible": {
+                    "$and": [
+                      {
+                        "$path": "jobMessageText"
+                      },
+                      {
+                        "$if": [
+                          {
+                            "$path": "jobMessageError"
+                          },
+                          true,
+                          {
+                            "$not": {
+                              "$eq": [
+                                {
+                                  "$path": "jobState"
+                                },
+                                "succeeded"
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "toolbar",
+                  "children": [
+                    {
+                      "type": "button",
+                      "ref": "openImage",
+                      "text": "打开图片加工",
+                      "testId": "fwv-generation-open",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableOpenImage",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$not": {
+                          "$path": "hideOpenImage",
+                          "default": false
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "cancel",
+                      "text": "取消本地等待",
+                      "testId": "fwv-generation-cancel",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableCancel",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$not": {
+                          "$path": "hideCancel",
+                          "default": false
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "query",
+                      "text": "查询本次任务",
+                      "testId": "fwv-generation-query",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableQuery",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$not": {
+                          "$path": "hideQuery",
+                          "default": false
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "save",
+                      "text": "保存已生成图片",
+                      "testId": "fwv-generation-save",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableSave",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$not": {
+                          "$path": "hideSave",
+                          "default": false
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "card",
+                  "ref": "uncertainty",
+                  "children": [
+                    {
+                      "type": "text",
+                      "text": "本次请求的远端结果尚未确定，可能已经产生费用。查询只读取状态，不会再次提交生成。"
+                    },
+                    {
+                      "type": "field",
+                      "ref": "acknowledged",
+                      "field": "acknowledged",
+                      "testId": "fwv-generation-acknowledge"
+                    },
+                    {
+                      "type": "button",
+                      "ref": "newRequest",
+                      "text": "准备新请求",
+                      "testId": "fwv-generation-new-request",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableNewRequest",
+                          "default": false
+                        }
+                      }
+                    }
+                  ],
+                  "visible": {
+                    "$not": {
+                      "$path": "hideUncertainty",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "details",
+                  "testId": "fwv-generation-job-details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "任务记录"
+                    },
+                    {
+                      "type": "field",
+                      "ref": "jobsSelect",
+                      "field": "jobsSelect",
+                      "testId": "fwv-generation-jobs",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableJobsSelect",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$not": {
+                          "$path": "hideJobsSelect",
+                          "default": false
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "jobMetaText",
+                        "default": ""
+                      },
+                      "ref": "jobMeta"
+                    },
+                    {
+                      "type": "text",
+                      "text": "已入库图片及其提示词保存在项目中；临时任务记录保留到服务退出。"
+                    }
+                  ],
+                  "visible": {
+                    "$path": "hasJobRecord",
+                    "default": false
+                  }
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "children": [
+                {
+                  "type": "heading",
+                  "text": "生成需求"
+                },
+                {
+                  "type": "form",
+                  "ref": "form",
+                  "children": [
+                    {
+                      "type": "fieldset",
+                      "ref": "fields",
+                      "children": [
+                        {
+                          "type": "field",
+                          "ref": "name",
+                          "field": "name",
+                          "testId": "fwv-generation-name"
+                        },
+                        {
+                          "type": "field",
+                          "ref": "prompt",
+                          "field": "prompt",
+                          "testId": "fwv-generation-prompt"
+                        },
+                        {
+                          "type": "button",
+                          "ref": "generate",
+                          "text": "生成图片",
+                          "testId": "fwv-generation-start",
+                          "attrs": {
+                            "type": "submit",
+                            "disabled": {
+                              "$path": "disableGenerate",
+                              "default": false
+                            }
+                          },
+                          "tone": "primary"
+                        },
+                        {
+                          "type": "details",
+                          "testId": "fwv-generation-options",
+                          "children": [
+                            {
+                              "type": "summary",
+                              "text": "尺寸与质量"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "size",
+                              "field": "size",
+                              "testId": "fwv-generation-size"
+                            },
+                            {
+                              "type": "row",
+                              "children": [
+                                {
+                                  "type": "field",
+                                  "ref": "quality",
+                                  "field": "quality",
+                                  "testId": "fwv-generation-quality"
+                                },
+                                {
+                                  "type": "field",
+                                  "ref": "background",
+                                  "field": "background",
+                                  "testId": "fwv-generation-background",
+                                  "attrs": {
+                                    "disabled": {
+                                      "$path": "disableBackground",
+                                      "default": false
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "text": {
+                                "$path": "capabilityNoteText",
+                                "default": ""
+                              },
+                              "ref": "capabilityNote",
+                              "visible": {
+                                "$path": "capabilityNoteText"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "details",
+                          "testId": "fwv-generation-reference-settings",
+                          "children": [
+                            {
+                              "type": "summary",
+                              "text": {
+                                "$path": "referenceSummary",
+                                "default": "参考图（可选）"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "referenceAssetId",
+                              "field": "referenceAssetId",
+                              "testId": "fwv-generation-reference-asset"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "referenceRevisionId",
+                              "field": "referenceRevisionId",
+                              "testId": "fwv-generation-reference-revision",
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "disableReferenceRevisionId",
+                                  "default": false
+                                }
+                              }
+                            },
+                            {
+                              "type": "button",
+                              "ref": "importReference",
+                              "text": "导入本地参考图",
+                              "testId": "fwv-generation-reference-import"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "referenceInput",
+                              "field": "referenceInput",
+                              "testId": "fwv-generation-reference-input"
+                            },
+                            {
+                              "type": "slot",
+                              "ref": "referencePreview"
+                            },
+                            {
+                              "type": "text",
+                              "text": "参考图会发送到所选模型服务。"
+                            }
+                          ]
+                        }
+                      ],
+                      "attrs": {
+                        "disabled": {
+                          "$path": "disableFields",
+                          "default": false
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "generationStatusText",
+                    "default": ""
+                  },
+                  "ref": "generationStatus",
+                  "testId": "fwv-generation-status",
+                  "tone": {
+                    "$if": [
+                      {
+                        "$path": "generationStatusError"
+                      },
+                      "danger",
+                      "default"
+                    ]
+                  },
+                  "attrs": {
+                    "role": "status",
+                    "data-error": {
+                      "$path": "generationStatusError",
+                      "default": false
+                    }
+                  },
+                  "visible": {
+                    "$and": [
+                      {
+                        "$path": "generationStatusText"
+                      },
+                      {
+                        "$if": [
+                          {
+                            "$path": "generationStatusError"
+                          },
+                          true,
+                          {
+                            "$not": {
+                              "$eq": [
+                                {
+                                  "$path": "jobState"
+                                },
+                                "succeeded"
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                },
+                {
+                  "type": "details",
+                  "testId": "fwv-generation-provider-settings",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": {
+                        "$path": "providerSummary",
+                        "default": "模型服务"
+                      }
+                    },
+                    {
+                      "type": "form",
+                      "ref": "providerForm",
+                      "children": [
+                        {
+                          "type": "fieldset",
+                          "ref": "providerFields",
+                          "children": [
+                            {
+                              "type": "field",
+                              "ref": "baseUrl",
+                              "field": "baseUrl",
+                              "testId": "fwv-provider-base-url"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "model",
+                              "field": "model",
+                              "testId": "fwv-provider-model"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "protocol",
+                              "field": "protocol",
+                              "testId": "fwv-provider-protocol"
+                            },
+                            {
+                              "type": "field",
+                              "ref": "apiKey",
+                              "field": "apiKey",
+                              "testId": "fwv-provider-key"
+                            },
+                            {
+                              "type": "text",
+                              "text": {
+                                "$path": "keyStatusText",
+                                "default": "尚未读取配置"
+                              },
+                              "ref": "keyStatus",
+                              "testId": "fwv-provider-key-status",
+                              "tone": "muted"
+                            },
+                            {
+                              "type": "toolbar",
+                              "children": [
+                                {
+                                  "type": "button",
+                                  "ref": "saveSettings",
+                                  "text": "保存设置",
+                                  "testId": "fwv-provider-save",
+                                  "attrs": {
+                                    "type": "submit"
+                                  }
+                                },
+                                {
+                                  "type": "button",
+                                  "ref": "checkSettings",
+                                  "text": "验证凭据",
+                                  "testId": "fwv-provider-check",
+                                  "attrs": {
+                                    "disabled": {
+                                      "$path": "disableCheckSettings",
+                                      "default": false
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "button",
+                                  "ref": "clearKey",
+                                  "text": "清除 Key",
+                                  "testId": "fwv-provider-clear",
+                                  "attrs": {
+                                    "disabled": {
+                                      "$path": "disableClearKey",
+                                      "default": false
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ],
+                          "attrs": {
+                            "disabled": {
+                              "$path": "disableProviderFields",
+                              "default": false
+                            }
+                          }
+                        }
+                      ],
+                      "attrs": {
+                        "autocomplete": "off"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "providerStatusText",
+                        "default": ""
+                      },
+                      "ref": "providerStatus",
+                      "testId": "fwv-provider-status",
+                      "tone": {
+                        "$if": [
+                          {
+                            "$path": "providerStatusError"
+                          },
+                          "danger",
+                          "default"
+                        ]
+                      },
+                      "attrs": {
+                        "role": "status",
+                        "data-error": {
+                          "$path": "providerStatusError",
+                          "default": false
+                        }
+                      },
+                      "visible": {
+                        "$path": "providerStatusText"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": "Key 仅保留在当前服务内；重启后需要重新提供。"
+                    }
+                  ],
+                  "attrs": {
+                    "open": {
+                      "$path": "providerNeedsSetup",
+                      "default": false
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "ref": "root",
+      "testId": "fwv-generation"
+    },
+    "reference": {
+      "type": "row",
+      "children": [
+        {
+          "type": "image",
+          "attrs": {
+            "src": {
+              "$path": "url"
+            },
+            "alt": {
+              "$path": "name"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$text": "referenceDescription",
+            "vars": {
+              "name": {
+                "$path": "name"
+              },
+              "width": {
+                "$path": "width"
+              },
+              "height": {
+                "$path": "height"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "result": {
+      "type": "image",
+      "testId": "fwv-generation-image",
+      "attrs": {
+        "src": {
+          "$path": "url"
+        },
+        "alt": {
+          "$path": "name"
+        }
+      }
+    },
+    "empty": {
+      "type": "text",
+      "text": {
+        "$path": "message"
+      }
+    }
+  },
+  "texts": {
+    "job_queued": "准备生成",
+    "job_running": "正在生成",
+    "job_succeeded": "已保存到素材库",
+    "job_failed": "生成失败",
+    "job_cancelled": "已取消",
+    "job_unknown": "结果待核实",
+    "job_ready": "生成完成，待保存",
+    "message001": "无法读取所选参考图。",
+    "message002": "凭据检查完成。生成能力仍取决于服务商及所选模型。",
+    "message003": "当前服务凭据已清除。",
+    "message004": "服务设置已保存。可以验证凭据或发起生成。",
+    "message005": "兼容接口使用自动背景；尺寸和质量以模型支持为准。",
+    "message006": "",
+    "message007": "模型服务设置尚未保存，保存后再发起生成。",
+    "message008": "请选择不超过 20 MiB 的 PNG、JPEG 或 WebP 参考图。",
+    "message009": "参考图已导入并选中。",
+    "message010": "已发送取消请求。服务端是否已执行需以任务状态为准。",
+    "message011": "未找到可确认的任务结果。请核对服务商记录；本页没有重新提交生成。",
+    "message012": "已更新本次任务状态。",
+    "message013": "已重试保存现有生成结果，此操作不会重新调用模型。",
+    "message014": "",
+    "message015": "操作未完成。",
+    "message016": "已配置凭据 · {v0}",
+    "message017": "启动环境变量",
+    "message018": "当前服务会话",
+    "message019": "本机服务 · 可以不提供 API Key",
+    "message020": "尚未配置 API Key",
+    "message021": "先填写并保存模型服务与 API Key，再发起生成。",
+    "message022": "不使用参考图",
+    "message023": " · 当前交付",
+    "message024": "正在确认请求",
+    "message025": "尚未开始",
+    "message026": "正在准备生成请求",
+    "message027": "模型服务正在处理请求",
+    "message028": "图片已生成，等待写入项目",
+    "message029": "暂无生成结果",
+    "message030": "模型正在处理请求。",
+    "message031": "已保存到素材库。",
+    "message032": "图片已生成，等待保存。",
+    "message033": "任务 {v0}{v1}",
+    "message034": "\n请求 ",
+    "message035": "待确认请求 {v0}",
+    "message036": "已等待 {v0} 分 {v1} 秒",
+    "message037": "发起于 {v0}",
+    "message038": "暂时无法读取任务状态：{v0}。可点击查询；不会自动重新生成。",
+    "message039": "参考图版本不再可用，请重新选择。",
+    "message040": "正在提交生成请求…",
+    "message041": "请求已提交。",
+    "message042": "提交结果尚未确认：{v0}。请查询本次任务。",
+    "message043": "请求被拒绝，尚未创建生成任务：{v0}",
+    "message044": "模型服务暂不可用：{v0}",
+    "keyStatusInitial": "尚未读取配置",
+    "capabilityNoteInitial": "",
+    "jobBadgeInitial": "尚未开始",
+    "jobMetaInitial": "",
+    "elapsedInitial": "",
+    "referenceDescription": "{name}\n{width} × {height} px",
+    "providerReady": "模型服务 · {model}",
+    "providerMissing": "模型服务 · 需要配置",
+    "referenceSelected": "参考图 · {name}",
+    "referenceEmpty": "参考图（可选）"
+  }
+}

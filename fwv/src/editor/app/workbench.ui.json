@@ -1,0 +1,136 @@
+{
+  "texts": {
+    "editDraft": "编辑美术草稿",
+    "removeDraft": "移除美术草稿",
+    "draft": "美术草稿",
+    "invalidDraft": "FWE 草稿集合或标识不匹配。",
+    "saveFailed": "草稿尚未保存，请检查 FWE 顶部提示。",
+    "requestFailed": "请求失败 ({status})",
+    "protocolMismatch": "工作台协议不匹配，请重启服务。",
+    "projectChanged": "项目身份变化，请重启服务。",
+    "refreshed": "{count} 项素材 · {time}",
+    "busy": "当前操作尚未完成。",
+    "disconnected": "尚未连接项目。",
+    "importBusy": "请等待当前操作完成后再导入。",
+    "unsupported": "暂不支持 {name}，请选择 PNG、JPEG、WebP 或 GLB。",
+    "oversize": "{name} 为空或超过 20 MiB。",
+    "importProgress": "正在导入 {name}（{index}/{count}）…",
+    "readFailed": "无法读取所选图片。",
+    "imported": "已导入 {count} 项素材。",
+    "partialImport": " 已完成 {count} 项导入。",
+    "ready": ""
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "testId": "fwv-workbench",
+      "preset": "compact",
+      "children": [
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "button",
+              "ref": "importButton",
+              "text": "导入素材",
+              "testId": "fwv-import",
+              "visible": true,
+              "attrs": {
+                "disabled": {
+                  "$or": [
+                    {
+                      "$path": "busy"
+                    },
+                    {
+                      "$not": {
+                        "$path": "ready"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "refreshButton",
+              "text": "刷新资产",
+              "attrs": {
+                "disabled": {
+                  "$path": "busy"
+                }
+              }
+            }
+          ],
+          "visible": {
+            "$eq": [
+              {
+                "$path": "panel"
+              },
+              "images"
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "ref": "status",
+          "testId": "fwv-status",
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "error"
+            }
+          },
+          "text": {
+            "$path": "notice"
+          },
+          "tone": {
+            "$path": "statusTone"
+          },
+          "visible": {
+            "$path": "notice"
+          }
+        },
+        {
+          "type": "fieldset",
+          "ref": "content",
+          "attrs": {
+            "disabled": {
+              "$or": [
+                {
+                  "$path": "busy"
+                },
+                {
+                  "$not": {
+                    "$path": "ready"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "field",
+          "field": {
+            "control": "file",
+            "label": false
+          },
+          "ref": "picker",
+          "testId": "fwv-import-input",
+          "hidden": true,
+          "attrs": {
+            "multiple": true,
+            "accept": ".png,.jpg,.jpeg,.webp,.glb"
+          }
+        }
+      ],
+      "attrs": {
+        "aria-busy": {
+          "$path": "busy"
+        },
+        "data-dragging": {
+          "$path": "dragging"
+        }
+      }
+    }
+  }
+}

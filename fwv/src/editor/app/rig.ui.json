@@ -1,0 +1,1490 @@
+{
+  "root": "main",
+  "templates": {
+    "main": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "heading",
+          "text": {
+            "$text": "title"
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": {
+                "$text": "draftHistory"
+              }
+            },
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "field",
+                  "ref": "draft",
+                  "testId": "fwv-rig-draft",
+                  "field": {
+                    "schemaPath": "rigDrafts[].data.assetId",
+                    "type": "select",
+                    "label": false
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "capabilities.navigate"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "draft-revision",
+                  "testId": "fwv-rig-draft-revision",
+                  "field": {
+                    "schemaPath": "rigDrafts[].data.revisionId",
+                    "type": "select"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "capabilities.revision"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "new",
+                  "testId": "fwv-rig-new",
+                  "text": {
+                    "$text": "new"
+                  },
+                  "on": {
+                    "click": "dispatch"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "capabilities.navigate"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "tone": "muted",
+              "testId": "fwv-rig-fork-origin",
+              "visible": {
+                "$path": "forkOrigin"
+              },
+              "text": {
+                "$path": "forkOrigin"
+              }
+            }
+          ],
+          "testId": "fwv-rig-history"
+        },
+        {
+          "type": "stack",
+          "preset": "compact",
+          "visible": {
+            "$path": "historical"
+          },
+          "children": [
+            {
+              "type": "text",
+              "testId": "fwv-rig-history-notice",
+              "text": {
+                "$text": "historyReadonly"
+              }
+            },
+            {
+              "type": "button",
+              "ref": "fork",
+              "testId": "fwv-rig-fork",
+              "text": {
+                "$text": "fork"
+              },
+              "tone": "primary",
+              "on": {
+                "click": "dispatch"
+              },
+              "attrs": {
+                "disabled": {
+                  "$not": {
+                    "$path": "capabilities.fork"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "columns",
+          "preset": "workspace",
+          "children": [
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "toolbar",
+                  "children": [
+                    {
+                      "type": "button",
+                      "ref": "select-mode",
+                      "testId": "fwv-rig-select-mode",
+                      "text": {
+                        "$text": "selectMode"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.tool"
+                          }
+                        },
+                        "aria-pressed": {
+                          "$eq": [
+                            {
+                              "$path": "tool",
+                              "default": "select"
+                            },
+                            "select"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "draw",
+                      "testId": "fwv-rig-draw",
+                      "text": {
+                        "$text": "draw"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.tool"
+                          }
+                        },
+                        "aria-pressed": {
+                          "$eq": [
+                            {
+                              "$path": "tool",
+                              "default": "select"
+                            },
+                            "draw"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "set-pivot",
+                      "testId": "fwv-rig-set-pivot",
+                      "text": {
+                        "$text": "setPivot"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.tool"
+                          }
+                        },
+                        "aria-pressed": {
+                          "$eq": [
+                            {
+                              "$path": "tool",
+                              "default": "select"
+                            },
+                            "pivot"
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "close",
+                      "testId": "fwv-rig-close",
+                      "text": {
+                        "$text": "close"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.close"
+                          }
+                        }
+                      },
+                      "tone": "primary",
+                      "visible": {
+                        "$eq": [
+                          {
+                            "$path": "tool"
+                          },
+                          "draw"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "undo",
+                      "testId": "fwv-rig-undo",
+                      "text": {
+                        "$text": "undo"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.undo"
+                          }
+                        }
+                      },
+                      "visible": {
+                        "$eq": [
+                          {
+                            "$path": "tool"
+                          },
+                          "draw"
+                        ]
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "reset",
+                      "testId": "fwv-rig-reset",
+                      "text": {
+                        "$text": "reset"
+                      },
+                      "on": {
+                        "click": "dispatch"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.tool"
+                          }
+                        }
+                      },
+                      "visible": {
+                        "$eq": [
+                          {
+                            "$path": "tool"
+                          },
+                          "draw"
+                        ]
+                      }
+                    }
+                  ],
+                  "visible": {
+                    "$path": "hasDraft"
+                  }
+                },
+                {
+                  "type": "stack",
+                  "children": [
+                    {
+                      "type": "image",
+                      "ref": "source-image",
+                      "testId": "fwv-rig-source-image",
+                      "attrs": {
+                        "alt": "当前草稿的原始立绘",
+                        "draggable": false,
+                        "src": {
+                          "$path": "sourceUrl"
+                        }
+                      }
+                    },
+                    {
+                      "type": "slot",
+                      "ref": "overlay-host"
+                    },
+                    {
+                      "type": "text",
+                      "ref": "emptyStage",
+                      "text": {
+                        "$text": "emptyStage"
+                      },
+                      "tone": "muted",
+                      "visible": {
+                        "$not": {
+                          "$path": "hasDraft"
+                        }
+                      }
+                    }
+                  ],
+                  "ref": "stage",
+                  "testId": "fwv-rig-stage",
+                  "preset": [
+                    "overlay",
+                    "preview",
+                    "stage"
+                  ],
+                  "attrs": {
+                    "data-mode": {
+                      "$path": "tool",
+                      "default": "select"
+                    },
+                    "data-disabled": {
+                      "$not": {
+                        "$path": "capabilities.overlay"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "ref": "coordinate",
+                  "testId": "fwv-rig-coordinate",
+                  "tone": "muted",
+                  "text": {
+                    "$path": "coordinate",
+                    "default": ""
+                  },
+                  "visible": {
+                    "$path": "hasDraft"
+                  }
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": {
+                        "$text": "editingHelp"
+                      }
+                    },
+                    {
+                      "type": "stack",
+                      "preset": "compact",
+                      "children": [
+                        {
+                          "type": "text",
+                          "text": {
+                            "$text": "geometryNote"
+                          },
+                          "tone": "muted"
+                        },
+                        {
+                          "type": "text",
+                          "text": {
+                            "$text": "guide"
+                          },
+                          "tone": "muted"
+                        },
+                        {
+                          "type": "text",
+                          "text": {
+                            "$text": "pivotNote"
+                          },
+                          "tone": "muted"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "stack",
+                  "preset": "compact",
+                  "children": [
+                    {
+                      "type": "field",
+                      "ref": "source-asset",
+                      "testId": "fwv-rig-source-asset",
+                      "field": {
+                        "schemaPath": "rigDrafts[].data.sourceAssetId",
+                        "type": "select",
+                        "label": "角色立绘"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.source"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "name",
+                      "testId": "fwv-rig-name",
+                      "field": {
+                        "schemaPath": "rigDrafts[].data.name",
+                        "type": "text",
+                        "label": "名称"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.source"
+                          }
+                        }
+                      },
+                      "value": {
+                        "$path": "nameValue"
+                      }
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "import",
+                          "testId": "fwv-rig-import",
+                          "text": {
+                            "$text": "import"
+                          },
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.source"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "create",
+                          "testId": "fwv-rig-create",
+                          "text": {
+                            "$text": "create"
+                          },
+                          "tone": "primary",
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.create"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "field",
+                      "ref": "import-input",
+                      "testId": "fwv-rig-import-input",
+                      "field": {
+                        "type": "file",
+                        "label": false
+                      },
+                      "attrs": {
+                        "accept": ".png,.jpg,.jpeg,.webp"
+                      },
+                      "hidden": true
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "sourceVersion"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "field",
+                              "ref": "source-revision",
+                              "testId": "fwv-rig-source-revision",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.sourceRevisionId",
+                                "type": "select"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.source"
+                                  }
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "visible": {
+                    "$not": {
+                      "$path": "hasDraft"
+                    }
+                  }
+                },
+                {
+                  "type": "stack",
+                  "preset": "compact",
+                  "children": [
+                    {
+                      "type": "field",
+                      "ref": "part",
+                      "testId": "fwv-rig-part",
+                      "field": {
+                        "schemaPath": "rigDrafts[].data.selectedPartId",
+                        "type": "select",
+                        "label": "当前部件"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.selectPart"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "part-name",
+                      "testId": "fwv-rig-part-name",
+                      "field": {
+                        "schemaPath": "rigDrafts[].data.document.parts[].name",
+                        "type": "text",
+                        "label": "部件名称"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.part"
+                          }
+                        }
+                      },
+                      "value": {
+                        "$path": "partFields.name"
+                      }
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "jointSettings"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "field",
+                              "ref": "role",
+                              "testId": "fwv-rig-role",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.document.parts[].role",
+                                "type": "select",
+                                "optionLabels": {
+                                  "torso": "躯干",
+                                  "head": "头部",
+                                  "arm-left": "左臂",
+                                  "arm-right": "右臂",
+                                  "leg-left": "左腿",
+                                  "leg-right": "右腿",
+                                  "accessory": "配件"
+                                }
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.part"
+                                  }
+                                }
+                              },
+                              "value": {
+                                "$path": "partFields.role"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "parent",
+                              "testId": "fwv-rig-parent",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.document.parts[].parentId",
+                                "type": "select"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.part"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "columns",
+                              "columns": 2,
+                              "children": [
+                                {
+                                  "type": "field",
+                                  "ref": "pivot-x",
+                                  "testId": "fwv-rig-pivot-x",
+                                  "field": {
+                                    "schemaPath": "rigDrafts[].data.document.parts[].pivot.x",
+                                    "type": "number",
+                                    "step": 0.1
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.part"
+                                      }
+                                    },
+                                    "min": 0,
+                                    "max": {
+                                      "$path": "imageWidth"
+                                    }
+                                  },
+                                  "value": {
+                                    "$path": "partFields.pivotX"
+                                  }
+                                },
+                                {
+                                  "type": "field",
+                                  "ref": "pivot-y",
+                                  "testId": "fwv-rig-pivot-y",
+                                  "field": {
+                                    "schemaPath": "rigDrafts[].data.document.parts[].pivot.y",
+                                    "type": "number",
+                                    "step": 0.1
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.part"
+                                      }
+                                    },
+                                    "min": 0,
+                                    "max": {
+                                      "$path": "imageHeight"
+                                    }
+                                  },
+                                  "value": {
+                                    "$path": "partFields.pivotY"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "partManagement"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "toolbar",
+                              "children": [
+                                {
+                                  "type": "button",
+                                  "ref": "backward",
+                                  "testId": "fwv-rig-backward",
+                                  "text": {
+                                    "$text": "backward"
+                                  },
+                                  "on": {
+                                    "click": "dispatch"
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.backward"
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "button",
+                                  "ref": "forward",
+                                  "testId": "fwv-rig-forward",
+                                  "text": {
+                                    "$text": "forward"
+                                  },
+                                  "on": {
+                                    "click": "dispatch"
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.forward"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "toolbar",
+                              "children": [
+                                {
+                                  "type": "button",
+                                  "ref": "add",
+                                  "testId": "fwv-rig-add",
+                                  "text": {
+                                    "$text": "add"
+                                  },
+                                  "on": {
+                                    "click": "dispatch"
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.add"
+                                      }
+                                    }
+                                  }
+                                },
+                                {
+                                  "type": "button",
+                                  "ref": "delete",
+                                  "testId": "fwv-rig-delete",
+                                  "text": {
+                                    "$text": "delete"
+                                  },
+                                  "on": {
+                                    "click": "dispatch"
+                                  },
+                                  "attrs": {
+                                    "disabled": {
+                                      "$not": {
+                                        "$path": "capabilities.remove"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "text": {
+                                "$text": "orderNote"
+                              },
+                              "tone": "muted"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "motionHeading"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "field",
+                              "ref": "motion-idle",
+                              "testId": "fwv-rig-motion-idle",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.document.motion.idle",
+                                "type": "checkbox"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.part"
+                                  }
+                                }
+                              },
+                              "value": {
+                                "$path": "partFields.motion.idle"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "motion-walk",
+                              "testId": "fwv-rig-motion-walk",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.document.motion.walk",
+                                "type": "checkbox"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.part"
+                                  }
+                                }
+                              },
+                              "value": {
+                                "$path": "partFields.motion.walk"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "motion-wave",
+                              "testId": "fwv-rig-motion-wave",
+                              "field": {
+                                "schemaPath": "rigDrafts[].data.document.motion.wave",
+                                "type": "checkbox"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.part"
+                                  }
+                                }
+                              },
+                              "value": {
+                                "$path": "partFields.motion.wave"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "ref": "dirty",
+                      "testId": "fwv-rig-dirty",
+                      "attrs": {
+                        "role": "status",
+                        "data-dirty": {
+                          "$path": "hasUnsaved",
+                          "default": false
+                        }
+                      },
+                      "tone": {
+                        "$if": [
+                          {
+                            "$path": "hasUnsaved",
+                            "default": false
+                          },
+                          "warning",
+                          "muted"
+                        ]
+                      },
+                      "text": {
+                        "$if": [
+                          {
+                            "$not": {
+                              "$path": "hasDraft"
+                            }
+                          },
+                          {
+                            "$text": "message39"
+                          },
+                          {
+                            "$if": [
+                              {
+                                "$path": "hasUnsaved"
+                              },
+                              {
+                                "$text": "message40"
+                              },
+                              {
+                                "$text": "message4",
+                                "vars": {
+                                  "v0": {
+                                    "$path": "partCount"
+                                  },
+                                  "v1": {
+                                    "$path": "imageWidth"
+                                  },
+                                  "v2": {
+                                    "$path": "imageHeight"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "visible": {
+                        "$path": "hasDraft"
+                      }
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "save",
+                          "testId": "fwv-rig-save",
+                          "text": {
+                            "$text": "save"
+                          },
+                          "tone": "primary",
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.save"
+                              }
+                            }
+                          },
+                          "visible": {
+                            "$and": [
+                              {
+                                "$path": "hasUnsaved"
+                              },
+                              {
+                                "$not": {
+                                  "$path": "historical"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "discard",
+                          "testId": "fwv-rig-discard",
+                          "text": {
+                            "$text": "discard"
+                          },
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.discard"
+                              }
+                            }
+                          },
+                          "visible": {
+                            "$path": "hasUnsaved"
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "build",
+                          "testId": "fwv-rig-build",
+                          "text": {
+                            "$text": "build"
+                          },
+                          "tone": "primary",
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.build"
+                              }
+                            }
+                          },
+                          "visible": {
+                            "$and": [
+                              {
+                                "$not": {
+                                  "$path": "hasUnsaved"
+                                }
+                              },
+                              {
+                                "$not": {
+                                  "$path": "historical"
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "technicalChecks"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "stack",
+                              "ref": "warnings",
+                              "testId": "fwv-rig-warnings"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ],
+                  "visible": {
+                    "$path": "hasDraft"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "ref": "status",
+          "testId": "fwv-rig-status",
+          "text": {
+            "$path": "notice",
+            "default": {
+              "$text": "ready"
+            }
+          },
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "noticeError",
+              "default": false
+            }
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "noticeError",
+                "default": false
+              },
+              "danger",
+              "default"
+            ]
+          },
+          "visible": {
+            "$path": "notice"
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": {
+                "$text": "previewHeading"
+              }
+            },
+            {
+              "type": "columns",
+              "preset": "workspace",
+              "children": [
+                {
+                  "type": "stack",
+                  "preset": "compact",
+                  "children": [
+                    {
+                      "type": "stack",
+                      "children": [
+                        {
+                          "type": "canvas",
+                          "ref": "preview-canvas",
+                          "testId": "fwv-rig-preview-canvas",
+                          "attrs": {
+                            "width": 640,
+                            "height": 480
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "ref": "previewEmpty",
+                          "text": {
+                            "$path": "previewMessage",
+                            "default": {
+                              "$text": "previewEmpty"
+                            }
+                          },
+                          "tone": "muted",
+                          "visible": {
+                            "$not": {
+                              "$path": "previewReady",
+                              "default": false
+                            }
+                          }
+                        }
+                      ],
+                      "ref": "previewStage",
+                      "preset": [
+                        "overlay",
+                        "preview"
+                      ]
+                    },
+                    {
+                      "type": "slot",
+                      "ref": "previewTransport"
+                    },
+                    {
+                      "type": "text",
+                      "ref": "preview-status",
+                      "testId": "fwv-rig-preview-status",
+                      "attrs": {
+                        "role": "status",
+                        "data-error": {
+                          "$path": "previewError",
+                          "default": false
+                        }
+                      },
+                      "text": {
+                        "$path": "previewStatus",
+                        "default": ""
+                      },
+                      "tone": {
+                        "$if": [
+                          {
+                            "$path": "previewError",
+                            "default": false
+                          },
+                          "danger",
+                          "default"
+                        ]
+                      },
+                      "visible": {
+                        "$path": "previewError"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "stack",
+                  "preset": "compact",
+                  "children": [
+                    {
+                      "type": "field",
+                      "ref": "candidate",
+                      "testId": "fwv-rig-candidate",
+                      "field": {
+                        "schemaPath": "rigDrafts[].data.candidate",
+                        "type": "select",
+                        "label": "角色版本"
+                      },
+                      "attrs": {
+                        "disabled": {
+                          "$not": {
+                            "$path": "capabilities.selectCandidate"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "ref": "candidateInfo",
+                      "tone": "muted",
+                      "text": {
+                        "$path": "candidateInfo",
+                        "default": ""
+                      }
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "open-spine",
+                          "testId": "fwv-rig-open-spine",
+                          "text": {
+                            "$text": "openSpine"
+                          },
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.candidate"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "open-reskin",
+                          "testId": "fwv-rig-open-reskin",
+                          "text": {
+                            "$text": "openReskin"
+                          },
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "capabilities.candidate"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": {
+                            "$text": "checksExport"
+                          }
+                        },
+                        {
+                          "type": "stack",
+                          "preset": "compact",
+                          "children": [
+                            {
+                              "type": "button",
+                              "ref": "export",
+                              "testId": "fwv-rig-export",
+                              "text": {
+                                "$text": "export"
+                              },
+                              "on": {
+                                "click": "dispatch"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$not": {
+                                    "$path": "capabilities.candidate"
+                                  }
+                                }
+                              }
+                            },
+                            {
+                              "type": "stack",
+                              "ref": "build-checks",
+                              "testId": "fwv-rig-build-checks"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "testId": "fwv-rig-preview",
+          "ref": "previewDetails",
+          "visible": {
+            "$path": "hasCandidate"
+          },
+          "attrs": {
+            "open": {
+              "$path": "hasCandidate",
+              "default": false
+            }
+          }
+        }
+      ],
+      "testId": "fwv-rig",
+      "attrs": {
+        "aria-busy": {
+          "$path": "busy",
+          "default": false
+        }
+      }
+    },
+    "message": {
+      "type": "text",
+      "text": {
+        "$path": "message"
+      },
+      "tone": "muted"
+    },
+    "canvas": {
+      "type": "canvas",
+      "testId": "fwv-rig-preview-canvas",
+      "attrs": {
+        "width": 640,
+        "height": 480
+      }
+    }
+  },
+  "texts": {
+    "sourceHeading": "选择原始立绘",
+    "import": "导入立绘",
+    "create": "创建草稿",
+    "sourceNote": "",
+    "draftHeading": "继续已有草稿",
+    "new": "新建草稿",
+    "editorHeading": "画出部件与关节点",
+    "emptyStage": "导入立绘，开始拆分部件。",
+    "selectMode": "选点",
+    "draw": "画轮廓",
+    "close": "完成轮廓",
+    "undo": "撤销点",
+    "reset": "取消绘制",
+    "setPivot": "设关节",
+    "geometryNote": "拖动圆点调整轮廓；选择「设关节」后在图上点击连接点。",
+    "save": "创建拆件版本",
+    "discard": "放弃修改",
+    "build": "生成骨骼",
+    "partsHeading": "部件与绘制顺序",
+    "backward": "后移",
+    "forward": "前移",
+    "orderNote": "绘制顺序：后 → 前",
+    "add": "新增部件",
+    "delete": "删除部件",
+    "partHeading": "当前部件属性",
+    "pivotNote": "坐标：原图左上角为零点，单位 px。",
+    "motionHeading": "基础动作",
+    "previewHeading": "动作预览",
+    "previewEmpty": "生成角色后查看动作。",
+    "openSpine": "部件换皮",
+    "openReskin": "整套换皮",
+    "export": "导出角色",
+    "previewNote": "",
+    "title": "立绘拆件",
+    "intro": "手动划分部件、设置旋转关节点与层级，生成 Spine 4.2 角色和基础动作。",
+    "guide": "预设分区仅供起步，被遮住的身体部位需要另行补画。",
+    "ready": "",
+    "overlayLabel": "立绘部件与关节点编辑区",
+    "newReady": "选择原图",
+    "finishPolygon": "先闭合或取消正在绘制的多边形。",
+    "drawGuide": "在原图上依次点击轮廓顶点，至少 3 个点后点击「闭合分区」。",
+    "polygonUpdated": "分区已更新，创建拆件版本后可生成角色。",
+    "pivotGuide": "在原图上点击该部件的旋转连接点。",
+    "exported": "已导出：{path}。请在目标游戏内继续检查动作与遮挡。",
+    "partOrder": "{index} · {name}",
+    "partsEmpty": "建立草稿后会出现可编辑部件。",
+    "message1": "有 {v0} 个可见像素被多个部件重复覆盖，动作中可能出现重复叠色或接缝。",
+    "message2": "有 {v0} 个可见像素尚未归入任何部件，请检查是否漏选了轮廓。",
+    "message3": "「{v0}」区域内没有可见像素。请修改分区后再生成角色。",
+    "message4": "拆件版本已就绪 · {v0} 个部件",
+    "message5": "{v0} · {v1} × {v2}",
+    "message6": "草稿版本 {v0}",
+    "message7": "轮廓点 {v0}",
+    "message9": "正在绘制：{v0} 个顶点；至少 3 个点后闭合。",
+    "message10": "{v0} · {v1} 个点",
+    "message11": "配件 {v0}",
+    "message12": "已从当前编辑中删除「{v0}」，子部件接到其原父部件。创建版本前可放弃修改恢复。",
+    "message13": "候选 {v0} · {v1}",
+    "message14": "{v0}",
+    "message15": "{v0}：{v1} 个可见像素。",
+    "message16": "动画预览失败：{v0}",
+    "message18": "该部件",
+    "message19": "人形预设只是按原图比例划分的参考区域。请逐个检查多边形、关节点、父子关系与绘制顺序；被遮挡的部分不会自动补画。",
+    "message20": "动作按固定的旋转与平移规则生成，不包含遮挡补画、网格权重、反向运动学或物理约束。",
+    "message21": "没有设置「右臂」角色的部件，因此本次没有生成挥手动作。",
+    "message22": "请检查生成结果。",
+    "message23": "分区多边形无效：需要 3 到 64 个不同的顶点，不能自交、重复闭合点或与不相邻的边相碰。请修正后重试，当前编辑仍保留。",
+    "message24": "多边形顶点与关节点必须位于原图范围内，请检查坐标。当前编辑仍保留。",
+    "message25": "部件名称不能为空，且只能包含 1 到 100 个可读字符。",
+    "message26": "草稿需要保留 1 到 16 个部件。",
+    "message27": "父部件必须指向当前草稿中存在的另一个部件。",
+    "message28": "父子关系形成了循环，请调整部件层级。当前编辑仍保留。",
+    "message29": "有部件没有裁切到可见像素，请修改其分区边界后再生成角色。草稿仍保留。",
+    "message30": "原图没有可见像素，请选择包含角色的图片。",
+    "message31": "原图含旋转方向信息，请先在图片工作台创建标准方向的加工版本，再用于拆件。",
+    "message32": "所选原图版本不存在，请重新选择图片素材与版本。",
+    "message33": "没有找到指定的草稿版本，请刷新项目后重新选择。",
+    "message34": "原拆件的当前版本已变化，本页修改仍保留。可从此版本继续制作为独立副本，或放弃修改后查看最新版本。",
+    "message35": "图片或部件裁切范围超过像素上限，请减小原图尺寸或减少分区重叠。",
+    "message36": "部件图集超过尺寸或像素上限，请减小原图尺寸或缩小分区范围。",
+    "message37": "操作未完成，编辑内容仍保留。",
+    "message38": "FWE 参数草稿的部件或坐标结构无法显示，请在「参数草稿」中修正，或使用 FWE 撤销。原草稿已保留，当前仅查看已保存的分区资产版本。",
+    "message39": "",
+    "message40": "有修改尚未创建版本。",
+    "message41": "先导入一张角色立绘",
+    "message42": "原始导入",
+    "message43": "版本 ",
+    "message44": "选择已有草稿",
+    "message45": "根节点（无父部件）",
+    "message46": "一个分区最多使用 64 个顶点。",
+    "message47": "已增加配件分区，请沿实际素材轮廓重画。",
+    "message48": "请选择小于 20 MiB 的 PNG、JPEG 或 WebP 图片。",
+    "message49": "无法读取立绘文件。",
+    "message50": "立绘已导入，可以创建草稿。",
+    "message51": "服务未返回有效的拆件草稿。",
+    "message52": "当前项目没有所选草稿版本。",
+    "message53": "有未创建版本的修改。",
+    "message54": "",
+    "message55": "FWE 参数草稿的部件或坐标结构无法显示，请在「参数草稿」中修正，或使用 FWE 撤销。原草稿已保留，当前仅查看已保存的分区资产版本。",
+    "message56": "",
+    "message57": "请选择原图版本并填写角色名称。",
+    "message58": "正在创建草稿…",
+    "message59": "拆件已创建，请校正轮廓和关节。",
+    "message60": "请先完成当前轮廓，再创建拆件版本。",
+    "message61": "已创建拆件版本，可以生成骨骼。",
+    "message62": "已放弃本次修改。",
+    "message63": "请先创建拆件版本，再生成骨骼角色。",
+    "message64": "正在生成骨骼与动作…",
+    "message65": "服务没有返回有效的骨骼角色。",
+    "message66": "骨骼已生成，展开「动作预览」检查结果。",
+    "message67": "来自当前草稿",
+    "message68": "来自较早的草稿版本",
+    "message69": "暂未生成骨骼角色。",
+    "message70": "部件",
+    "message71": "当前操作还在执行，请等待完成后切换页面。",
+    "text1": "当前部件关节点",
+    "text2": "生成角色后查看动作。",
+    "text3": "正在加载动作…",
+    "text4": "Spine 预览组件尚未加载。",
+    "text5": "静止姿势",
+    "text6": "暂停",
+    "text7": "",
+    "text8": "动画预览暂不可用，已生成的角色文件仍可检查或导出。",
+    "text9": "播放",
+    "text10": "拆件工作台暂不可用：{v0}",
+    "technicalChecks": "技术检查",
+    "draftHistory": "切换草稿与版本",
+    "sourceVersion": "原图版本",
+    "jointSettings": "关节与层级",
+    "partManagement": "部件管理",
+    "editingHelp": "编辑帮助",
+    "checksExport": "检查与导出",
+    "pointerCoordinate": "X {x} · Y {y} px",
+    "historyReadonly": "正在查看历史拆件版本。继续制作将创建独立副本，原拆件和当前版本保持不变；本页保留的修改会带入副本。",
+    "fork": "从此版本继续制作",
+    "forkName": "{name} · 副本",
+    "forkCreated": "已创建独立拆件副本，可以继续调整并创建版本。",
+    "forkOrigin": "来源：{name} · V{version}"
+  },
+  "geometry": {
+    "colors": [
+      "#218c8c",
+      "#cd8853",
+      "#5a82c6",
+      "#9871bd",
+      "#849948",
+      "#c66c82",
+      "#8d927e"
+    ]
+  }
+}

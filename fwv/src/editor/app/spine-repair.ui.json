@@ -1,0 +1,502 @@
+{
+  "root": "root",
+  "fields": {
+    "boneName": {
+      "schemaPath": "changeDrafts[].data.spineRepair.boneName",
+      "control": "select"
+    },
+    "parent": {
+      "schemaPath": "changeDrafts[].data.spineRepair.parent",
+      "control": "select"
+    },
+    "x": {
+      "schemaPath": "changeDrafts[].data.spineRepair.x"
+    },
+    "y": {
+      "schemaPath": "changeDrafts[].data.spineRepair.y"
+    },
+    "rotation": {
+      "schemaPath": "changeDrafts[].data.spineRepair.rotation"
+    },
+    "scaleX": {
+      "schemaPath": "changeDrafts[].data.spineRepair.scaleX"
+    },
+    "scaleY": {
+      "schemaPath": "changeDrafts[].data.spineRepair.scaleY"
+    },
+    "shearX": {
+      "schemaPath": "changeDrafts[].data.spineRepair.shearX"
+    },
+    "shearY": {
+      "schemaPath": "changeDrafts[].data.spineRepair.shearY"
+    },
+    "length": {
+      "schemaPath": "changeDrafts[].data.spineRepair.length"
+    },
+    "vertexIndex": {
+      "schemaPath": "changeDrafts[].data.spineRepair.vertexIndex"
+    },
+    "influenceBone": {
+      "schemaPath": "changeDrafts[].data.spineRepair.influenceBone",
+      "control": "select"
+    },
+    "weight": {
+      "schemaPath": "changeDrafts[].data.spineRepair.weight"
+    },
+    "mesh": {
+      "control": "select",
+      "label": "网格附件"
+    },
+    "animation": {
+      "control": "select",
+      "label": "动作"
+    },
+    "time": {
+      "control": "number",
+      "label": "时间 / 秒",
+      "min": 0,
+      "step": 0.01
+    },
+    "showBones": {
+      "control": "checkbox",
+      "label": "显示骨骼"
+    },
+    "showMesh": {
+      "control": "checkbox",
+      "label": "显示网格线"
+    }
+  },
+  "texts": {
+    "summary": "Spine 4.2 · {bones} 个骨骼 · {meshes} 个网格 · {animations} 段动作",
+    "loading": "读取骨骼…",
+    "ready": "",
+    "setup": "初始姿势",
+    "rootBone": "无父骨骼",
+    "boneSummary": "子骨骼：{children}；约束：{constraints}；涉及动画：{timelines}",
+    "none": "无",
+    "noMesh": "此骨骼没有网格附件",
+    "meshSummary": "{type} · {count} 个顶点 · {weighted} · 可编辑：{editable}{reason}",
+    "weighted": "加权网格",
+    "unweighted": "未加权网格",
+    "yes": "是",
+    "no": "否",
+    "vertexSummary": "顶点 {index} · 总权重 {sum}\n{influences}",
+    "influence": "{bone}: {weight}（局部 {x}, {y}）",
+    "limits": "修复范围：{limits}",
+    "noChange": "",
+    "noEdits": "",
+    "created": "修复预览已生成。",
+    "anchored": "已标记骨骼与动作时间。",
+    "editSummary": "待生成：{boneEdits} 项骨骼字段变更，{weightEdits} 项顶点权重调整。",
+    "previewError": "骨骼预览不可用：{message}",
+    "candidateEmpty": "暂无修改结果",
+    "readError": "骨骼检查失败：{message}",
+    "weightsRule": "调整这一权重后，同顶点其余影响按比例归一；不增加影响骨骼。",
+    "boneRule": "仅生成当前骨骼和顶点的修改。切换骨骼会重置参数。",
+    "productionRule": "保留动画、贴图和 Atlas；骨骼修改须检查受约束与动画影响的姿势。",
+    "parentChange": "父级: {before} -> {after}",
+    "boneChange": "骨骼 {bone}: {changes}",
+    "weightChange": "网格 {mesh} / 顶点 {index}: {changes}",
+    "comparisonReady": ""
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "testId": "fwv-spine-repair",
+      "children": [
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "field",
+              "field": "animation",
+              "ref": "animation",
+              "testId": "fwv-spine-repair-animation"
+            },
+            {
+              "type": "field",
+              "field": "time",
+              "ref": "time",
+              "value": 0,
+              "testId": "fwv-spine-repair-time"
+            }
+          ]
+        },
+        {
+          "type": "columns",
+          "children": [
+            {
+              "type": "stack",
+              "children": [
+                {
+                  "type": "heading",
+                  "text": "原素材",
+                  "visible": {
+                    "$path": "hasCandidate"
+                  }
+                },
+                {
+                  "type": "canvas",
+                  "preset": "stage",
+                  "ref": "sourceCanvas",
+                  "testId": "fwv-spine-repair-source",
+                  "attrs": {
+                    "aria-label": "基线骨骼姿势预览"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "children": [
+                {
+                  "type": "heading",
+                  "text": "修改后"
+                },
+                {
+                  "type": "canvas",
+                  "preset": "stage",
+                  "ref": "candidateCanvas",
+                  "testId": "fwv-spine-repair-candidate",
+                  "visible": {
+                    "$path": "hasCandidate"
+                  },
+                  "attrs": {
+                    "aria-label": "候选骨骼，同相机同动作时间预览"
+                  }
+                }
+              ],
+              "visible": {
+                "$path": "hasCandidate"
+              }
+            }
+          ],
+          "columns": {
+            "$if": [
+              {
+                "$path": "hasCandidate"
+              },
+              2,
+              1
+            ]
+          },
+          "attrs": {
+            "data-fwv-role": "comparison"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "previewStatus"
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "previewError"
+              },
+              "danger",
+              "muted"
+            ]
+          },
+          "testId": "fwv-spine-repair-preview-status",
+          "visible": {
+            "$path": "previewStatus"
+          }
+        },
+        {
+          "type": "details",
+          "testId": "fwv-spine-repair-tools",
+          "attrs": {
+            "data-fwv-role": "advanced-tools"
+          },
+          "children": [
+            {
+              "type": "summary",
+              "text": "骨骼与权重工具"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "summary"
+              },
+              "testId": "fwv-spine-repair-summary"
+            },
+            {
+              "type": "toolbar",
+              "children": [
+                {
+                  "type": "field",
+                  "field": "showBones",
+                  "ref": "showBones",
+                  "value": false,
+                  "testId": "fwv-spine-repair-showBones"
+                },
+                {
+                  "type": "field",
+                  "field": "showMesh",
+                  "ref": "showMesh",
+                  "value": false,
+                  "testId": "fwv-spine-repair-showMesh"
+                }
+              ]
+            },
+            {
+              "type": "pre",
+              "text": {
+                "$path": "candidateEdits"
+              },
+              "visible": {
+                "$path": "candidateEdits"
+              },
+              "testId": "fwv-spine-repair-candidate-edits"
+            },
+            {
+              "type": "details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "骨骼结构与初始姿势"
+                },
+                {
+                  "type": "field",
+                  "field": "boneName",
+                  "ref": "boneName",
+                  "testId": "fwv-spine-repair-bone"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "boneSummary"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "field",
+                  "field": "parent",
+                  "ref": "parent",
+                  "testId": "fwv-spine-repair-parent",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canParent"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "columns",
+                  "columns": 3,
+                  "children": [
+                    {
+                      "type": "field",
+                      "field": "x",
+                      "ref": "x",
+                      "testId": "fwv-spine-repair-x"
+                    },
+                    {
+                      "type": "field",
+                      "field": "y",
+                      "ref": "y",
+                      "testId": "fwv-spine-repair-y"
+                    },
+                    {
+                      "type": "field",
+                      "field": "rotation",
+                      "ref": "rotation",
+                      "testId": "fwv-spine-repair-rotation"
+                    },
+                    {
+                      "type": "field",
+                      "field": "scaleX",
+                      "ref": "scaleX"
+                    },
+                    {
+                      "type": "field",
+                      "field": "scaleY",
+                      "ref": "scaleY"
+                    },
+                    {
+                      "type": "field",
+                      "field": "length",
+                      "ref": "length"
+                    }
+                  ]
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "剪切"
+                    },
+                    {
+                      "type": "columns",
+                      "columns": 2,
+                      "children": [
+                        {
+                          "type": "field",
+                          "field": "shearX",
+                          "ref": "shearX"
+                        },
+                        {
+                          "type": "field",
+                          "field": "shearY",
+                          "ref": "shearY"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "button",
+                  "ref": "anchor",
+                  "text": "把骨骼、动作与时间记为问题定位",
+                  "testId": "fwv-spine-repair-anchor"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$text": "boneRule"
+                  },
+                  "tone": "muted"
+                }
+              ]
+            },
+            {
+              "type": "details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "网格与顶点权重"
+                },
+                {
+                  "type": "field",
+                  "field": "mesh",
+                  "ref": "mesh",
+                  "testId": "fwv-spine-repair-mesh"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "meshSummary"
+                  },
+                  "testId": "fwv-spine-repair-mesh-summary"
+                },
+                {
+                  "type": "field",
+                  "field": "vertexIndex",
+                  "ref": "vertexIndex",
+                  "value": 0,
+                  "testId": "fwv-spine-repair-vertex",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canWeights"
+                      }
+                    },
+                    "max": {
+                      "$path": "vertexMax"
+                    }
+                  }
+                },
+                {
+                  "type": "pre",
+                  "text": {
+                    "$path": "vertexSummary"
+                  },
+                  "testId": "fwv-spine-repair-weights"
+                },
+                {
+                  "type": "field",
+                  "field": "influenceBone",
+                  "ref": "influenceBone",
+                  "testId": "fwv-spine-repair-influence",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canWeights"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "field": "weight",
+                  "ref": "weight",
+                  "testId": "fwv-spine-repair-weight",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canWeights"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$text": "weightsRule"
+                  },
+                  "tone": "muted"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "editSummary"
+              },
+              "testId": "fwv-spine-repair-edit-summary",
+              "visible": {
+                "$path": "editSummary"
+              }
+            },
+            {
+              "type": "button",
+              "ref": "create",
+              "text": "生成修复预览",
+              "tone": "primary",
+              "testId": "fwv-spine-repair-create",
+              "attrs": {
+                "disabled": {
+                  "$not": {
+                    "$path": "canCreate"
+                  }
+                }
+              }
+            },
+            {
+              "type": "text",
+              "text": {
+                "$text": "productionRule"
+              },
+              "tone": "muted"
+            },
+            {
+              "type": "details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "检查结果与修复边界"
+                },
+                {
+                  "type": "pre",
+                  "text": {
+                    "$path": "diagnostics"
+                  },
+                  "testId": "fwv-spine-repair-diagnostics"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "limits"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

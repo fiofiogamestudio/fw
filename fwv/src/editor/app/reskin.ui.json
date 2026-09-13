@@ -1,0 +1,1315 @@
+{
+  "root": "root",
+  "fields": {
+    "workflows": {
+      "label": "换皮方案",
+      "control": "select"
+    },
+    "templateAssetId": {
+      "schemaPath": "reskinDrafts[].data.templateAssetId",
+      "control": "select"
+    },
+    "templateRevisionId": {
+      "schemaPath": "reskinDrafts[].data.templateRevisionId",
+      "control": "select"
+    },
+    "name": {
+      "schemaPath": "reskinDrafts[].data.name",
+      "placeholder": "例如：森林游侠"
+    },
+    "mode": {
+      "schemaPath": "reskinDrafts[].data.mode",
+      "optionLabels": {
+        "local": "本地 Agent",
+        "api": "API 服务"
+      },
+      "default": "local"
+    },
+    "brief": {
+      "schemaPath": "reskinDrafts[].data.brief",
+      "placeholder": "例如：森林游侠，保留原姿态与身体比例，服装使用墨绿与浅金配色。",
+      "rows": 4
+    },
+    "style": {
+      "schemaPath": "reskinDrafts[].data.style",
+      "placeholder": "例如：2D 手绘，清晰深色描边，柔和顶光。",
+      "rows": 3
+    },
+    "preserveAlpha": {
+      "schemaPath": "reskinDrafts[].data.preserveAlpha",
+      "default": true
+    },
+    "partSelected": {
+      "type": "boolean",
+      "label": "选择此部件"
+    },
+    "partNote": {
+      "type": "string",
+      "control": "textarea",
+      "label": "部件要求",
+      "maxLength": 300,
+      "placeholder": "可选：材质、形状、配色要求",
+      "rows": 2
+    },
+    "instructions": {
+      "type": "string",
+      "control": "textarea",
+      "label": "给当前对话的本地任务指令",
+      "readOnly": true
+    },
+    "scale": {
+      "schemaPath": "spineDrafts[].data.transform.scale"
+    },
+    "offsetX": {
+      "schemaPath": "spineDrafts[].data.transform.offsetX"
+    },
+    "offsetY": {
+      "schemaPath": "spineDrafts[].data.transform.offsetY"
+    },
+    "rotation": {
+      "schemaPath": "spineDrafts[].data.transform.rotation"
+    },
+    "flipX": {
+      "schemaPath": "spineDrafts[].data.transform.flipX"
+    },
+    "adjustPart": {
+      "type": "string",
+      "control": "select",
+      "label": "需要校准的部件"
+    }
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "ref": "root",
+      "children": [
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "field",
+              "ref": "workflows",
+              "field": "workflows",
+              "testId": "fwv-reskin-workflows",
+              "attrs": {
+                "disabled": {
+                  "$path": "blocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "newPlan",
+              "text": "新建方案",
+              "testId": "fwv-reskin-new",
+              "attrs": {
+                "disabled": {
+                  "$path": "blocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "service",
+              "text": "模型设置",
+              "testId": "fwv-reskin-provider",
+              "visible": {
+                "$path": "apiMode"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "statusText",
+            "default": ""
+          },
+          "ref": "status",
+          "testId": "fwv-reskin-status",
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "statusError",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "statusText"
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "statusError",
+                "default": false
+              },
+              "danger",
+              "default"
+            ]
+          }
+        },
+        {
+          "type": "slot",
+          "ref": "content"
+        }
+      ],
+      "testId": "fwv-reskin"
+    },
+    "empty": {
+      "type": "card",
+      "children": [
+        {
+          "type": "heading",
+          "text": "先准备一个有动作的角色模板"
+        },
+        {
+          "type": "text",
+          "text": "导入 Spine 4.2 JSON、Atlas 和 PNG。"
+        },
+        {
+          "type": "button",
+          "ref": "importTemplate",
+          "text": "导入 Spine 模板",
+          "testId": "fwv-reskin-import-template",
+          "attrs": {
+            "disabled": {
+              "$path": "editorBlocked",
+              "default": false
+            }
+          }
+        }
+      ]
+    },
+    "create": {
+      "type": "columns",
+      "preset": "workspace",
+      "children": [
+        {
+          "type": "stack",
+          "children": [
+            {
+              "type": "slot",
+              "ref": "previewHost"
+            },
+            {
+              "type": "details",
+              "ref": "parts-options",
+              "testId": "fwv-reskin-parts-options",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "选择部件与单独要求"
+                },
+                {
+                  "type": "slot",
+                  "ref": "partHolder",
+                  "children": [
+                    {
+                      "type": "text",
+                      "text": "正在读取模板部件…"
+                    }
+                  ],
+                  "testId": "fwv-reskin-template-parts"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "form",
+          "ref": "form",
+          "children": [
+            {
+              "type": "heading",
+              "text": "新建换皮方案"
+            },
+            {
+              "type": "field",
+              "ref": "templateAssetId",
+              "field": "templateAssetId",
+              "testId": "fwv-reskin-template",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "name",
+              "field": "name",
+              "testId": "fwv-reskin-name",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "brief",
+              "field": "brief",
+              "testId": "fwv-reskin-brief",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "mode",
+              "field": "mode",
+              "testId": "fwv-reskin-mode",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "create",
+              "text": "创建方案",
+              "testId": "fwv-reskin-create",
+              "attrs": {
+                "type": "submit",
+                "disabled": {
+                  "$path": "createBlocked",
+                  "default": false
+                }
+              },
+              "tone": "primary"
+            },
+            {
+              "type": "details",
+              "ref": "options",
+              "testId": "fwv-reskin-options",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "风格与更多选项"
+                },
+                {
+                  "type": "field",
+                  "ref": "style",
+                  "field": "style",
+                  "testId": "fwv-reskin-style",
+                  "attrs": {
+                    "disabled": {
+                      "$path": "editorBlocked",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "templateRevisionId",
+                  "field": "templateRevisionId",
+                  "testId": "fwv-reskin-template-revision",
+                  "attrs": {
+                    "disabled": {
+                      "$path": "editorBlocked",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "preserveAlpha",
+                  "field": "preserveAlpha",
+                  "testId": "fwv-reskin-preserve-alpha",
+                  "attrs": {
+                    "disabled": {
+                      "$path": "editorBlocked",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "modeText",
+                    "default": ""
+                  },
+                  "ref": "modeNote",
+                  "testId": "fwv-reskin-mode-note",
+                  "visible": {
+                    "$path": "modeText"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "templateWarnings",
+                "default": ""
+              },
+              "ref": "warning",
+              "testId": "fwv-reskin-template-warnings",
+              "visible": {
+                "$path": "templateWarnings"
+              }
+            }
+          ],
+          "preset": "compact"
+        }
+      ]
+    },
+    "parts": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "heading",
+              "text": {
+                "$path": "title"
+              }
+            },
+            {
+              "type": "badge",
+              "ref": "countLabel",
+              "testId": "fwv-reskin-part-count",
+              "text": {
+                "$path": "partCountText",
+                "default": ""
+              }
+            }
+          ]
+        },
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "button",
+              "ref": "selectAll",
+              "text": "全选",
+              "testId": "fwv-reskin-select-all-parts",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "clear",
+              "text": "清空选择",
+              "testId": "fwv-reskin-clear-parts",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "slot",
+          "ref": "rows"
+        },
+        {
+          "type": "text",
+          "text": "此模板没有可换皮部件。",
+          "visible": {
+            "$path": "empty"
+          }
+        }
+      ]
+    },
+    "part": {
+      "type": "row",
+      "children": [
+        {
+          "type": "field",
+          "ref": "check",
+          "field": "partSelected",
+          "testId": "fwv-reskin-part",
+          "value": {
+            "$path": "selected"
+          },
+          "attrs": {
+            "data-region-name": {
+              "$path": "regionName"
+            },
+            "aria-label": {
+              "$path": "selectionLabel"
+            },
+            "disabled": {
+              "$path": "editorBlocked",
+              "default": false
+            }
+          }
+        },
+        {
+          "type": "stack",
+          "children": [
+            {
+              "type": "heading",
+              "text": {
+                "$path": "regionName"
+              }
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "description"
+              }
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "ref": "note",
+          "field": "partNote",
+          "testId": "fwv-reskin-part-note",
+          "value": {
+            "$path": "note"
+          },
+          "attrs": {
+            "data-region-name": {
+              "$path": "regionName"
+            },
+            "disabled": {
+              "$path": "editorBlocked",
+              "default": false
+            }
+          }
+        }
+      ]
+    },
+    "editor": {
+      "type": "columns",
+      "preset": "workspace",
+      "children": [
+        {
+          "type": "stack",
+          "children": [
+            {
+              "type": "slot",
+              "ref": "previewHost",
+              "testId": "fwv-reskin-character-preview"
+            },
+            {
+              "type": "slot",
+              "ref": "actionHost"
+            },
+            {
+              "type": "slot",
+              "ref": "localHost"
+            },
+            {
+              "type": "details",
+              "ref": "parts-options",
+              "testId": "fwv-reskin-parts-options",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "选择部件与单独要求"
+                },
+                {
+                  "type": "slot",
+                  "ref": "partsHost"
+                }
+              ]
+            },
+            {
+              "type": "details",
+              "ref": "result-details",
+              "testId": "fwv-reskin-result-details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "部件图与检查记录"
+                },
+                {
+                  "type": "slot",
+                  "ref": "resultHost"
+                }
+              ],
+              "attrs": {
+                "open": {
+                  "$path": "hasProblem",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "details",
+              "ref": "history",
+              "testId": "fwv-reskin-history",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "历史版本"
+                },
+                {
+                  "type": "slot",
+                  "ref": "historyHost"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "card",
+          "children": [
+            {
+              "type": "heading",
+              "text": "换皮要求"
+            },
+            {
+              "type": "field",
+              "ref": "brief",
+              "field": "brief",
+              "testId": "fwv-reskin-brief",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "mode",
+              "field": "mode",
+              "testId": "fwv-reskin-mode",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "button",
+              "ref": "generate",
+              "text": {
+                "$path": "generateText",
+                "default": "统一生成所选部件"
+              },
+              "testId": "fwv-reskin-generate",
+              "attrs": {
+                "disabled": {
+                  "$path": "generateBlocked",
+                  "default": false
+                }
+              },
+              "tone": "primary"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "providerText",
+                "default": ""
+              },
+              "ref": "providerLabel",
+              "tone": "muted"
+            },
+            {
+              "type": "details",
+              "ref": "options",
+              "testId": "fwv-reskin-options",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "风格与更多选项"
+                },
+                {
+                  "type": "field",
+                  "ref": "style",
+                  "field": "style",
+                  "testId": "fwv-reskin-style",
+                  "attrs": {
+                    "disabled": {
+                      "$path": "editorBlocked",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "templateLabel"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "modeText",
+                    "default": ""
+                  },
+                  "ref": "modeNote",
+                  "testId": "fwv-reskin-mode-note",
+                  "visible": {
+                    "$path": "modeText"
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "save",
+                  "text": "保存方案要求",
+                  "testId": "fwv-reskin-update",
+                  "attrs": {
+                    "disabled": {
+                      "$path": "editorBlocked",
+                      "default": false
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "slot",
+              "ref": "adjustmentHost"
+            }
+          ]
+        }
+      ]
+    },
+    "previewMissing": {
+      "type": "text",
+      "text": "动画预览组件尚未加载，可通过「检查全部动作」打开候选。"
+    },
+    "sheet": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "heading",
+          "text": {
+            "$path": "label"
+          }
+        },
+        {
+          "type": "image",
+          "visible": {
+            "$path": "url"
+          },
+          "testId": {
+            "$path": "testId"
+          },
+          "attrs": {
+            "src": {
+              "$path": "url"
+            },
+            "alt": {
+              "$path": "label"
+            }
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "placeholder"
+          },
+          "visible": {
+            "$path": "missing"
+          }
+        }
+      ]
+    },
+    "local": {
+      "type": "details",
+      "ref": "task",
+      "children": [
+        {
+          "type": "summary",
+          "text": {
+            "$if": [
+              {
+                "$path": "actionable"
+              },
+              "交给当前对话执行",
+              "查看执行记录"
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "description"
+          }
+        },
+        {
+          "type": "button",
+          "ref": "copy",
+          "text": "复制任务指令",
+          "testId": "fwv-reskin-local-copy",
+          "visible": {
+            "$path": "actionable"
+          },
+          "attrs": {
+            "data-readonly-action": "true"
+          },
+          "tone": "primary"
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "查看任务指令"
+            },
+            {
+              "type": "field",
+              "ref": "instructions",
+              "field": "instructions",
+              "testId": "fwv-reskin-local-instructions",
+              "value": {
+                "$path": "instructions"
+              },
+              "visible": {
+                "$path": "actionable"
+              },
+              "attrs": {
+                "data-readonly-action": "true"
+              }
+            }
+          ],
+          "attrs": {
+            "open": {
+              "$path": "revealInstructions",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "actionable"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "worker"
+          },
+          "visible": {
+            "$path": "worker"
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "理解与风险记录"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "summary"
+              },
+              "visible": {
+                "$path": "summary"
+              }
+            },
+            {
+              "type": "list",
+              "items": {
+                "$path": "partNotes"
+              },
+              "template": "note"
+            },
+            {
+              "type": "heading",
+              "text": "需要检查的风险"
+            },
+            {
+              "type": "list",
+              "items": {
+                "$path": "risks"
+              },
+              "template": "note"
+            }
+          ],
+          "visible": {
+            "$path": "hasAnalysis"
+          },
+          "testId": "fwv-reskin-local-analysis"
+        }
+      ],
+      "testId": "fwv-reskin-local-task",
+      "attrs": {
+        "open": {
+          "$path": "actionable"
+        },
+        "data-workflow-id": {
+          "$path": "workflowId"
+        },
+        "data-attempt-id": {
+          "$path": "attemptId"
+        }
+      }
+    },
+    "note": {
+      "type": "text",
+      "text": {
+        "$path": "message"
+      }
+    },
+    "result": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "heading",
+              "text": "部件布局与生成结果"
+            },
+            {
+              "type": "badge",
+              "text": {
+                "$path": "status"
+              },
+              "testId": "fwv-reskin-attempt-status"
+            },
+            {
+              "type": "badge",
+              "text": {
+                "$path": "mode"
+              }
+            },
+            {
+              "type": "badge",
+              "text": {
+                "$path": "alpha"
+              }
+            }
+          ]
+        },
+        {
+          "type": "columns",
+          "children": [
+            {
+              "type": "slot",
+              "ref": "sourceSheet"
+            },
+            {
+              "type": "slot",
+              "ref": "generatedSheet"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "error"
+          },
+          "visible": {
+            "$path": "error"
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "技术检查详情"
+            },
+            {
+              "type": "list",
+              "items": {
+                "$path": "checks"
+              },
+              "template": "note"
+            }
+          ],
+          "visible": {
+            "$path": "hasChecks"
+          },
+          "testId": "fwv-reskin-part-checks"
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "uncertainty"
+          },
+          "visible": {
+            "$path": "uncertainty"
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "查看本次实际提示词"
+            },
+            {
+              "type": "pre",
+              "text": {
+                "$path": "prompt"
+              }
+            }
+          ],
+          "visible": {
+            "$path": "prompt"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "progressText",
+            "default": ""
+          },
+          "ref": "progress",
+          "testId": "fwv-reskin-progress",
+          "visible": {
+            "$path": "progressText"
+          }
+        }
+      ]
+    },
+    "attempt": {
+      "type": "button",
+      "ref": "attempt",
+      "text": "",
+      "testId": "fwv-reskin-attempt",
+      "attrs": {
+        "data-attempt-id": {
+          "$path": "id"
+        },
+        "aria-pressed": {
+          "$path": "selected"
+        },
+        "disabled": {
+          "$path": "editorBlocked",
+          "default": false
+        }
+      },
+      "children": [
+        {
+          "type": "heading",
+          "text": {
+            "$path": "title"
+          }
+        },
+        {
+          "type": "badge",
+          "text": {
+            "$path": "status"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "description"
+          }
+        }
+      ]
+    },
+    "historyEmpty": {
+      "type": "text",
+      "text": "方案尚未调用模型。第一次生成后会保留候选记录。"
+    },
+    "actions": {
+      "type": "toolbar",
+      "children": [
+        {
+          "type": "button",
+          "ref": "cancel",
+          "text": "取消本次等待",
+          "testId": "fwv-reskin-cancel",
+          "visible": {
+            "$path": "running"
+          },
+          "attrs": {
+            "disabled": {
+              "$path": "cancelBlocked",
+              "default": false
+            }
+          }
+        },
+        {
+          "type": "button",
+          "ref": "query",
+          "text": "刷新状态",
+          "testId": "fwv-reskin-query",
+          "attrs": {
+            "data-readonly-action": "true"
+          },
+          "visible": {
+            "$path": "needsProgress"
+          }
+        },
+        {
+          "type": "button",
+          "ref": "selectCandidate",
+          "text": "设为当前版本",
+          "testId": "fwv-reskin-select",
+          "attrs": {
+            "disabled": {
+              "$path": "candidateBlocked",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "candidate"
+          }
+        },
+        {
+          "type": "button",
+          "ref": "open",
+          "text": "查看骨骼",
+          "testId": "fwv-reskin-open",
+          "attrs": {
+            "disabled": {
+              "$path": "candidateBlocked",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "candidate"
+          }
+        },
+        {
+          "type": "button",
+          "ref": "export",
+          "text": "导出角色",
+          "testId": "fwv-reskin-export",
+          "attrs": {
+            "disabled": {
+              "$path": "candidateBlocked",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "candidate"
+          }
+        }
+      ]
+    },
+    "adjustments": {
+      "type": "details",
+      "children": [
+        {
+          "type": "summary",
+          "text": {
+            "$if": [
+              {
+                "$path": "recovering"
+              },
+              {
+                "$text": "recoverHeading"
+              },
+              "校准当前结果"
+            ]
+          }
+        },
+        {
+          "type": "field",
+          "ref": "partSelect",
+          "field": "adjustPart",
+          "testId": "fwv-reskin-adjust-part",
+          "attrs": {
+            "disabled": {
+              "$path": "editorBlocked",
+              "default": false
+            }
+          }
+        },
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "field",
+              "ref": "scale",
+              "field": "scale",
+              "testId": "fwv-reskin-scale",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "offsetX",
+              "field": "offsetX",
+              "testId": "fwv-reskin-offsetX",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "offsetY",
+              "field": "offsetY",
+              "testId": "fwv-reskin-offsetY",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            },
+            {
+              "type": "field",
+              "ref": "rotation",
+              "field": "rotation",
+              "testId": "fwv-reskin-rotation",
+              "attrs": {
+                "disabled": {
+                  "$path": "editorBlocked",
+                  "default": false
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "field",
+          "ref": "flipX",
+          "field": "flipX",
+          "testId": "fwv-reskin-flipX",
+          "attrs": {
+            "disabled": {
+              "$path": "editorBlocked",
+              "default": false
+            }
+          }
+        },
+        {
+          "type": "button",
+          "ref": "assemble",
+          "text": {
+            "$if": [
+              {
+                "$path": "recovering"
+              },
+              {
+                "$text": "recoverAction"
+              },
+              "应用校准"
+            ]
+          },
+          "testId": "fwv-reskin-reassemble",
+          "attrs": {
+            "disabled": {
+              "$path": "assembleBlocked",
+              "default": false
+            }
+          }
+        }
+      ],
+      "testId": "fwv-reskin-adjustments",
+      "attrs": {
+        "open": {
+          "$path": "recovering",
+          "default": false
+        }
+      }
+    }
+  },
+  "texts": {
+    "message001": "准备生成",
+    "message002": "正在生成部件图",
+    "message003": "等待 Agent 领取",
+    "message004": "已生成，待组装",
+    "message005": "候选已组装",
+    "message006": "本次生成失败",
+    "message007": "已取消",
+    "message008": "远端结果待核实",
+    "message009": "正在组装候选",
+    "message010": "正在整理本地任务",
+    "message011": "已取消 · 生图结果待核实",
+    "message012": "内置生图结果待核实",
+    "message013": "Agent 正在分析",
+    "message014": "等待内置生图结果",
+    "message015": "方案已就绪",
+    "message016": "新建换皮方案",
+    "message017": "已选择 {v0} / 16 个部件",
+    "message018": "已选 {v0} 个部件",
+    "message019": "已选 {v0} 个部件",
+    "message020": "创建换皮任务",
+    "message021": "开始换皮",
+    "message022": "操作未完成。",
+    "message023": "服务没有返回有效换皮方案。",
+    "message024": "没有找到该换皮方案。",
+    "message025": "交给当前对话执行",
+    "message026": "使用配置的 API 服务",
+    "message027": "本次要生成的部件",
+    "message028": "模板部件与要求",
+    "message029": "只重做选中部件，其余沿用当前版本。",
+    "message030": "",
+    "message031": "选择部件 {v0}",
+    "message032": "图集区域",
+    "message033": "一次最多选择 16 个部件。可以分批生成。",
+    "message034": " · 当前交付",
+    "message035": "正在建立部件布局与换皮方案，不会调用模型…",
+    "message036": "方案已创建。",
+    "message037": "方案已创建。",
+    "message038": "原始模板",
+    "message039": "模板：{v0}",
+    "message040": "方案要求已保存。",
+    "message041": "布局图元数据正在读取。",
+    "message042": "暂无结果",
+    "message043": "复制任务指令到当前对话，继续执行换皮。",
+    "message044": "",
+    "message045": "已领取：{v0}",
+    "message046": "请在当前对话中使用 FWV 本地 Agent 模式处理以下换皮任务。",
+    "message047": "项目路径：{v0}",
+    "message048": "请核对当前工作台项目路径",
+    "message049": "先读取任务状态并领取未执行任务；查看 reference 部件布局图与角色模板，记录角色分析、各部件要求和风险。",
+    "message050": "使用当前对话的内置 image_gen 生图能力，按固定布局编辑所选部件，整批最多调用一次；完成后将生成图回填原任务并检查组装候选。",
+    "message051": "如果已由当前 Agent 领取，沿用原领取记录继续；其他 Agent 已领取的任务不要抢领。若已登记生图或结果待核实，只核对并回填已有结果，不重复调用模型。",
+    "message052": "任务指令已复制。将它发送给当前对话后，Agent 才会开始处理。",
+    "message053": "无法自动写入剪贴板，任务指令已选中，请复制后发送给当前对话。",
+    "message054": "",
+    "message055": "API：{v0}",
+    "message056": "图像模型",
+    "message057": "尚未配置 API，请打开顶部「模型设置」。",
+    "message058": "{v0}：可见像素 {v1}，模板覆盖比 {v2}。",
+    "message059": "无原始轮廓",
+    "message060": "任务已取消，不会再向此任务回填或组装。请核实外部生图是否完成；已有结果可作为独立素材导入，不要重复生图。",
+    "message061": "本次任务结果尚未确认，内置生图可能已经执行。先查询原任务，由已领取的 Agent 核对并回填结果；不要重复领取或重新生图。",
+    "message062": "本次远端结果尚未确定，可能已经产生费用。查询只读取已有记录，不会重新生成。核对服务商记录后再显式发起新请求。",
+    "message063": "正在确认请求",
+    "message064": "本地 Agent",
+    "message065": "API 服务",
+    "message066": "保留模板透明轮廓",
+    "message067": "按模型结果裁切",
+    "message068": "本次参考图",
+    "message069": "模板部件图",
+    "message070": "生成部件图",
+    "message071": "候选 {v0}{v1}",
+    "message072": " · 当前角色",
+    "message073": "{v0} · {v1} 个部件{v2}",
+    "message074": "取消状态已更新。若生图已经提交，请由原 Agent 核对已有结果，页面不会重新生成。",
+    "message075": "已提交取消。远端是否执行以任务记录为准。",
+    "message076": "已选择当前角色。",
+    "message077": "候选已导出：{v0}/{v1}。视觉与目标游戏内验收仍需完成。",
+    "message078": "候选已在本地重新组装，未调用模型。请重新检查动作与连接处。",
+    "message079": "请填写角色要求并选择本次部件。",
+    "message080": "正在为 {v0} 个部件建立本地任务，只登记任务与参考图，不调用模型…",
+    "message081": "正在提交 {v0} 个部件的统一生成；本次只有 1 次模型请求…",
+    "message082": "本地任务已建立，尚未调用模型。请复制下方任务指令给当前对话，由 Agent 领取并处理。",
+    "message083": "请求已登记。可以等待完成，或稍后返回继续检查；页面不会自动重发生成请求。",
+    "message084": "提交结果尚未确认：{v0}。正在查询已登记请求，不会重新调用模型。",
+    "message085": "请求被拒绝：{v0}",
+    "message086": "{v0}请求 {v1}\n{v2} 个部件 · {v3}",
+    "message087": "已等待 {v0} 分 {v1} 秒\n",
+    "message088": "内置生图已登记提交",
+    "message089": "建立任务未调用模型",
+    "message090": "每批最多 1 次模型请求",
+    "message091": "换皮流程暂不可用：{v0}",
+    "message092": "暂时无法读取进度：{v0}。不会自动重发生成请求。",
+    "recoverHeading": "继续保存并装配",
+    "recoverAction": "保存并装配角色"
+  }
+}

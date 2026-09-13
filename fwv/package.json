@@ -1,0 +1,50 @@
+{
+  "name": "fwv",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Reproducible visual asset workflows for the FW family.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "bin": {
+    "fwv": "bin/fwv.mjs"
+  },
+  "exports": {
+    ".": "./src/core/project.mjs",
+    "./image": "./src/image/processor.mjs",
+    "./model": "./src/model/glb.mjs",
+    "./model/application": "./src/model/application.mjs",
+    "./spine": "./src/spine/index.mjs",
+    "./spine/application": "./src/spine/application.mjs",
+    "./editor": "./src/editor/server.mjs",
+    "./generation/provider": "./src/generation/provider.mjs",
+    "./generation/jobs": "./src/generation/jobs.mjs",
+    "./workflows/reskin": "./src/workflows/reskin.mjs",
+    "./spine/reskin-template": "./src/spine/reskin-template.mjs",
+    "./rig": "./src/rig/application.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "editor": "node tools/start-editor.mjs",
+    "demo": "node tools/create-demo.mjs .local/demo",
+    "test:browser": "node tools/test-browser.mjs",
+    "test:assets-browser": "node tools/test-assets-browser.mjs",
+    "test:spine-repair-browser": "node tools/test-spine-repair-browser.mjs",
+    "test:image-recipe-browser": "node tools/test-image-recipe-browser.mjs",
+    "test:generation-browser": "node tools/test-generation-browser.mjs",
+    "test:reskin-browser": "node tools/test-reskin-browser.mjs",
+    "test:rig-browser": "node tools/test-rig-browser.mjs",
+    "test:local-reskin-browser": "node tools/test-local-reskin-browser.mjs",
+    "test:fwe-authoring-browser": "node tools/test-fwe-authoring-browser.mjs"
+  },
+  "dependencies": {
+    "gltf-validator": "2.0.0-dev.3.10",
+    "sharp": "0.35.4",
+    "three": "0.186.0"
+  },
+  "optionalDependencies": {
+    "@esotericsoftware/spine-webgl": "4.2.120"
+  }
+}

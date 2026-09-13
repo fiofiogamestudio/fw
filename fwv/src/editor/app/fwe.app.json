@@ -1,0 +1,160 @@
+{
+  "id": "fwv-workbench",
+  "title": "FWD · 美术工作台",
+  "workspace": ".",
+  "extensions": [
+    {
+      "path": "./extension.cjs",
+      "client": [
+        "./asset-panel.js",
+        "./spine-preview.js",
+        "./spine-repair-panel.js",
+        "./model-preview.js",
+        "./model-panel.js",
+        "./reskin-preview.js",
+        "./reskin-panel.js",
+        "./rig-panel.js",
+        "./generation-panel.js",
+        "./spine-panel.js",
+        "./image-panel.js",
+        "./workbench.js"
+      ]
+    }
+  ],
+  "domains": [
+    {
+      "id": "fwv-project",
+      "title": "美术项目",
+      "kind": "document",
+      "source": {
+        "type": "fwv-project"
+      },
+      "model": {
+        "type": "object",
+        "root": "$"
+      },
+      "view": [
+        {
+          "type": "form",
+          "title": "资产索引（只读）",
+          "modes": [
+            "json"
+          ]
+        }
+      ],
+      "actions": {
+        "toolbar": [],
+        "add": false,
+        "duplicate": false,
+        "delete": false,
+        "undo": false,
+        "redo": false,
+        "save": false,
+        "new": false
+      },
+      "inspector": {
+        "summary": false
+      },
+      "defaults": {
+        "fileName": "fwv.project.json",
+        "data": {}
+      }
+    },
+    {
+      "extends": "./authoring.fwe",
+      "actions": {
+        "toolbar": [
+          "undo",
+          "redo",
+          "save"
+        ],
+        "save": true,
+        "undo": true,
+        "redo": true,
+        "add": false,
+        "duplicate": false,
+        "delete": false,
+        "new": false
+      },
+      "workbench": {
+        "editor": {
+          "configs": {
+            "assets": "./assets.ui.json",
+            "spineRepair": "./spine-repair.ui.json",
+            "model3d": "./model3d.ui.json",
+            "workbench": "./workbench.ui.json",
+            "image": "./image.ui.json",
+            "reskin": "./reskin.ui.json",
+            "generation": "./generation.ui.json",
+            "rig": "./rig.ui.json",
+            "spine": "./spine.ui.json",
+            "preview": "./preview.ui.json"
+          }
+        }
+      }
+    }
+  ],
+  "navigation": {
+    "workspaces": [
+      {
+        "id": "fwv",
+        "label": "素材",
+        "sections": [
+          {
+            "id": "assets",
+            "label": "素材中心",
+            "domainId": "fwv-authoring",
+            "collectionId": "changeDrafts",
+            "hideFile": true
+          }
+        ]
+      },
+      {
+        "id": "fwv-tools",
+        "label": "工具",
+        "sections": [
+          {
+            "id": "reskin",
+            "label": "角色换皮",
+            "domainId": "fwv-authoring",
+            "collectionId": "reskinDrafts",
+            "hideFile": true
+          },
+          {
+            "id": "rig",
+            "label": "立绘拆件",
+            "domainId": "fwv-authoring",
+            "collectionId": "rigDrafts",
+            "hideFile": true
+          },
+          {
+            "id": "images",
+            "label": "图片加工",
+            "domainId": "fwv-authoring",
+            "collectionId": "imageDrafts",
+            "hideFile": true
+          },
+          {
+            "id": "generate",
+            "label": "AI 生图",
+            "domainId": "fwv-authoring",
+            "collectionId": "generationDrafts",
+            "hideFile": true
+          },
+          {
+            "id": "spine",
+            "label": "骨骼素材",
+            "domainId": "fwv-authoring",
+            "collectionId": "spineDrafts",
+            "hideFile": true
+          }
+        ]
+      }
+    ]
+  },
+  "labels": {
+    "save": "保存草稿",
+    "undo": "撤销草稿",
+    "redo": "重做草稿"
+  }
+}

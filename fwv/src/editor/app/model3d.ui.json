@@ -1,0 +1,755 @@
+{
+  "root": "root",
+  "texts": {
+    "noModel": "导入 GLB 模型（内嵌贴图，最大 20 MiB）",
+    "source": "基线：{name} · {revision}",
+    "summary": "{meshes} 个网格 · {joints} 根骨骼 · {materials} 个材质 · {animations} 个动作",
+    "noChange": "新的修改",
+    "change": "修改：{title}",
+    "noCandidate": "选择修改结果",
+    "candidate": "{name} · {review}",
+    "imported": "已导入模型",
+    "created": "修改说明已准备好",
+    "repaired": "已生成修改预览",
+    "adopted": "已使用此版本",
+    "accepted": "已验收，尚未使用",
+    "rejected": "此结果已弃用",
+    "noIssue": "先写下想怎么改，再使用修复工具。",
+    "setup": "基础姿态",
+    "vertex": "既有骨骼索引：{joints} · 当前权重：{weights}",
+    "invalidVector": "请用逗号输入 {count} 个有限数字。",
+    "pickBone": "请选择一个可编辑的 TRS 骨骼。",
+    "textureExtracted": "已提取贴图，可在素材中心编辑",
+    "noTexture": "无贴图",
+    "noImage": "请选择图片素材",
+    "noMesh": "没有可编辑的四权重网格",
+    "materialInfo": "材质与贴图：",
+    "validation": "模型检查：{errors} 个错误，{warnings} 个提示",
+    "transformNote": "仅修改基础姿态；动画可能覆盖此骨骼，请检查播放效果。",
+    "needRequest": "请写下想怎么改。",
+    "pending": "检查画面后点击“用这版”，原版会保留在历史中。",
+    "copied": "修改说明已复制。",
+    "copyFailed": "无法复制，请在修改说明中手动选择并复制。",
+    "reviewComment": "已比较当前模型效果，并选择使用此版本。",
+    "version": "版本 {number}{current}",
+    "current": " · 当前使用",
+    "reviewPending": "待查看",
+    "reviewAccepted": "已验收",
+    "reviewRejected": "已驳回",
+    "sourceLabel": "原版",
+    "currentSourceLabel": "当前模型",
+    "continued": "",
+    "adoptPartial": "验收已记录，使用失败：{message}",
+    "candidateImported": "已导入修改结果"
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "attrs": {
+        "data-fwv-role": "workspace",
+        "data-fwv-phase": {
+          "$path": "phase"
+        }
+      },
+      "children": [
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "button",
+              "ref": "back",
+              "text": "返回素材中心",
+              "testId": "fwv-model-back"
+            },
+            {
+              "type": "field",
+              "field": {
+                "control": "select",
+                "label": "3D 素材"
+              },
+              "ref": "asset",
+              "testId": "fwv-model-asset",
+              "attrs": {},
+              "visible": {
+                "$path": "hasModel"
+              }
+            },
+            {
+              "type": "button",
+              "ref": "import",
+              "text": "导入 GLB",
+              "testId": "fwv-model-import"
+            },
+            {
+              "type": "field",
+              "field": {
+                "control": "file",
+                "label": false
+              },
+              "ref": "file",
+              "testId": "fwv-model-file",
+              "attrs": {
+                "accept": ".glb"
+              },
+              "visible": false
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "status"
+          },
+          "tone": {
+            "$path": "tone"
+          },
+          "testId": "fwv-model-status",
+          "visible": {
+            "$path": "status"
+          }
+        },
+        {
+          "type": "fieldset",
+          "attrs": {
+            "disabled": {
+              "$path": "blocked"
+            }
+          },
+          "children": [
+            {
+              "type": "card",
+              "visible": {
+                "$path": "hasCandidate"
+              },
+              "attrs": {
+                "data-fwv-role": "decision-bar"
+              },
+              "children": [
+                {
+                  "type": "toolbar",
+                  "children": [
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "修改结果"
+                      },
+                      "ref": "candidates",
+                      "testId": "fwv-model-candidates",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "button",
+                      "ref": "adopt",
+                      "text": "用这版",
+                      "testId": "fwv-model-adopt",
+                      "attrs": {
+                        "disabled": {
+                          "$path": "adoptBlocked"
+                        }
+                      },
+                      "tone": "primary"
+                    },
+                    {
+                      "type": "button",
+                      "ref": "revise",
+                      "testId": "fwv-model-revise",
+                      "text": "继续修改"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "decisionInfo"
+                  },
+                  "tone": "muted",
+                  "testId": "fwv-model-decision-info",
+                  "visible": {
+                    "$path": "decisionInfo"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "row",
+              "preset": "workspace",
+              "children": [
+                {
+                  "type": "stack",
+                  "attrs": {
+                    "data-fwv-role": "preview-stage"
+                  },
+                  "children": [
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "field",
+                          "field": {
+                            "control": "select",
+                            "label": "动作"
+                          },
+                          "ref": "animation",
+                          "testId": "fwv-model-animation",
+                          "attrs": {}
+                        },
+                        {
+                          "type": "button",
+                          "ref": "play",
+                          "text": "播放 / 暂停",
+                          "testId": "fwv-model-play"
+                        },
+                        {
+                          "type": "field",
+                          "field": {
+                            "control": "number",
+                            "label": "时间（秒）"
+                          },
+                          "ref": "time",
+                          "testId": "fwv-model-time",
+                          "attrs": {
+                            "min": 0,
+                            "step": 0.05
+                          }
+                        },
+                        {
+                          "type": "details",
+                          "children": [
+                            {
+                              "type": "summary",
+                              "text": "显示选项"
+                            },
+                            {
+                              "type": "field",
+                              "field": {
+                                "control": "checkbox",
+                                "label": "显示骨骼"
+                              },
+                              "ref": "skeleton",
+                              "testId": "fwv-model-skeleton",
+                              "attrs": {}
+                            },
+                            {
+                              "type": "field",
+                              "field": {
+                                "control": "checkbox",
+                                "label": "线框"
+                              },
+                              "ref": "wireframe",
+                              "testId": "fwv-model-wireframe",
+                              "attrs": {}
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "columns",
+                      "columns": {
+                        "$path": "previewColumns"
+                      },
+                      "attrs": {
+                        "data-fwv-role": "comparison"
+                      },
+                      "children": [
+                        {
+                          "type": "stack",
+                          "children": [
+                            {
+                              "type": "heading",
+                              "text": {
+                                "$path": "sourceLabel"
+                              },
+                              "visible": {
+                                "$path": "hasCandidate"
+                              }
+                            },
+                            {
+                              "type": "canvas",
+                              "preset": "stage",
+                              "ref": "sourceCanvas",
+                              "testId": "fwv-model-source-canvas",
+                              "attrs": {
+                                "aria-label": "原模型",
+                                "title": "拖动旋转 · 滚轮缩放"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "stack",
+                          "visible": {
+                            "$path": "hasCandidate"
+                          },
+                          "children": [
+                            {
+                              "type": "heading",
+                              "text": "修改后"
+                            },
+                            {
+                              "type": "canvas",
+                              "preset": "stage",
+                              "ref": "candidateCanvas",
+                              "testId": "fwv-model-candidate-canvas",
+                              "attrs": {
+                                "aria-label": "修改后的模型",
+                                "title": "拖动旋转 · 滚轮缩放"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "card",
+                  "visible": {
+                    "$path": "editing"
+                  },
+                  "attrs": {
+                    "data-fwv-role": "prompt"
+                  },
+                  "children": [
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "textarea",
+                        "label": "想怎么改？"
+                      },
+                      "ref": "request",
+                      "testId": "fwv-model-request",
+                      "attrs": {
+                        "rows": 4,
+                        "placeholder": "例如：修正手腕弯曲，保持贴图和其他动作。"
+                      }
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "create",
+                          "text": "准备 AI 修改说明",
+                          "testId": "fwv-model-create",
+                          "tone": "primary"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": "更多要求"
+                        },
+                        {
+                          "type": "field",
+                          "field": {
+                            "control": "textarea",
+                            "label": "需要保持的内容"
+                          },
+                          "ref": "preserve",
+                          "testId": "fwv-model-preserve",
+                          "attrs": {}
+                        },
+                        {
+                          "type": "field",
+                          "field": {
+                            "control": "text",
+                            "label": "标题（可选）"
+                          },
+                          "ref": "title",
+                          "testId": "fwv-model-title",
+                          "attrs": {}
+                        }
+                      ]
+                    },
+                    {
+                      "type": "details",
+                      "children": [
+                        {
+                          "type": "summary",
+                          "text": "修改说明与结果导入"
+                        },
+                        {
+                          "type": "field",
+                          "field": {
+                            "control": "textarea",
+                            "label": "交给 AI 的修改说明"
+                          },
+                          "ref": "handoff",
+                          "testId": "fwv-model-handoff",
+                          "attrs": {
+                            "readOnly": true
+                          }
+                        },
+                        {
+                          "type": "toolbar",
+                          "children": [
+                            {
+                              "type": "button",
+                              "ref": "prepare",
+                              "text": "更新修改说明",
+                              "testId": "fwv-model-prepare"
+                            },
+                            {
+                              "type": "button",
+                              "ref": "copy",
+                              "testId": "fwv-model-copy",
+                              "text": "复制修改说明"
+                            },
+                            {
+                              "type": "button",
+                              "ref": "importCandidate",
+                              "testId": "fwv-model-importCandidate",
+                              "text": "导入修改后的 GLB"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "field",
+                          "ref": "candidateFile",
+                          "testId": "fwv-model-candidate-file",
+                          "visible": false,
+                          "field": {
+                            "control": "file",
+                            "label": false
+                          },
+                          "attrs": {
+                            "accept": ".glb"
+                          }
+                        }
+                      ],
+                      "ref": "handoffSection",
+                      "attrs": {
+                        "open": {
+                          "$path": "handoffOpen"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "手动修复"
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "骨骼位置与姿态"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "骨骼"
+                      },
+                      "ref": "bone",
+                      "testId": "fwv-model-bone",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "text",
+                        "label": "位置 X, Y, Z"
+                      },
+                      "ref": "translation",
+                      "testId": "fwv-model-translation",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "text",
+                        "label": "旋转四元数 X, Y, Z, W"
+                      },
+                      "ref": "rotation",
+                      "testId": "fwv-model-rotation",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "text",
+                        "label": "缩放 X, Y, Z"
+                      },
+                      "ref": "scale",
+                      "testId": "fwv-model-scale",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$text": "transformNote"
+                      },
+                      "tone": "warning"
+                    },
+                    {
+                      "type": "button",
+                      "ref": "repairBone",
+                      "text": "预览骨骼修改",
+                      "testId": "fwv-model-repairBone"
+                    }
+                  ]
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "顶点权重"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "网格分区"
+                      },
+                      "ref": "primitive",
+                      "testId": "fwv-model-primitive",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "number",
+                        "label": "顶点编号（从 0 开始）"
+                      },
+                      "ref": "vertex",
+                      "testId": "fwv-model-vertex",
+                      "attrs": {
+                        "min": 0,
+                        "step": 1
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "readVertex",
+                      "text": "读取顶点权重",
+                      "testId": "fwv-model-readVertex"
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "vertexInfo"
+                      },
+                      "testId": "fwv-model-vertex-info"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "text",
+                        "label": "四根绑定骨骼的权重"
+                      },
+                      "ref": "weights",
+                      "testId": "fwv-model-weights",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "button",
+                      "ref": "repairWeight",
+                      "text": "预览权重修改",
+                      "testId": "fwv-model-repairWeight"
+                    }
+                  ]
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "材质与贴图"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "内嵌贴图"
+                      },
+                      "ref": "texture",
+                      "testId": "fwv-model-texture",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "image",
+                      "preset": "preview",
+                      "ref": "textureImage",
+                      "testId": "fwv-model-texture-image",
+                      "visible": {
+                        "$path": "hasTexture"
+                      },
+                      "attrs": {
+                        "src": {
+                          "$path": "textureUrl"
+                        },
+                        "alt": "模型原始内嵌贴图"
+                      }
+                    },
+                    {
+                      "type": "button",
+                      "ref": "extractTexture",
+                      "text": "提取为图片素材",
+                      "testId": "fwv-model-extractTexture"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "替换图片"
+                      },
+                      "ref": "image",
+                      "testId": "fwv-model-image",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "select",
+                        "label": "图片版本"
+                      },
+                      "ref": "imageRevision",
+                      "testId": "fwv-model-imageRevision",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "button",
+                      "ref": "repairTexture",
+                      "text": "预览贴图替换",
+                      "testId": "fwv-model-repairTexture"
+                    }
+                  ]
+                }
+              ],
+              "attrs": {
+                "data-fwv-role": "advanced-tools"
+              },
+              "testId": "fwv-model-tools"
+            },
+            {
+              "type": "details",
+              "children": [
+                {
+                  "type": "summary",
+                  "text": "版本与修改记录"
+                },
+                {
+                  "type": "field",
+                  "field": {
+                    "control": "select",
+                    "label": "查看版本"
+                  },
+                  "ref": "revision",
+                  "testId": "fwv-model-revision",
+                  "attrs": {}
+                },
+                {
+                  "type": "field",
+                  "field": {
+                    "control": "select",
+                    "label": "修改记录"
+                  },
+                  "ref": "changes",
+                  "testId": "fwv-model-changes",
+                  "attrs": {}
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "单独评审"
+                    },
+                    {
+                      "type": "field",
+                      "field": {
+                        "control": "textarea",
+                        "label": "评审意见"
+                      },
+                      "ref": "comment",
+                      "testId": "fwv-model-comment",
+                      "attrs": {}
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "accept",
+                          "text": "通过验收",
+                          "testId": "fwv-model-accept",
+                          "attrs": {
+                            "disabled": {
+                              "$path": "reviewBlocked"
+                            }
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "reject",
+                          "text": "弃用结果",
+                          "testId": "fwv-model-reject",
+                          "attrs": {
+                            "disabled": {
+                              "$path": "reviewBlocked"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "changeInfo"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "summary"
+                  },
+                  "testId": "fwv-model-summary"
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "文件与模型检查"
+                    },
+                    {
+                      "type": "text",
+                      "text": "支持未压缩 glTF 2.0 GLB，内嵌 PNG/JPEG 贴图，最多 20 MiB。"
+                    },
+                    {
+                      "type": "pre",
+                      "ref": "inspection",
+                      "text": {
+                        "$path": "inspection"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "visible": {
+            "$path": "hasModel"
+          }
+        }
+      ]
+    }
+  }
+}

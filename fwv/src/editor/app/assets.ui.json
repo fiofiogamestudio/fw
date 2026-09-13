@@ -1,0 +1,1011 @@
+{
+  "root": "root",
+  "fields": {
+    "asset": {
+      "schemaPath": "changeDrafts[].data.assetId",
+      "control": "select"
+    },
+    "revision": {
+      "schemaPath": "changeDrafts[].data.revisionId",
+      "control": "select"
+    },
+    "title": {
+      "schemaPath": "changeDrafts[].data.title",
+      "label": "记录名称（自动生成，可修改）"
+    },
+    "request": {
+      "schemaPath": "changeDrafts[].data.request",
+      "label": "想怎么改？"
+    },
+    "preserve": {
+      "schemaPath": "changeDrafts[].data.preserve",
+      "label": "还需要保持什么？"
+    },
+    "objects": {
+      "schemaPath": "changeDrafts[].data.objects"
+    },
+    "animationName": {
+      "schemaPath": "changeDrafts[].data.animationName"
+    },
+    "time": {
+      "schemaPath": "changeDrafts[].data.time"
+    },
+    "regionX": {
+      "schemaPath": "changeDrafts[].data.region.x"
+    },
+    "regionY": {
+      "schemaPath": "changeDrafts[].data.region.y"
+    },
+    "regionWidth": {
+      "schemaPath": "changeDrafts[].data.region.width"
+    },
+    "regionHeight": {
+      "schemaPath": "changeDrafts[].data.region.height"
+    },
+    "mode": {
+      "schemaPath": "changeDrafts[].data.executionMode",
+      "optionLabels": {
+        "local": "当前 AI / 外部工具",
+        "api": "已配置的图像服务"
+      }
+    },
+    "changes": {
+      "control": "select",
+      "label": "已建立的修改请求"
+    },
+    "candidates": {
+      "control": "select",
+      "label": "候选版本"
+    },
+    "attachAsset": {
+      "control": "select",
+      "label": "已有素材中的候选"
+    },
+    "attachRevision": {
+      "control": "select",
+      "label": "候选的确切版本"
+    },
+    "comment": {
+      "control": "textarea",
+      "label": "评审意见",
+      "maxLength": 2000
+    },
+    "handoff": {
+      "control": "textarea",
+      "label": "交给当前 AI 或外部工具的完整请求"
+    },
+    "zoom": {
+      "control": "select",
+      "label": "缩放",
+      "options": [
+        {
+          "value": "1",
+          "label": "适合画布"
+        },
+        {
+          "value": "2",
+          "label": "放大 2 倍"
+        },
+        {
+          "value": "4",
+          "label": "放大 4 倍"
+        }
+      ]
+    },
+    "backdrop": {
+      "control": "select",
+      "label": "背景",
+      "options": [
+        {
+          "value": "checker",
+          "label": "透明棋盘"
+        },
+        {
+          "value": "light",
+          "label": "浅色"
+        },
+        {
+          "value": "dark",
+          "label": "深色"
+        }
+      ]
+    }
+  },
+  "texts": {
+    "empty": "导入图片或 GLB 模型",
+    "sourceInfo": "{name} · {width} × {height}",
+    "sourceVersion": "版本 {index}{selected}",
+    "selectedVersion": " · 当前采用",
+    "newChange": "新的修改请求",
+    "noCandidate": "尚无候选",
+    "noImage": "此版本没有可显示的图片。使用专业工具查看骨骼或拆件。",
+    "drawHint": "",
+    "regionHint": "选区 {width} × {height} px · ({x}, {y})",
+    "noRegion": "",
+    "issueCreated": "修改要求已记录。",
+    "draftChanged": "",
+    "needIssue": "先说说想怎么改。",
+    "prepared": "请求已准备，等待交给 AI。",
+    "copied": "已复制完整请求。",
+    "copyFailed": "浏览器未允许复制，请直接选择并复制请求文本。",
+    "importedCandidate": "修改结果已导入。",
+    "generated": "已提交生成。",
+    "accepted": "已接受，尚未采用。",
+    "rejected": "已标记不用。",
+    "adopted": "已保存为新版本。",
+    "pending": "待评审",
+    "acceptedLabel": "已接受",
+    "rejectedLabel": "已驳回",
+    "candidateLabel": "{name} · {review} · {id}",
+    "candidateInfo": "{review} · 文件检查{validation}",
+    "validationPassed": "通过",
+    "validationFailed": "失败",
+    "validationPending": "未检查",
+    "generationInfo": "任务 {id} · {status}{error}",
+    "readError": "无法读取所选图片。",
+    "invalidImage": "请选择不超过 20 MiB 的 PNG、JPEG 或 WebP。",
+    "invalidRegion": "选区必须在当前基线图片内，且宽高大于零。",
+    "busy": "正在处理当前操作…",
+    "unknown": "未知",
+    "adoptedInfo": "",
+    "sourceLocked": "",
+    "requestSelection": "当前请求：{title}",
+    "sourceFiles": "源文件与校验信息：",
+    "scopeLocked": "选区外像素已锁定。输入 {inputWidth} × {inputHeight} 按原画布 {width} × {height} 回装，只替换选区内内容。",
+    "modelHint": "打开 3D 模型工具",
+    "structuredSourceInfo": "{name} · {kind}",
+    "localPrimary": "准备给 AI",
+    "apiPrimary": "生成预览",
+    "spinePrimary": "记录修改要求",
+    "localHint": "",
+    "apiHint": "",
+    "spineHint": "",
+    "waitingLocal": "",
+    "waitingSpine": "可打开骨骼与权重工具调整。",
+    "waitingApi": "正在生成…",
+    "continueOriginal": "修改原版本。",
+    "continueAdopted": "修改刚采用的版本。",
+    "use": "用这版",
+    "used": "已使用这版",
+    "using": "正在保存这版…",
+    "useFailed": "没有完成采用确认：{message}。已刷新当前状态，请检查结果后再操作。",
+    "rejectedInfo": "",
+    "scopeShort": "选区外像素已锁定",
+    "promptImage": "例如：把这里改成蓝色，其他地方保持原样。",
+    "promptSpine": "例如：走路时左手变形，修好后保持服装和动作节奏。",
+    "promptModel": "例如：修正肩部的形状，保持动作与材质。",
+    "acceptedNotAdopted": "接受意见已记录，但尚未采用：{message}。可以重新点击“用这版”，只重试采用。",
+    "continueUnavailable": "尚未读到刚采用的确切版本，当前修改记录已保留。请刷新素材后重试。",
+    "configurePrimary": "配置图像服务",
+    "configureHint": "图像服务未配置。",
+    "readyApi": "生成完成",
+    "unknownApi": "上次生成的状态尚未确认，请先检查任务结果。",
+    "idleApi": "尚未开始生成"
+  },
+  "templates": {
+    "root": {
+      "type": "fieldset",
+      "testId": "fwv-assets",
+      "attrs": {
+        "data-fwv-role": "workspace",
+        "data-fwv-phase": {
+          "$path": "phase"
+        },
+        "disabled": {
+          "$path": "working"
+        }
+      },
+      "children": [
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "field",
+              "field": "asset",
+              "ref": "asset",
+              "testId": "fwv-assets-source"
+            },
+            {
+              "type": "button",
+              "ref": "importButton",
+              "text": "导入图片 / 3D 模型",
+              "testId": "fwv-assets-import"
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": {
+            "$text": "empty"
+          },
+          "visible": {
+            "$not": {
+              "$path": "hasSource"
+            }
+          }
+        },
+        {
+          "type": "button",
+          "ref": "modelImportTool",
+          "text": "导入 3D 模型",
+          "testId": "fwv-assets-model-empty",
+          "visible": {
+            "$not": {
+              "$path": "hasSource"
+            }
+          }
+        },
+        {
+          "type": "card",
+          "visible": {
+            "$path": "hasCandidate"
+          },
+          "attrs": {
+            "data-fwv-role": "decision-bar"
+          },
+          "testId": "fwv-assets-decision",
+          "children": [
+            {
+              "type": "toolbar",
+              "children": [
+                {
+                  "type": "button",
+                  "ref": "use",
+                  "text": {
+                    "$path": "useLabel"
+                  },
+                  "tone": "primary",
+                  "testId": "fwv-assets-use",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canUse"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "continue",
+                  "text": "继续修改",
+                  "testId": "fwv-assets-continue"
+                },
+                {
+                  "type": "button",
+                  "ref": "reject",
+                  "text": "这版不用",
+                  "testId": "fwv-assets-reject",
+                  "visible": {
+                    "$not": {
+                      "$path": "adopted"
+                    }
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canReview"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "candidateInfo"
+                  },
+                  "tone": "muted",
+                  "testId": "fwv-assets-candidate-info"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "tone": "info",
+              "text": {
+                "$text": "scopeShort"
+              },
+              "visible": {
+                "$path": "scopeInfo"
+              }
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "preset": "workspace",
+          "children": [
+            {
+              "type": "stack",
+              "visible": {
+                "$path": "hasSource"
+              },
+              "attrs": {
+                "data-fwv-role": "preview-stage"
+              },
+              "children": [
+                {
+                  "type": "slot",
+                  "ref": "spineRepair",
+                  "visible": {
+                    "$path": "spineSource"
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "modelTool",
+                  "text": "查看模型与修改",
+                  "testId": "fwv-assets-model-tool",
+                  "visible": {
+                    "$path": "modelSource"
+                  }
+                },
+                {
+                  "type": "toolbar",
+                  "testId": "fwv-assets-preview-controls",
+                  "visible": {
+                    "$and": [
+                      {
+                        "$path": "hasSource"
+                      },
+                      {
+                        "$path": "bitmapPreview"
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "field",
+                      "field": "zoom",
+                      "ref": "zoom",
+                      "value": "1",
+                      "testId": "fwv-assets-zoom"
+                    },
+                    {
+                      "type": "field",
+                      "field": "backdrop",
+                      "ref": "backdrop",
+                      "testId": "fwv-assets-backdrop",
+                      "value": "checker"
+                    },
+                    {
+                      "type": "button",
+                      "ref": "clearRegion",
+                      "text": "清除选区",
+                      "testId": "fwv-assets-clear-region",
+                      "visible": {
+                        "$path": "regionHint"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "columns",
+                  "columns": {
+                    "$if": [
+                      {
+                        "$path": "hasCandidate"
+                      },
+                      2,
+                      1
+                    ]
+                  },
+                  "visible": {
+                    "$path": "bitmapPreview"
+                  },
+                  "attrs": {
+                    "data-fwv-role": "comparison"
+                  },
+                  "children": [
+                    {
+                      "type": "stack",
+                      "children": [
+                        {
+                          "type": "heading",
+                          "text": "原图",
+                          "visible": {
+                            "$path": "hasCandidate"
+                          }
+                        },
+                        {
+                          "type": "canvas",
+                          "preset": "stage",
+                          "ref": "sourceCanvas",
+                          "testId": "fwv-assets-source-canvas",
+                          "attrs": {
+                            "tabIndex": 0,
+                            "aria-label": "当前素材，拖动圈选修改位置",
+                            "title": "拖动圈选修改位置"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "stack",
+                      "visible": {
+                        "$path": "hasCandidate"
+                      },
+                      "children": [
+                        {
+                          "type": "heading",
+                          "text": "修改后"
+                        },
+                        {
+                          "type": "canvas",
+                          "preset": "stage",
+                          "ref": "candidateCanvas",
+                          "testId": "fwv-assets-candidate-canvas",
+                          "attrs": {
+                            "aria-label": "修改结果，与原图保持相同预览条件"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "toolbar",
+                  "visible": {
+                    "$and": [
+                      {
+                        "$path": "bitmapPreview"
+                      },
+                      {
+                        "$or": [
+                          {
+                            "$path": "previewHint"
+                          },
+                          {
+                            "$path": "regionHint"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "previewHint"
+                      },
+                      "tone": "muted",
+                      "visible": {
+                        "$path": "previewHint"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "regionHint"
+                      },
+                      "tone": "muted",
+                      "testId": "fwv-assets-region-info",
+                      "visible": {
+                        "$path": "regionHint"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "visible": {
+                "$or": [
+                  {
+                    "$path": "showPrompt"
+                  },
+                  {
+                    "$path": "waiting"
+                  }
+                ]
+              },
+              "children": [
+                {
+                  "type": "card",
+                  "visible": {
+                    "$path": "showPrompt"
+                  },
+                  "attrs": {
+                    "data-fwv-role": "prompt"
+                  },
+                  "children": [
+                    {
+                      "type": "form",
+                      "ref": "requestForm",
+                      "children": [
+                        {
+                          "type": "field",
+                          "field": "request",
+                          "ref": "request",
+                          "testId": "fwv-assets-request",
+                          "attrs": {
+                            "rows": 4,
+                            "placeholder": {
+                              "$path": "promptHint"
+                            }
+                          }
+                        },
+                        {
+                          "type": "toolbar",
+                          "children": [
+                            {
+                              "type": "button",
+                              "ref": "create",
+                              "text": {
+                                "$path": "primaryLabel"
+                              },
+                              "tone": "primary",
+                              "testId": "fwv-assets-create",
+                              "attrs": {
+                                "type": "submit"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "details",
+                          "children": [
+                            {
+                              "type": "summary",
+                              "text": "补充要求"
+                            },
+                            {
+                              "type": "field",
+                              "field": "preserve",
+                              "ref": "preserve",
+                              "testId": "fwv-assets-preserve",
+                              "attrs": {
+                                "rows": 2
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "field": "title",
+                              "ref": "title",
+                              "testId": "fwv-assets-title"
+                            },
+                            {
+                              "type": "details",
+                              "children": [
+                                {
+                                  "type": "summary",
+                                  "text": "精确位置、部件与动作"
+                                },
+                                {
+                                  "type": "columns",
+                                  "columns": 2,
+                                  "visible": {
+                                    "$path": "imageSource"
+                                  },
+                                  "children": [
+                                    {
+                                      "type": "field",
+                                      "field": "regionX",
+                                      "ref": "regionX",
+                                      "testId": "fwv-assets-region-x"
+                                    },
+                                    {
+                                      "type": "field",
+                                      "field": "regionY",
+                                      "ref": "regionY",
+                                      "testId": "fwv-assets-region-y"
+                                    },
+                                    {
+                                      "type": "field",
+                                      "field": "regionWidth",
+                                      "ref": "regionWidth",
+                                      "testId": "fwv-assets-region-width"
+                                    },
+                                    {
+                                      "type": "field",
+                                      "field": "regionHeight",
+                                      "ref": "regionHeight",
+                                      "testId": "fwv-assets-region-height"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "field",
+                                  "field": "objects",
+                                  "ref": "objects"
+                                },
+                                {
+                                  "type": "field",
+                                  "field": "animationName",
+                                  "ref": "animationName"
+                                },
+                                {
+                                  "type": "field",
+                                  "field": "time",
+                                  "ref": "time"
+                                }
+                              ]
+                            }
+                          ],
+                          "testId": "fwv-assets-more-request"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "card",
+                  "visible": {
+                    "$path": "waiting"
+                  },
+                  "attrs": {
+                    "data-fwv-role": "next-step"
+                  },
+                  "children": [
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "waitingHint"
+                      },
+                      "visible": {
+                        "$path": "waitingHint"
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": {
+                        "$path": "generationInfo"
+                      },
+                      "testId": "fwv-assets-generation-info",
+                      "visible": {
+                        "$path": "generationInfo"
+                      }
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "ref": "generate",
+                          "text": "生成预览",
+                          "tone": "primary",
+                          "testId": "fwv-assets-generate",
+                          "visible": {
+                            "$and": [
+                              {
+                                "$path": "apiMode"
+                              },
+                              {
+                                "$path": "canGenerate"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "copy",
+                          "text": "复制给 AI",
+                          "visible": {
+                            "$path": "hasHandoff"
+                          },
+                          "testId": "fwv-assets-copy"
+                        },
+                        {
+                          "type": "button",
+                          "ref": "importCandidate",
+                          "text": "导入修改结果",
+                          "visible": {
+                            "$path": "imageSource"
+                          },
+                          "testId": "fwv-assets-import-candidate"
+                        },
+                        {
+                          "type": "button",
+                          "ref": "recover",
+                          "text": "查看生成结果",
+                          "testId": "fwv-assets-recover",
+                          "visible": {
+                            "$path": "canRecover"
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "editPrompt",
+                          "text": "修改要求",
+                          "testId": "fwv-assets-edit-prompt"
+                        },
+                        {
+                          "type": "button",
+                          "ref": "waitingProvider",
+                          "text": "配置图像服务",
+                          "visible": {
+                            "$path": "needsProvider"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "版本与修改记录"
+            },
+            {
+              "type": "field",
+              "field": "revision",
+              "ref": "revision",
+              "testId": "fwv-assets-revision"
+            },
+            {
+              "type": "field",
+              "field": "changes",
+              "ref": "changes",
+              "testId": "fwv-assets-changes"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "sourceInfo"
+              },
+              "tone": "muted",
+              "testId": "fwv-assets-source-info"
+            },
+            {
+              "type": "button",
+              "ref": "refreshButton",
+              "text": "刷新素材"
+            }
+          ],
+          "testId": "fwv-assets-history"
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "执行设置与其他方式"
+            },
+            {
+              "type": "field",
+              "field": "mode",
+              "ref": "mode",
+              "value": "local",
+              "testId": "fwv-assets-mode"
+            },
+            {
+              "type": "button",
+              "ref": "provider",
+              "text": "图像服务设置",
+              "visible": {
+                "$path": "imageSource"
+              }
+            },
+            {
+              "type": "stack",
+              "visible": {
+                "$path": "hasChange"
+              },
+              "children": [
+                {
+                  "type": "button",
+                  "ref": "prepare",
+                  "text": "重新准备 AI 请求",
+                  "testId": "fwv-assets-prepare"
+                },
+                {
+                  "type": "field",
+                  "field": "handoff",
+                  "ref": "handoff",
+                  "testId": "fwv-assets-handoff",
+                  "visible": {
+                    "$path": "hasHandoff"
+                  },
+                  "attrs": {
+                    "readOnly": true,
+                    "rows": 5
+                  }
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "关联已有修改结果"
+                    },
+                    {
+                      "type": "field",
+                      "field": "attachAsset",
+                      "ref": "attachAsset",
+                      "testId": "fwv-assets-attach-asset"
+                    },
+                    {
+                      "type": "field",
+                      "field": "attachRevision",
+                      "ref": "attachRevision",
+                      "testId": "fwv-assets-attach-revision"
+                    },
+                    {
+                      "type": "button",
+                      "ref": "attach",
+                      "text": "加入这次修改",
+                      "testId": "fwv-assets-attach"
+                    }
+                  ]
+                },
+                {
+                  "type": "button",
+                  "ref": "importAnother",
+                  "text": "导入另一个修改结果",
+                  "visible": {
+                    "$path": "imageSource"
+                  },
+                  "testId": "fwv-assets-import-another"
+                }
+              ]
+            }
+          ],
+          "visible": {
+            "$path": "hasSource"
+          },
+          "attrs": {
+            "data-fwv-role": "advanced-tools"
+          },
+          "testId": "fwv-assets-execution"
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "结果详情与评审记录"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "requestSelection"
+              },
+              "testId": "fwv-assets-request-selection"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "scopeInfo"
+              },
+              "tone": "info",
+              "visible": {
+                "$path": "scopeInfo"
+              },
+              "testId": "fwv-assets-scope-info"
+            },
+            {
+              "type": "field",
+              "field": "candidates",
+              "ref": "candidates",
+              "testId": "fwv-assets-candidates"
+            },
+            {
+              "type": "field",
+              "field": "comment",
+              "ref": "comment",
+              "testId": "fwv-assets-review-comment"
+            },
+            {
+              "type": "toolbar",
+              "children": [
+                {
+                  "type": "button",
+                  "ref": "validate",
+                  "text": "重新检查文件",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "hasCandidate"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "accept",
+                  "text": "仅记录接受",
+                  "testId": "fwv-assets-accept",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canReview"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "adopt",
+                  "text": "采用已接受版本",
+                  "testId": "fwv-assets-adopt",
+                  "attrs": {
+                    "disabled": {
+                      "$not": {
+                        "$path": "canAdopt"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "visible": {
+            "$path": "hasChange"
+          },
+          "testId": "fwv-assets-review-details"
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "素材工具"
+            },
+            {
+              "type": "toolbar",
+              "children": [
+                {
+                  "type": "button",
+                  "ref": "imageTool",
+                  "text": "图片加工",
+                  "visible": {
+                    "$path": "imageSource"
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "rigTool",
+                  "text": "立绘拆件与绑定",
+                  "visible": {
+                    "$path": "imageSource"
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "spineTool",
+                  "text": "图集替换与动作预览",
+                  "visible": {
+                    "$path": "spineSource"
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "reskinTool",
+                  "text": "角色换皮",
+                  "visible": {
+                    "$path": "spineSource"
+                  }
+                }
+              ]
+            }
+          ],
+          "visible": {
+            "$path": "hasSource"
+          },
+          "attrs": {
+            "data-fwv-role": "advanced-tools"
+          }
+        },
+        {
+          "type": "field",
+          "field": {
+            "control": "file",
+            "label": false
+          },
+          "ref": "candidateFile",
+          "testId": "fwv-assets-candidate-file",
+          "hidden": true,
+          "attrs": {
+            "accept": ".png,.jpg,.jpeg,.webp"
+          }
+        }
+      ]
+    }
+  }
+}

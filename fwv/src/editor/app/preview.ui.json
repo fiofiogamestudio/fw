@@ -1,0 +1,392 @@
+{
+  "root": "transport",
+  "texts": {
+    "testId": "{prefix}-{suffix}",
+    "pause": "暂停",
+    "play": "播放",
+    "clock": "{seconds} s",
+    "animation": "预览动作",
+    "skin": "皮肤",
+    "seek": "播放位置",
+    "comparisonHeading": "角色动画对照",
+    "comparisonNote": "",
+    "waiting": "等待动画加载",
+    "setup": "静止姿势",
+    "reskin3": "指定的 Spine 资源版本不在当前项目中。",
+    "reskin4": "正在加载{v0}角色动画…",
+    "reskin5": "Spine 预览组件尚未加载。",
+    "runtime1": "Spine 播放器加载失败。",
+    "runtime2": "Spine 播放器不可用；部件编辑仍可使用。",
+    "runtime3": "无法读取动画资源：",
+    "runtime4": "无法读取动画贴图。",
+    "runtime5": "缺少骨骼 JSON 或 Atlas。",
+    "runtime6": "预览暂不支持混合 PMA 模式的 Atlas 页。",
+    "text1": "{v0}动画加载中…{v1}",
+    "text2": "",
+    "text3": "",
+    "text4": "",
+    "text5": "当前候选已加载。请检查原始模板选择。",
+    "text6": "先选择模板，再查看完整角色与动作。",
+    "text7": "暂停",
+    "text8": "继续播放",
+    "text9": "动画预览暂不可用。",
+    "text10": "动画预览不可用：{v0}",
+    "nested1": "与",
+    "nested2": " 已加载的角色会继续显示。"
+  },
+  "templates": {
+    "transport": {
+      "type": "toolbar",
+      "children": [
+        {
+          "type": "button",
+          "ref": "play",
+          "testId": {
+            "$text": "testId",
+            "vars": {
+              "prefix": {
+                "$path": "prefix"
+              },
+              "suffix": "play"
+            }
+          },
+          "text": {
+            "$if": [
+              {
+                "$path": "playing",
+                "default": true
+              },
+              {
+                "$text": "pause"
+              },
+              {
+                "$text": "play"
+              }
+            ]
+          },
+          "on": {
+            "click": "togglePlay"
+          },
+          "attrs": {
+            "disabled": {
+              "$not": {
+                "$path": "canPlay",
+                "default": false
+              }
+            }
+          }
+        },
+        {
+          "type": "field",
+          "ref": "animation",
+          "testId": {
+            "$text": "testId",
+            "vars": {
+              "prefix": {
+                "$path": "prefix"
+              },
+              "suffix": "animation"
+            }
+          },
+          "field": {
+            "type": "select",
+            "label": "预览动作"
+          },
+          "attrs": {
+            "disabled": {
+              "$not": {
+                "$path": "canAnimate",
+                "default": false
+              }
+            }
+          }
+        },
+        {
+          "type": "field",
+          "ref": "skin",
+          "testId": {
+            "$text": "testId",
+            "vars": {
+              "prefix": {
+                "$path": "prefix"
+              },
+              "suffix": "skin"
+            }
+          },
+          "field": {
+            "type": "select",
+            "label": "皮肤"
+          },
+          "visible": {
+            "$path": "showSkin"
+          },
+          "attrs": {
+            "disabled": {
+              "$not": {
+                "$path": "canPlay",
+                "default": false
+              }
+            }
+          }
+        },
+        {
+          "type": "field",
+          "ref": "seek",
+          "testId": {
+            "$text": "testId",
+            "vars": {
+              "prefix": {
+                "$path": "prefix"
+              },
+              "suffix": "seek"
+            }
+          },
+          "field": {
+            "type": "range",
+            "label": "播放位置",
+            "min": 0,
+            "max": 1,
+            "step": 0.01
+          },
+          "attrs": {
+            "disabled": {
+              "$not": {
+                "$path": "canPlay",
+                "default": false
+              }
+            },
+            "max": {
+              "$path": "duration",
+              "default": 1
+            }
+          },
+          "visible": {
+            "$path": "showSeek"
+          },
+          "value": {
+            "$path": "seekTime",
+            "default": 0
+          }
+        },
+        {
+          "type": "text",
+          "ref": "clock",
+          "text": {
+            "$text": "clock",
+            "vars": {
+              "seconds": {
+                "$path": "seconds",
+                "default": "0.00"
+              }
+            }
+          },
+          "tone": "muted"
+        }
+      ]
+    },
+    "canvas": {
+      "type": "canvas",
+      "attrs": {
+        "width": 640,
+        "height": 480
+      },
+      "testId": {
+        "$path": "testId"
+      }
+    },
+    "pane": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "stack",
+          "children": [
+            {
+              "type": "heading",
+              "text": {
+                "$path": "label"
+              }
+            },
+            {
+              "type": "text",
+              "ref": "name",
+              "tone": "muted",
+              "text": {
+                "$path": "name",
+                "default": ""
+              }
+            }
+          ],
+          "preset": "compact"
+        },
+        {
+          "type": "stack",
+          "ref": "stage",
+          "preset": [
+            "preview",
+            "overlay"
+          ],
+          "children": [
+            {
+              "type": "canvas",
+              "ref": "canvas",
+              "attrs": {
+                "width": 640,
+                "height": 480
+              },
+              "testId": {
+                "$path": "testId"
+              }
+            },
+            {
+              "type": "text",
+              "ref": "placeholder",
+              "text": {
+                "$path": "placeholder",
+                "default": {
+                  "$path": "emptyMessage",
+                  "default": ""
+                }
+              },
+              "tone": {
+                "$if": [
+                  {
+                    "$path": "error",
+                    "default": false
+                  },
+                  "danger",
+                  "muted"
+                ]
+              },
+              "visible": {
+                "$not": {
+                  "$path": "ready",
+                  "default": false
+                }
+              },
+              "attrs": {
+                "data-error": {
+                  "$path": "error",
+                  "default": false
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "visible": {
+        "$not": {
+          "$and": [
+            {
+              "$eq": [
+                {
+                  "$path": "compare",
+                  "default": true
+                },
+                false
+              ]
+            },
+            {
+              "$eq": [
+                {
+                  "$path": "which"
+                },
+                "candidate"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "message": {
+      "type": "text",
+      "text": {
+        "$path": "message"
+      },
+      "tone": "muted"
+    },
+    "comparison": {
+      "type": "card",
+      "testId": "fwv-reskin-preview",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "heading",
+              "text": {
+                "$if": [
+                  {
+                    "$eq": [
+                      {
+                        "$path": "compare",
+                        "default": true
+                      },
+                      false
+                    ]
+                  },
+                  "模板预览",
+                  "角色预览"
+                ]
+              }
+            },
+            {
+              "type": "slot",
+              "ref": "controls"
+            }
+          ]
+        },
+        {
+          "type": "columns",
+          "ref": "views",
+          "preset": "comparison",
+          "columns": {
+            "$path": "paneColumns",
+            "default": 2
+          }
+        },
+        {
+          "type": "text",
+          "ref": "status",
+          "testId": "fwv-reskin-preview-status",
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "statusError",
+              "default": false
+            }
+          },
+          "text": {
+            "$path": "statusMessage",
+            "default": ""
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "statusError",
+                "default": false
+              },
+              "danger",
+              "default"
+            ]
+          },
+          "visible": {
+            "$path": "statusError",
+            "default": false
+          }
+        }
+      ]
+    }
+  },
+  "comparisonSlots": [
+    {
+      "which": "original",
+      "label": "原始模板",
+      "emptyMessage": "选择一个 Spine 模板，即可查看完整角色动画。"
+    },
+    {
+      "which": "candidate",
+      "label": "当前候选",
+      "emptyMessage": "换皮候选完成后，在这里同步查看完整角色。"
+    }
+  ]
+}

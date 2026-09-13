@@ -1,0 +1,736 @@
+{
+  "root": "main",
+  "templates": {
+    "main": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "heading",
+          "text": {
+            "$text": "title"
+          }
+        },
+        {
+          "type": "field",
+          "ref": "asset",
+          "testId": "fwv-spine-asset",
+          "field": {
+            "schemaPath": "spineDrafts[].data.assetId",
+            "type": "select",
+            "label": false
+          },
+          "attrs": {
+            "disabled": {
+              "$path": "busy",
+              "default": false
+            }
+          },
+          "visible": {
+            "$path": "hasAsset",
+            "default": false
+          }
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": {
+                "$text": "importHistory"
+              }
+            },
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "field",
+                  "ref": "revision",
+                  "testId": "fwv-spine-revision",
+                  "field": {
+                    "schemaPath": "spineDrafts[].data.revisionId",
+                    "type": "select"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  },
+                  "visible": {
+                    "$path": "hasAsset",
+                    "default": false
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "import",
+                  "testId": "fwv-spine-import",
+                  "text": {
+                    "$text": "import"
+                  },
+                  "tone": {
+                    "$if": [
+                      {
+                        "$path": "hasAsset",
+                        "default": false
+                      },
+                      "default",
+                      "primary"
+                    ]
+                  },
+                  "on": {
+                    "click": "dispatch"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "import-input",
+                  "testId": "fwv-spine-import-input",
+                  "field": {
+                    "type": "file",
+                    "label": false
+                  },
+                  "attrs": {
+                    "accept": ".json,.atlas,.png",
+                    "multiple": true,
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  },
+                  "hidden": true
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$text": "intro"
+                  },
+                  "tone": "muted"
+                }
+              ]
+            }
+          ],
+          "testId": "fwv-spine-history",
+          "attrs": {
+            "open": {
+              "$not": {
+                "$path": "hasAsset",
+                "default": false
+              }
+            }
+          }
+        },
+        {
+          "type": "columns",
+          "preset": "workspace",
+          "children": [
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "columns",
+                  "ref": "views",
+                  "preset": "comparison"
+                },
+                {
+                  "type": "slot",
+                  "ref": "transport"
+                },
+                {
+                  "type": "text",
+                  "ref": "preview-status",
+                  "testId": "fwv-spine-preview-status",
+                  "attrs": {
+                    "role": "status",
+                    "data-error": {
+                      "$path": "previewError",
+                      "default": false
+                    }
+                  },
+                  "text": {
+                    "$path": "previewStatus",
+                    "default": ""
+                  },
+                  "tone": {
+                    "$if": [
+                      {
+                        "$path": "previewError",
+                        "default": false
+                      },
+                      "danger",
+                      "default"
+                    ]
+                  },
+                  "visible": {
+                    "$path": "previewError"
+                  }
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": {
+                        "$text": "checksExport"
+                      }
+                    },
+                    {
+                      "type": "stack",
+                      "preset": "compact",
+                      "children": [
+                        {
+                          "type": "toolbar",
+                          "children": [
+                            {
+                              "type": "button",
+                              "ref": "validate",
+                              "testId": "fwv-spine-validate",
+                              "text": {
+                                "$text": "validate"
+                              },
+                              "on": {
+                                "click": "dispatch"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              }
+                            },
+                            {
+                              "type": "button",
+                              "ref": "export",
+                              "testId": "fwv-spine-export",
+                              "text": {
+                                "$text": "export"
+                              },
+                              "on": {
+                                "click": "dispatch"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "ref": "issues",
+                          "testId": "fwv-spine-issues",
+                          "attrs": {
+                            "role": "status"
+                          },
+                          "text": {
+                            "$path": "issues",
+                            "default": ""
+                          },
+                          "visible": {
+                            "$path": "issues"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "ref": "summary",
+                          "tone": "muted",
+                          "text": {
+                            "$path": "summary",
+                            "default": ""
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "field",
+                  "ref": "region",
+                  "testId": "fwv-spine-region",
+                  "field": {
+                    "schemaPath": "spineDrafts[].data.regionName",
+                    "type": "select",
+                    "label": "当前部件"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "stack",
+                  "preset": [
+                    "preview",
+                    "overlay",
+                    "thumbnail"
+                  ],
+                  "children": [
+                    {
+                      "type": "image",
+                      "ref": "basePart",
+                      "attrs": {
+                        "alt": "原始部件轮廓",
+                        "src": {
+                          "$path": "originalPartUrl"
+                        }
+                      },
+                      "tone": "muted",
+                      "preset": "ghost"
+                    },
+                    {
+                      "type": "image",
+                      "ref": "currentPart",
+                      "attrs": {
+                        "alt": "当前部件",
+                        "src": {
+                          "$path": "currentPartUrl"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "button",
+                  "ref": "choose",
+                  "testId": "fwv-spine-choose",
+                  "text": {
+                    "$text": "choose"
+                  },
+                  "on": {
+                    "click": "dispatch"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "replacement-input",
+                  "testId": "fwv-spine-replacement-input",
+                  "field": {
+                    "type": "file",
+                    "label": false
+                  },
+                  "attrs": {
+                    "accept": ".png,.jpg,.jpeg,.webp",
+                    "multiple": false,
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  },
+                  "hidden": true
+                },
+                {
+                  "type": "text",
+                  "ref": "replaceName",
+                  "text": {
+                    "$path": "replacementName",
+                    "default": {
+                      "$text": "replacementEmpty"
+                    }
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": {
+                        "$text": "libraryHeading"
+                      }
+                    },
+                    {
+                      "type": "stack",
+                      "preset": "compact",
+                      "children": [
+                        {
+                          "type": "field",
+                          "ref": "library-image",
+                          "testId": "fwv-spine-library-image",
+                          "field": {
+                            "schemaPath": "spineDrafts[].data.libraryImageId",
+                            "type": "select"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$path": "busy",
+                              "default": false
+                            }
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "ref": "use-library",
+                          "testId": "fwv-spine-use-library",
+                          "text": {
+                            "$text": "useLibrary"
+                          },
+                          "on": {
+                            "click": "dispatch"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$path": "busy",
+                              "default": false
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": {
+                        "$text": "transformHeading"
+                      }
+                    },
+                    {
+                      "type": "stack",
+                      "preset": "compact",
+                      "children": [
+                        {
+                          "type": "columns",
+                          "columns": 2,
+                          "children": [
+                            {
+                              "type": "field",
+                              "ref": "scale",
+                              "testId": "fwv-spine-scale",
+                              "field": {
+                                "schemaPath": "spineDrafts[].data.transform.scale",
+                                "type": "number"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              },
+                              "value": {
+                                "$path": "transform.scale"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "offsetX",
+                              "testId": "fwv-spine-offsetX",
+                              "field": {
+                                "schemaPath": "spineDrafts[].data.transform.offsetX",
+                                "type": "number"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              },
+                              "value": {
+                                "$path": "transform.offsetX"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "offsetY",
+                              "testId": "fwv-spine-offsetY",
+                              "field": {
+                                "schemaPath": "spineDrafts[].data.transform.offsetY",
+                                "type": "number"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              },
+                              "value": {
+                                "$path": "transform.offsetY"
+                              }
+                            },
+                            {
+                              "type": "field",
+                              "ref": "rotation",
+                              "testId": "fwv-spine-rotation",
+                              "field": {
+                                "schemaPath": "spineDrafts[].data.transform.rotation",
+                                "type": "number"
+                              },
+                              "attrs": {
+                                "disabled": {
+                                  "$path": "busy",
+                                  "default": false
+                                }
+                              },
+                              "value": {
+                                "$path": "transform.rotation"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "type": "field",
+                          "ref": "flip",
+                          "testId": "fwv-spine-flip",
+                          "field": {
+                            "schemaPath": "spineDrafts[].data.transform.flipX",
+                            "type": "checkbox"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$path": "busy",
+                              "default": false
+                            }
+                          },
+                          "value": {
+                            "$path": "transform.flipX"
+                          }
+                        },
+                        {
+                          "type": "text",
+                          "text": {
+                            "$text": "partNote"
+                          },
+                          "tone": "muted"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "testId": "fwv-spine-calibration-status",
+                  "attrs": {
+                    "role": "status",
+                    "data-state": {
+                      "$if": [
+                        {
+                          "$path": "calibrationPending"
+                        },
+                        "pending",
+                        {
+                          "$if": [
+                            {
+                              "$path": "calibrationError"
+                            },
+                            "error",
+                            "ready"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "text": {
+                    "$path": "calibrationStatus",
+                    "default": ""
+                  },
+                  "visible": {
+                    "$path": "calibrationStatus"
+                  },
+                  "tone": {
+                    "$if": [
+                      {
+                        "$path": "calibrationError"
+                      },
+                      "danger",
+                      "muted"
+                    ]
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "replace",
+                  "testId": "fwv-spine-replace",
+                  "text": {
+                    "$text": "replace"
+                  },
+                  "tone": "primary",
+                  "on": {
+                    "click": "dispatch"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$or": [
+                        {
+                          "$path": "busy"
+                        },
+                        {
+                          "$not": {
+                            "$path": "hasReplacement"
+                          }
+                        },
+                        {
+                          "$not": {
+                            "$path": "hasAsset"
+                          }
+                        },
+                        {
+                          "$path": "calibrationPending"
+                        },
+                        {
+                          "$path": "calibrationError"
+                        }
+                      ]
+                    }
+                  },
+                  "visible": {
+                    "$path": "hasAsset",
+                    "default": false
+                  }
+                },
+                {
+                  "type": "button",
+                  "ref": "clear",
+                  "testId": "fwv-spine-clear",
+                  "text": {
+                    "$text": "clear"
+                  },
+                  "visible": {
+                    "$path": "hasReplacement"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$path": "busy",
+                      "default": false
+                    }
+                  },
+                  "on": {
+                    "click": "dispatch"
+                  }
+                }
+              ]
+            }
+          ],
+          "visible": {
+            "$path": "hasAsset",
+            "default": false
+          }
+        },
+        {
+          "type": "text",
+          "ref": "status",
+          "testId": "fwv-spine-status",
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "noticeError",
+              "default": false
+            }
+          },
+          "text": {
+            "$path": "notice",
+            "default": {
+              "$text": "ready"
+            }
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "noticeError",
+                "default": false
+              },
+              "danger",
+              "default"
+            ]
+          },
+          "visible": {
+            "$path": "notice"
+          }
+        }
+      ],
+      "testId": "fwv-spine"
+    }
+  },
+  "texts": {
+    "title": "部件换皮",
+    "intro": "选择 Spine 4.2 JSON、Atlas 和全部 PNG 文件。",
+    "import": "导入 Spine",
+    "previewHeading": "同步动画预览",
+    "previewNote": "",
+    "partHeading": "部件校准",
+    "partNote": "淡色：原始轮廓",
+    "choose": "选择替换图片",
+    "replacementEmpty": "尚未选择图片",
+    "useLibrary": "使用此图",
+    "replace": "应用替换",
+    "validate": "检查已保存版本",
+    "export": "导出已保存版本",
+    "saveNote": "",
+    "ready": "",
+    "originalLabel": "原始导入",
+    "currentLabel": "当前版本",
+    "noLibraryImage": "请先在 AI 生图或图片工作台准备一张图片。",
+    "libraryName": "素材库：{name}",
+    "libraryReady": "替换图片已就绪。",
+    "selectReplacement": "请先选择资源、部件和替换图片。",
+    "replacementSaved": "新版本已保存。",
+    "importFirst": "请先导入素材。",
+    "validationPassed": "资源检查通过。",
+    "validationFailed": "检查未通过：{checks}",
+    "exported": "素材包已导出：{path}",
+    "text1": "文件读取失败。",
+    "text2": "草稿中的替换图片版本不可用，请重新选择素材库图片。",
+    "text3": "无法读取所选图片，请刷新后重试。",
+    "text4": "整套素材需小于 20 MiB。",
+    "text5": "正在读取与检查素材…",
+    "text6": "Spine 角色",
+    "text7": "素材已导入。",
+    "text8": "正在导入替换图片…",
+    "text9": "图片导入后未返回可用源文件。",
+    "text10": "素材库：",
+    "text11": "替换图片已载入。",
+    "text12": "播放",
+    "text13": "",
+    "text14": "暂停",
+    "text15": "播放",
+    "text16": "动画预览不可用：",
+    "text17": "尚未选择替换图片",
+    "text18": "素材库：",
+    "text19": "先生成或导入图片",
+    "text20": "尚未导入 Spine 资源",
+    "text21": "原始导入",
+    "text22": "版本 ",
+    "text23": " 个骨骼 · ",
+    "text24": " 个插槽 · ",
+    "text25": " 个动画",
+    "text26": "导入 Spine 4.2 JSON、Atlas 和 PNG。",
+    "text27": "替换图有像素超出原裁边范围，已裁掉。请调整大小或偏移。",
+    "importHistory": "导入与版本",
+    "checksExport": "检查与导出已保存版本",
+    "libraryHeading": "使用素材库图片",
+    "transformHeading": "位置与变换",
+    "resourceSummary": "Spine {version} · {bones} 骨骼 · {slots} 插槽 · {animations} 动作",
+    "pendingLabel": "待应用效果",
+    "previewPending": "正在更新预览…",
+    "previewReady": "",
+    "previewClipped": "部分像素超出图集边界，预览已显示裁切结果。请调整后再应用。",
+    "previewFailed": "预览失败：{error}",
+    "clear": "取消本部件替换",
+    "chooseLibrary": "选择素材库图片"
+  }
+}

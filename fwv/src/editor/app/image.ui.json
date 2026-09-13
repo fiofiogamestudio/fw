@@ -1,0 +1,494 @@
+{
+  "fields": {
+    "width": {
+      "schemaPath": "imageDrafts[].data.recipe.width"
+    },
+    "height": {
+      "schemaPath": "imageDrafts[].data.recipe.height"
+    },
+    "padding": {
+      "schemaPath": "imageDrafts[].data.recipe.padding"
+    },
+    "trim": {
+      "schemaPath": "imageDrafts[].data.recipe.trim"
+    },
+    "fit": {
+      "schemaPath": "imageDrafts[].data.recipe.fit",
+      "optionLabels": {
+        "contain": "等比适应",
+        "cover": "等比裁满",
+        "fill": "拉伸填满"
+      }
+    },
+    "background": {
+      "schemaPath": "imageDrafts[].data.recipe.background",
+      "control": "select",
+      "options": [
+        {
+          "value": "transparent",
+          "label": "透明背景"
+        },
+        {
+          "value": "#ffffff",
+          "label": "白色背景"
+        },
+        {
+          "value": "#202b29",
+          "label": "深色背景"
+        }
+      ]
+    },
+    "color-key": {
+      "control": "checkbox",
+      "label": "移除指定颜色（基础色键）"
+    },
+    "key-color": {
+      "schemaPath": "imageDrafts[].data.recipe.removeBackground.color",
+      "control": "color"
+    },
+    "tolerance": {
+      "schemaPath": "imageDrafts[].data.recipe.removeBackground.tolerance"
+    },
+    "revision": {
+      "control": "select",
+      "label": "预览版本"
+    },
+    "processingMode": {
+      "schemaPath": "imageDrafts[].data.processingMode",
+      "optionLabels": {
+        "revise": "修改这一版的配方",
+        "append": "基于这一版追加加工"
+      }
+    }
+  },
+  "templates": {
+    "root": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "details",
+          "testId": "fwv-image-library",
+          "children": [
+            {
+              "type": "summary",
+              "text": {
+                "$path": "librarySummary",
+                "default": "更换素材"
+              }
+            },
+            {
+              "type": "slot",
+              "ref": "library"
+            }
+          ]
+        },
+        {
+          "type": "columns",
+          "preset": "workspace",
+          "children": [
+            {
+              "type": "slot",
+              "ref": "stage"
+            },
+            {
+              "type": "slot",
+              "ref": "settings"
+            }
+          ]
+        }
+      ]
+    },
+    "asset": {
+      "type": "button",
+      "testId": "fwv-asset-card",
+      "attrs": {
+        "data-asset-id": {
+          "$path": "id"
+        },
+        "aria-pressed": {
+          "$path": "selected"
+        }
+      },
+      "on": {
+        "click": "selectAsset"
+      },
+      "children": [
+        {
+          "type": "text",
+          "text": {
+            "$path": "name"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "summary"
+          },
+          "tone": "muted"
+        }
+      ],
+      "preset": "compact"
+    },
+    "empty": {
+      "type": "card",
+      "children": [
+        {
+          "type": "heading",
+          "text": "从一张素材开始"
+        },
+        {
+          "type": "text",
+          "text": "PNG / JPEG / WebP · 单张不超过 20 MiB"
+        }
+      ]
+    },
+    "preview": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "row",
+          "children": [
+            {
+              "type": "heading",
+              "text": {
+                "$path": "name"
+              }
+            }
+          ]
+        },
+        {
+          "type": "stack",
+          "children": [
+            {
+              "type": "image",
+              "preset": [
+                "preview",
+                "image"
+              ],
+              "testId": "fwv-current-preview",
+              "attrs": {
+                "src": {
+                  "$path": "currentUrl"
+                },
+                "alt": {
+                  "$path": "name"
+                }
+              }
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "currentInfo"
+              }
+            }
+          ]
+        },
+        {
+          "type": "details",
+          "testId": "fwv-image-versions",
+          "children": [
+            {
+              "type": "summary",
+              "text": "原图与版本"
+            },
+            {
+              "type": "stack",
+              "children": [
+                {
+                  "type": "image",
+                  "preset": [
+                    "preview",
+                    "image"
+                  ],
+                  "testId": "fwv-original-preview",
+                  "attrs": {
+                    "src": {
+                      "$path": "originalUrl"
+                    },
+                    "alt": {
+                      "$path": "name"
+                    }
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "originalInfo"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "field",
+              "ref": "revision",
+              "field": "revision",
+              "testId": "fwv-revision",
+              "value": {
+                "$path": "revision"
+              }
+            },
+            {
+              "type": "button",
+              "ref": "choose",
+              "text": "设为交付版本",
+              "testId": "fwv-select-revision",
+              "attrs": {
+                "data-mutation": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "settings": {
+      "type": "stack",
+      "children": [
+        {
+          "type": "heading",
+          "text": "调整尺寸"
+        },
+        {
+          "type": "form",
+          "ref": "form",
+          "children": [
+            {
+              "type": "fieldset",
+              "ref": "fields",
+              "attrs": {
+                "data-mutation": true
+              },
+              "children": [
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "sourceSummary"
+                  },
+                  "testId": "fwv-processing-source",
+                  "tone": "muted"
+                },
+                {
+                  "type": "field",
+                  "ref": "processingMode",
+                  "field": "processingMode",
+                  "testId": "fwv-processing-mode",
+                  "value": {
+                    "$path": "processingMode"
+                  },
+                  "visible": {
+                    "$path": "canRevise"
+                  }
+                },
+                {
+                  "type": "columns",
+                  "columns": 2,
+                  "children": [
+                    {
+                      "type": "field",
+                      "ref": "width",
+                      "field": "width",
+                      "testId": "fwv-width",
+                      "value": {
+                        "$path": "width"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "height",
+                      "field": "height",
+                      "testId": "fwv-height",
+                      "value": {
+                        "$path": "height"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "field",
+                  "ref": "padding",
+                  "field": "padding",
+                  "testId": "fwv-padding",
+                  "value": {
+                    "$path": "padding"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "fit",
+                  "field": "fit",
+                  "testId": "fwv-fit",
+                  "value": {
+                    "$path": "fit"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "trim",
+                  "field": "trim",
+                  "testId": "fwv-trim",
+                  "value": {
+                    "$path": "trim"
+                  }
+                },
+                {
+                  "type": "button",
+                  "text": "创建加工版本",
+                  "testId": "fwv-process",
+                  "attrs": {
+                    "type": "submit"
+                  },
+                  "tone": "primary"
+                },
+                {
+                  "type": "details",
+                  "testId": "fwv-image-background-options",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "背景与抠图"
+                    },
+                    {
+                      "type": "field",
+                      "ref": "background",
+                      "field": "background",
+                      "testId": "fwv-background",
+                      "value": {
+                        "$path": "background"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "color-key",
+                      "field": "color-key",
+                      "testId": "fwv-color-key",
+                      "value": {
+                        "$path": "color-key"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "key-color",
+                      "field": "key-color",
+                      "testId": "fwv-key-color",
+                      "value": {
+                        "$path": "key-color"
+                      },
+                      "visible": {
+                        "$path": "color-key",
+                        "default": false
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "tolerance",
+                      "field": "tolerance",
+                      "testId": "fwv-tolerance",
+                      "value": {
+                        "$path": "tolerance"
+                      },
+                      "visible": {
+                        "$path": "color-key",
+                        "default": false
+                      }
+                    },
+                    {
+                      "type": "text",
+                      "text": "适合纯色底图，复杂边缘需要检查。"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "ref": "export",
+          "text": "导出当前版本",
+          "testId": "fwv-export",
+          "attrs": {
+            "data-mutation": true
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$path": "exportPath"
+          },
+          "testId": "fwv-export-path",
+          "visible": {
+            "$path": "exportPath"
+          }
+        },
+        {
+          "type": "details",
+          "testId": "fwv-image-validation",
+          "children": [
+            {
+              "type": "summary",
+              "text": "技术检查"
+            },
+            {
+              "type": "text",
+              "text": {
+                "$path": "validationStatus"
+              }
+            },
+            {
+              "type": "list",
+              "items": {
+                "$path": "checks"
+              },
+              "template": "check"
+            },
+            {
+              "type": "button",
+              "ref": "validate",
+              "text": "执行技术检查",
+              "testId": "fwv-validate",
+              "attrs": {
+                "data-mutation": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "check": {
+      "type": "text",
+      "text": {
+        "$path": "label"
+      }
+    }
+  },
+  "texts": {
+    "emptyLibrary": "素材库还没有图片。",
+    "assetSummary": "{width} × {height} · {count} 个版本",
+    "imageInfo": "{width} × {height} px{alpha}",
+    "alpha": " · 含透明通道",
+    "version": "v{index} · {kind}{delivery}",
+    "original": "原始素材",
+    "processed": "加工版本",
+    "delivery": " · 当前交付",
+    "selected": "已切换交付版本。",
+    "processing": "正在加工并保存新版本…",
+    "processedNotice": "已保存加工版本。",
+    "passed": "技术检查通过",
+    "failed": "技术检查未通过",
+    "pending": "技术检查待执行",
+    "validatePassed": "文件检查通过。",
+    "validateFailed": "技术检查发现问题，请查看验收记录。",
+    "exported": "交付包已写入：{path}",
+    "artifact": "文件大小与 SHA-256：{name}",
+    "check": "{status} {label}",
+    "checkPass": "✓",
+    "checkFail": "×",
+    "image-decode": "图片完整解码",
+    "image-metadata": "尺寸、格式与透明通道记录一致",
+    "visible-content": "包含可见像素",
+    "output-dimensions": "输出尺寸符合配方",
+    "alpha-padding": "透明通道与留白符合配方",
+    "librarySummary": "更换素材 · {count} 张图片",
+    "reviseSource": "修改 v{current} 配方 · 输入 v{input}",
+    "appendSource": "输入 v{input} · 追加加工"
+  }
+}

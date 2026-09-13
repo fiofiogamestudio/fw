@@ -1,0 +1,279 @@
+id fwv-authoring
+title "美术参数草稿"
+source "fwv-authoring:."
+file "authoring.json"
+
+data AuthoringDocument {
+  schemaVersion: int = 1 @readonly @range(1, 1)
+  projectId: string @readonly
+  // FWE required arrays must be nonempty. Empty draft collections are valid;
+  // The Source migrates older documents before exposing editable collections.
+  changeDrafts?: ChangeDraft[] = [] @items(min=0, max=100)
+  reskinDrafts?: ReskinDraft[] = [] @items(min=0, max=100)
+  rigDrafts?: RigDraft[] = [] @items(min=0, max=100)
+  imageDrafts?: ImageDraft[] = [] @items(min=0, max=100)
+  generationDrafts?: GenerationDraft[] = [] @items(min=0, max=100)
+  spineDrafts?: SpineDraft[] = [] @items(min=0, max=100)
+}
+
+type ChangeDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: ChangeParameters @label("素材修改草稿")
+}
+
+type ChangeParameters {
+  assetId?: string @label("素材")
+  revisionId?: string @label("基线版本")
+  title?: string @label("这次要解决的问题") @length(max=160)
+  request?: string @label("希望怎么改") @textarea @length(max=4000)
+  preserve?: string @label("必须保持的部分") @textarea @length(max=2000)
+  region?: ImageRegion @label("图片选区")
+  objects?: string @label("部件 / 骨骼 / 对象名称") @length(max=2000)
+  animationName?: string @label("动作名称") @length(max=160)
+  time?: number @label("问题出现时间 / 秒") @range(0, 86400) @step(0.001)
+  changeId?: string @label("当前修改请求")
+  candidateId?: string @label("当前候选")
+  executionMode?: string @label("执行方式") @enum("local", "api")
+  spineRepair?: SpineRepairParameters @label("骨骼修复参数")
+}
+
+type SpineRepairParameters {
+  boneName?: string @label("骨骼")
+  parent?: string @label("父骨骼")
+  x?: number @label("局部 X")
+  y?: number @label("局部 Y")
+  rotation?: number @label("旋转 / 度")
+  scaleX?: number @label("水平缩放")
+  scaleY?: number @label("垂直缩放")
+  shearX?: number @label("水平剪切 / 度")
+  shearY?: number @label("垂直剪切 / 度")
+  length?: number @label("骨骼长度") @range(0, 100000)
+  skin?: string @label("皮肤")
+  slot?: string @label("插槽")
+  attachment?: string @label("网格附件")
+  vertexIndex?: int @label("顶点索引（从 0 开始）") @range(0, 1000000)
+  influenceBone?: string @label("影响骨骼")
+  weight?: number @label("目标权重") @range(0, 1)
+}
+
+type ImageRegion {
+  x?: int @label("选区 X / px") @range(0, 32768)
+  y?: int @label("选区 Y / px") @range(0, 32768)
+  width?: int @label("选区宽 / px") @range(0, 32768)
+  height?: int @label("选区高 / px") @range(0, 32768)
+}
+
+type ReskinDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: ReskinParameters @label("换皮参数")
+}
+
+type ReskinParameters {
+  name?: string @label("角色名称") @length(max=100)
+  brief?: string @label("角色外观要求") @textarea @length(max=1800)
+  style?: string @label("统一美术风格") @textarea @length(max=700)
+  mode?: string @label("执行方式") @enum("local", "api")
+  templateAssetId?: string @label("模板素材")
+  templateRevisionId?: string @label("模板版本")
+  selected?: string[] @label("已选部件")
+  notes?: json @label("各部件要求")
+  transforms?: json @label("部件校准")
+  attemptId?: string @label("查看的生成记录")
+  preserveAlpha?: bool @label("保留模板透明轮廓")
+}
+
+type RigDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: RigParameters @label("拆件参数")
+}
+
+type RigParameters {
+  name?: string @label("角色名称") @length(max=100)
+  assetId?: string @label("拆件素材")
+  revisionId?: string @label("拆件版本")
+  sourceAssetId?: string @label("原始立绘")
+  sourceRevisionId?: string @label("立绘版本")
+  selectedPartId?: string @label("所选部件")
+  mode?: string @label("画布工具") @enum("select", "draw", "pivot")
+  document?: RigDocument @label("部件与关节点")
+  saved?: RigDocument @readonly @label("已提交的拆件基线")
+  candidate?: AssetReference @readonly @label("当前候选")
+  drawing?: RigPoint[] @label("正在绘制的顶点") @items(min=0, max=64)
+}
+
+type AssetReference {
+  assetId?: string
+  revisionId?: string
+}
+
+type RigDocument {
+  schemaVersion?: int @readonly @range(1, 1)
+  preset?: string @readonly
+  source?: RigSource @readonly
+  forkedFrom?: AssetReference @readonly @label("继续制作的来源版本")
+  parts?: RigPart[] @label("部件") @items(min=0, max=16)
+  motion?: RigMotion @label("动作")
+  warnings?: json @readonly
+  partChecks?: json @readonly
+  createdAt?: string @readonly
+  updatedAt?: string @readonly
+}
+
+type RigSource {
+  assetId?: string
+  revisionId?: string
+  fileName?: string
+  width?: int @range(1, 8192)
+  height?: int @range(1, 8192)
+  referenceFile?: string
+  sha256?: string
+}
+
+type RigPart {
+  id?: string @label("部件标识") @length(max=48)
+  name?: string @label("部件名称") @length(max=100)
+  role?: string @label("部件角色") @enum("torso", "head", "arm-left", "arm-right", "leg-left", "leg-right", "accessory")
+  parentId?: string @label("父部件")
+  polygon?: RigPoint[] @label("轮廓顶点") @items(min=0, max=64)
+  pivot?: RigPoint @label("关节点")
+}
+
+type RigPoint {
+  x?: number @label("X / px")
+  y?: number @label("Y / px")
+}
+
+type RigMotion {
+  idle?: bool @label("待机")
+  walk?: bool @label("行走")
+  wave?: bool @label("挥手")
+}
+
+type ImageDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: ImageParameters @label("图片加工参数")
+}
+
+type ImageParameters {
+  assetId?: string @label("图片素材")
+  revisionId?: string @label("原始版本")
+  processingMode?: string @label("加工方式") @enum("revise", "append")
+  recipe?: ImageRecipe @label("加工配方")
+}
+
+type ImageRecipe {
+  version?: int @label("配方版本") @range(1, 1)
+  width?: int @label("画布宽度 / px") @range(1, 8192)
+  height?: int @label("画布高度 / px") @range(1, 8192)
+  padding?: int @label("四周留白 / px") @range(0, 4096)
+  trim?: bool @label("裁掉透明边距")
+  background?: string @label("输出背景")
+  fit?: string @label("缩放方式") @enum("contain", "cover", "fill")
+  removeBackground?: ColorKey @label("纯色抠图")
+}
+
+type ColorKey {
+  color?: string @label("要移除的颜色")
+  tolerance?: int @label("颜色容差") @range(0, 255)
+}
+
+type GenerationDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: GenerationParameters @label("生图参数")
+}
+
+type GenerationParameters {
+  name?: string @label("素材名称") @length(max=160)
+  prompt?: string @label("生成要求") @textarea @length(max=8000)
+  size?: string @label("画布尺寸")
+  quality?: string @label("图像质量") @enum("auto", "low", "medium", "high", "standard", "hd")
+  background?: string @label("输出背景") @enum("auto", "transparent", "opaque")
+  referenceAssetId?: string @label("参考素材")
+  referenceRevisionId?: string @label("参考版本")
+  referenceFileName?: string @label("参考图文件")
+}
+
+type SpineDraft {
+  id: string @key @readonly @label("草稿标识")
+  data: SpineParameters @label("骨骼素材参数")
+}
+
+type SpinePartDraft {
+  revisionId: string @label("基础版本")
+  regionName: string @label("图集区域")
+  libraryImageId?: string @label("素材库图片")
+  replacementAssetId?: string @label("替换图片")
+  replacementRevisionId?: string @label("替换版本")
+  replacementFileName?: string @label("替换文件")
+  transform?: RegionTransform @label("部件校准")
+}
+
+type SpineParameters {
+  partDrafts?: SpinePartDraft[] @label("各版本部件草稿") @items(min=0, max=512)
+  assetId?: string @label("骨骼素材")
+  revisionId?: string @label("骨骼版本")
+  regionName?: string @label("图集区域")
+  libraryImageId?: string @label("素材库图片")
+  replacementAssetId?: string @label("替换图片")
+  replacementRevisionId?: string @label("替换版本")
+  replacementFileName?: string @label("替换文件")
+  transform?: RegionTransform @label("部件校准")
+  animation?: string @label("预览动作")
+  skin?: string @label("预览皮肤")
+  playing?: bool @label("播放动作")
+  time?: number @label("预览时间")
+}
+
+type RegionTransform {
+  scale?: number @label("缩放")
+  offsetX?: number @label("水平偏移")
+  offsetY?: number @label("垂直偏移")
+  rotation?: number @label("旋转角度")
+  flipX?: bool @label("水平翻转")
+}
+
+view workbench {
+  title "美术工作台"
+  layout fwv-workbench
+  default {
+    collection changeDrafts
+    list detail
+    mode detail
+  }
+  collection changeDrafts {
+    path changeDrafts
+    label "素材中心"
+    title data.title
+    modes [detail, json]
+  }
+  collection reskinDrafts {
+    path reskinDrafts
+    label "角色换皮"
+    title data.name
+    modes [detail, json]
+  }
+  collection rigDrafts {
+    path rigDrafts
+    label "立绘拆件"
+    title data.name
+    modes [detail, json]
+  }
+  collection imageDrafts {
+    path imageDrafts
+    label "图片加工"
+    title id
+    modes [detail, json]
+  }
+  collection generationDrafts {
+    path generationDrafts
+    label "AI 生图"
+    title data.name
+    modes [detail, json]
+  }
+  collection spineDrafts {
+    path spineDrafts
+    label "骨骼素材"
+    title id
+    modes [detail, json]
+  }
+}
