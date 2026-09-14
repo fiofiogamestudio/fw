@@ -9,6 +9,7 @@ const workspace = path.dirname(program);
 const components = {
   fwa: { label: '开发工作台 · 需求、变化与验收', entry: 'tools/start-editor.mjs' },
   fwv: { label: 'FWD 美术工作台 · 素材、候选与验收', entry: 'tools/start-editor.mjs' },
+  fwb: { label: '构建工作台 · 平台、预检与产物', entry: 'tools/start-editor.mjs' },
   fwe: { label: '通用编辑器', entry: 'bin/start.js' },
   fwc: { label: 'Godot 框架 / 打开宿主工程', entry: 'tools/start.ps1' },
   fws: { label: '技能库', entry: 'tools/start.ps1' },
@@ -17,7 +18,7 @@ const components = {
 async function main(argv) {
   let [selected, ...args] = argv;
   if (selected === '--help' || selected === '-h') {
-    console.log('FW 启动入口\n  start.bat [fwa|fwd|fwv|fwe|fwc|fws] [组件参数]\n  start.bat --check\nfwd 使用现有 fwv/ 美术组件和项目。演示数据与报告保存在各组件的 .local/，已有工程需显式选择。');
+    console.log('FW 启动入口\n  start.bat [fwa|fwd|fwv|fwb|fwe|fwc|fws] [组件参数]\n  start.bat --check\nfwd 使用现有 fwv/ 美术组件和项目。演示数据与报告保存在各组件的 .local/，已有工程需显式选择。');
     return;
   }
   if (selected === '--check') {

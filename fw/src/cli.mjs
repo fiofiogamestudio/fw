@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { bindings, canonicalRepository, findWorkspace, gitlink, makeManifest, manifestName, moduleDefinitions, readJson, releaseCatalog, safeChild, validateManifest, assertGitRoot, physicalProjectPath, fwRepositoryRoot } from './workspace.mjs';
 import { fail, git, launch, powershell, run } from './process.mjs';
 import { visualCommand } from './visual.mjs';
+import { buildCommand } from './build.mjs';
 
 export const fwRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const usage = `FW — workspace composition, not a game runtime
@@ -16,6 +17,7 @@ const usage = `FW — workspace composition, not a game runtime
   fw doctor [--project <root>]
   fw editor [--project <root>] [--port <1..65535>] [--allow-write] [--review-config <file>]
   fw visual --project <asset project> [--fwv-path <directory>] [--fwe-path <directory>] [--port <1..65535>]
+  fw build --project <Godot project> [--fwb-path <directory>] [--fwe-path <directory>] [--port <0..65535>] [--no-open]
   fw skills install --target <directory> [--apply]
 
 new/init/install use the component commits recorded in this FW release's HEAD.
@@ -29,8 +31,8 @@ No global skill installation, automatic host commit, or nested FW download.
 export function parseArgs(argv) {
   const positional = [];
   const options = {};
-  const flags = new Set(['apply', 'allow-write', 'json', 'help']);
-  const values = new Set(['project', 'preset', 'with', 'name', 'to', 'port', 'target', 'editor-app', 'fwv-path', 'fwe-path', 'runtime', 'review-config']);
+  const flags = new Set(['apply', 'allow-write', 'json', 'help', 'no-open']);
+  const values = new Set(['project', 'preset', 'with', 'name', 'to', 'port', 'target', 'editor-app', 'fwv-path', 'fwb-path', 'fwe-path', 'runtime', 'review-config']);
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (!arg.startsWith('--')) { positional.push(arg); continue; }
@@ -221,6 +223,12 @@ export async function main(argv) {
   if (options.help || positional.length === 0) { console.log(usage); return; }
   const command = positional[0];
   if (command === 'new' || command === 'init') return initialize(command, positional, options);
+  if (command === 'build') {
+    only(options, ['project', 'fwb-path', 'fwe-path', 'port', 'no-open']);
+    if (positional.length !== 1) fail('invalid-arguments', 'build takes no positional arguments.');
+    const invocation = buildCommand(options.project ?? process.cwd(), options, fwRepositoryRoot(fwRoot));
+    return launch(invocation.executable, invocation.args, invocation.project);
+  }
   if (command === 'visual') {
     only(options, ['project', 'fwv-path', 'fwe-path', 'port']);
     if (positional.length !== 1) fail('invalid-arguments', 'visual takes no positional arguments.');

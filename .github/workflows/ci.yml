@@ -3,6 +3,22 @@ on: [push, pull_request]
 permissions:
   contents: read
 jobs:
+  fwb:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Initialize the pinned FWE runtime
+        run: git submodule update --init -- fwe
+      - name: Build, platform, upload and workbench contracts
+        run: npm --prefix fwb test
   workspace:
     strategy:
       fail-fast: false

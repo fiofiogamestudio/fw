@@ -12,10 +12,13 @@ Windows 双击本目录的 `start.bat` 可选择组件。以下命令均在外�
 | [FWA](https://github.com/fiofiogamestudio/fwa) | 需求拆解、原子变化、验证与验收、采用、撤销和有/无对照 | 内嵌或重复下载 FWE |
 | [FWS](https://github.com/fiofiogamestudio/fws) | Agent 技能及显式安装器 | 第二套 Git 同步实现 |
 | [FWD](../fwv/README.md)（目录 `fwv/`，开发中） | 素材查看、问题定位、候选修改、评审采用，以及专业美术工具 | 游戏运行时、Agent 编排 |
+| [FWB](../fwb/README.md)（开发中） | Godot 平台预检、隔离构建、包体验证、预览与产物记录 | 替代游戏运行时、把未接入的上传或审核标为成功 |
 
 产品按两层组织：FWC 与 FWE 是相互独立的基础设施；FWA 开发工作台与 FWD 美术工作台使用 FWE 构建界面。FWA 的编排内核仍可单独以 CLI 运行。FW 管入口与版本，FWS 提供可独立使用的技能。
 
 FWV 当前为工作台中的独立开发包，尚未发布为 Git 组件。双击 `fwv/start.bat` 打开本机美术工程；首次缺少示例时才创建 `.local/demo`，再次打开保留已有资产。也可执行 `node fw/bin/fw.mjs visual --project fwv/.local/demo` 后访问输出的网址。现有预设与已发布的四组件版本组合保持原有含义；FWV 发布前不列入 `deps install`。
+
+FWB 同样使用本地开发包方式接入。双击 `fwb/start.bat` 或执行 `start.bat fwb` 打开构建工作台，首次复制独立 Godot 演示工程到 `fwb/.local/demo`。已有游戏先运行 `node fwb/bin/fwb.mjs init --project <游戏目录>`，再用 `node fw/bin/fw.mjs build --project <游戏目录>` 打开工作台。支持 `--fwb-path`、`--fwe-path` 选择本地组件，`--port 0` 自动分配端口，`--no-open` 只输出服务地址。`fw build` 启动界面；直接执行构建使用 `fwb build --project <游戏目录> --target <平台> --profile <配置>`。FWB 发布前不列入 `deps install`，未接入的平台上传明确显示未接入。
 
 ## 开始
 
