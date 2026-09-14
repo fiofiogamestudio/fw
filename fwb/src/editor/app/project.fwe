@@ -1,0 +1,31 @@
+id fwb-project
+title "构建工程"
+source "fwb-project:."
+file "fwb.project.json"
+
+data BuildWorkspace {
+  platforms?: Platform[] = [] @items(min=0)
+}
+
+type Platform {
+  target: string @key @readonly
+  label: string @readonly
+  configured: bool @readonly
+  upload: string @readonly
+}
+
+view workbench {
+  title "构建工作台"
+  layout fwb-workbench
+  default {
+    collection platforms
+    list detail
+    mode detail
+  }
+  collection platforms {
+    path platforms
+    label "平台与产物"
+    title label
+    modes [detail]
+  }
+}

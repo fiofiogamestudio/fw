@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "FWB 构建试验场",
+  "version": "0.1.0",
+  "buildNumber": 1,
+  "godot": { "executable": "godot", "version": "4.6.2" },
+  "runtimeAddon": true,
+  "targets": {
+    "web": { "enabled": true, "preset": "Web" },
+    "poki": { "enabled": true, "preset": "Web" },
+    "taptap-h5": { "enabled": true, "preset": "Web" },
+    "wechat-minigame": { "enabled": true, "preset": "WeChat" },
+    "douyin-minigame": { "enabled": true, "preset": "Douyin" },
+    "google-play": { "enabled": true, "preset": "Android" },
+    "app-store": { "enabled": true, "preset": "iOS" }
+  },
+  "profiles": { "debug": { "release": false }, "release": { "release": true } }
+}

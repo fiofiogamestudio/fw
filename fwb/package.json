@@ -1,0 +1,12 @@
+{
+  "name": "fwb",
+  "version": "0.1.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "Godot build and distribution workbench for the FW family.",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "bin": { "fwb": "bin/fwb.mjs" },
+  "exports": { ".": "./src/core/project.mjs", "./build": "./src/core/build.mjs", "./doctor": "./src/doctor.mjs", "./preview": "./src/core/preview.mjs" },
+  "scripts": { "test": "node --test test/*.test.mjs", "start": "node tools/start-editor.mjs" }
+}
