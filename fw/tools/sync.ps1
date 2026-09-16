@@ -271,17 +271,17 @@ function Get-ComponentSpecs {
             ExplicitPath = $FwcPath
             Url = $FwcUrl
             Target = $FwcTarget
-            Defaults = @('fwc', 'fw')
+            Defaults = @('fw/fwc', 'fwc', 'fw')
         },
         [pscustomobject]@{
             Kind = 'fwe'
             ExplicitPath = $FwePath
             Url = $FweUrl
             Target = $FweTarget
-            Defaults = @('fwe', 'Tools/Editor/runtime/fwe', 'AI/fwe')
+            Defaults = @('fw/fwe', 'fwe', 'Tools/Editor/runtime/fwe', 'AI/fwe')
         },
-        [pscustomobject]@{ Kind = 'fwa'; ExplicitPath = $FwaPath; Url = $FwaUrl; Target = $FwaTarget; Defaults = @('fwa') },
-        [pscustomobject]@{ Kind = 'fws'; ExplicitPath = $FwsPath; Url = $FwsUrl; Target = $FwsTarget; Defaults = @('fws') }
+        [pscustomobject]@{ Kind = 'fwa'; ExplicitPath = $FwaPath; Url = $FwaUrl; Target = $FwaTarget; Defaults = @('fw/fwa', 'fwa') },
+        [pscustomobject]@{ Kind = 'fws'; ExplicitPath = $FwsPath; Url = $FwsUrl; Target = $FwsTarget; Defaults = @('fw/fws', 'fws') }
     )
 
     $seenPaths = @{}
@@ -331,7 +331,19 @@ function Get-ComponentSpecs {
         }
         if (-not $path -and $rootKind -eq $setting.Kind) { $path = '.' }
         if (-not $path) {
-            $presentCandidates = @($setting.Defaults | Where-Object { Test-Path -LiteralPath (Join-Path $Root $_) -PathType Container })
+            $presentCandidates = @($setting.Defaults | Where-Object {
+                $candidateRoot = Get-FullComponentPath -Root $Root -RelativePath $_
+                if (-not (Test-Path -LiteralPath $candidateRoot -PathType Container)) { return $false }
+                # fw/ is now an ordinary component container. Only an actual
+                # legacy FWC checkout may be discovered as the component itself.
+                if ($_ -eq 'fw') {
+                    $candidateUrl = if (Test-GitWorktree -Path $candidateRoot) {
+                        Get-OptionalGitText -WorkingDirectory $candidateRoot -GitArguments @('remote', 'get-url', 'origin')
+                    } else { $null }
+                    return (Get-ComponentKind -Path $_ -Url $candidateUrl -FullPath $candidateRoot) -eq 'fwc'
+                }
+                return $true
+            })
             if ($presentCandidates.Count -gt 1) { throw "Multiple candidate directories found for $($setting.Kind); specify its path explicitly." }
             foreach ($candidate in $presentCandidates) {
                 if (Test-Path -LiteralPath (Join-Path $Root $candidate) -PathType Container) {
@@ -898,7 +910,9 @@ switch ($Action) {
                     Invoke-Git -WorkingDirectory $root -GitArguments @('-c', 'submodule.recurse=false', 'submodule', 'update', '--init', '--checkout', '--', $spec.Path) | Out-Null
                 }
                 else {
-                    Invoke-Git -WorkingDirectory $root -GitArguments @('submodule', 'add', '--', $spec.Url, $spec.Path) | Out-Null
+                    # Component identity is independent of its installation path,
+                    # including local/private origins with noncanonical names.
+                    Invoke-Git -WorkingDirectory $root -GitArguments @('submodule', 'add', '--name', $spec.Kind, '--', $spec.Url, $spec.Path) | Out-Null
                     $operation.executed = $true
                     Invoke-Git -WorkingDirectory $spec.FullPath -GitArguments @('fetch', '--prune', 'origin') | Out-Null
                     $targetCommit = $newTargets[$spec.Kind]

@@ -7,18 +7,18 @@ import { launch, powershell } from '../src/process.mjs';
 const program = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const workspace = path.dirname(program);
 const components = {
-  fwa: { label: '开发工作台 · 需求、变化与验收', entry: 'tools/start-editor.mjs' },
-  fwv: { label: 'FWD 美术工作台 · 素材、候选与验收', entry: 'tools/start-editor.mjs' },
-  fwb: { label: '构建工作台 · 平台、预检与产物', entry: 'tools/start-editor.mjs' },
-  fwe: { label: '通用编辑器', entry: 'bin/start.js' },
-  fwc: { label: 'Godot 框架 / 打开宿主工程', entry: 'tools/start.ps1' },
-  fws: { label: '技能库', entry: 'tools/start.ps1' },
+  fwa: { label: 'Development workbench - goals, changes and acceptance', entry: 'tools/start-editor.mjs' },
+  fwv: { label: 'FWD asset studio - assets, candidates and review', entry: 'tools/start-editor.mjs' },
+  fwb: { label: 'Build workbench - platforms, checks and packages', entry: 'tools/start-editor.mjs' },
+  fwe: { label: 'Content editor', entry: 'bin/start.js' },
+  fwc: { label: 'Godot framework / open a host project', entry: 'tools/start.ps1' },
+  fws: { label: 'Agent skills', entry: 'tools/start.ps1' },
 };
 
 async function main(argv) {
   let [selected, ...args] = argv;
   if (selected === '--help' || selected === '-h') {
-    console.log('FW 启动入口\n  start.bat [fwa|fwd|fwv|fwb|fwe|fwc|fws] [组件参数]\n  start.bat --check\nfwd 使用现有 fwv/ 美术组件和项目。演示数据与报告保存在各组件的 .local/，已有工程需显式选择。');
+    console.log('FW launcher\n  start.bat [fwa|fwd|fwv|fwb|fwe|fwc|fws] [component arguments]\n  start.bat --check\nfwd uses the existing fwv/ package and asset project. Component demos and reports use .local/. Pass an explicit project to open an existing host.');
     return;
   }
   if (selected === '--check') {
@@ -30,21 +30,21 @@ async function main(argv) {
   }
   if (!selected) {
     const ids = Object.keys(components);
-    console.log('FW 组件工作台\n');
+    console.log('FW Component Workbench\n');
     ids.forEach((id, index) => console.log(`  ${index + 1}. ${id.toUpperCase()} — ${components[id].label}`));
-    console.log('  0. 退出\n');
+    console.log('  0. Exit\n');
     const input = createInterface({ input: process.stdin, output: process.stdout });
-    const answer = (await input.question('选择要打开的组件：')).trim().toLowerCase();
+    const answer = (await input.question('Select a component: ')).trim().toLowerCase();
     input.close();
     if (answer === '0' || !answer) return;
     selected = ids[Number(answer) - 1] ?? answer;
   }
   if (selected === 'fwd') selected = 'fwv';
   const target = components[selected];
-  if (!target) throw new Error(`未知组件：${selected}。使用 --help 查看入口。`);
+  if (!target) throw new Error(`Unknown component: ${selected}. Use --help to list entry points.`);
   const root = path.join(workspace, selected);
   const entry = path.join(root, target.entry);
-  if (!fs.existsSync(entry)) throw new Error(`启动入口缺失：${entry}。请先恢复该组件。`);
+  if (!fs.existsSync(entry)) throw new Error(`Missing component entry: ${entry}. Restore the selected component first.`);
   if (target.entry.endsWith('.ps1')) {
     await launch(powershell(), ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', entry, ...args], root);
   } else {

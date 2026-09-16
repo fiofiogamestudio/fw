@@ -179,7 +179,9 @@ export function releaseCatalog(programRoot, selected) {
     if (!definition) fail('unpublished-component', `FW HEAD has no registered ${id}; commit a tested bundle first.`);
     const revision = gitlink(root, definition.path);
     if (!revision) fail('unpublished-component', `FW HEAD has no pinned ${id}; no floating fallback is allowed.`);
-    return { id, url: definition.url, revision, path: id };
+    // The release records identity/version; new hosts own their installation
+    // layout. Existing registrations remain authoritative during init/install.
+    return { id, url: definition.url, revision, path: `fw/${id}` };
   });
 }
 

@@ -256,8 +256,9 @@ try {
     $fws = New-TestRemote -Name 'fws'
     $onlyPath = Join-Path $testRoot 'fwc-only-host'
     $onlyNew = Invoke-FwSync -ToolArguments @('new', '-ProjectRoot', $onlyPath, '-Component', 'fwc', '-FwcUrl', $fwc.Bare, '-Apply', '-Json')
-    Assert-True -Condition (@($onlyNew.Report.components).Count -eq 1 -and $onlyNew.Report.components[0].path -eq 'fwc') -Message 'FWC-only new did not use the canonical fwc path.'
-    Assert-True -Condition (-not (Test-Path -LiteralPath (Join-Path $onlyPath 'fwe')) -and -not (Test-Path -LiteralPath (Join-Path $onlyPath 'fwa')) -and -not (Test-Path -LiteralPath (Join-Path $onlyPath 'fws'))) -Message 'FWC-only new added an optional component.'
+    Assert-True -Condition (@($onlyNew.Report.components).Count -eq 1 -and $onlyNew.Report.components[0].path -eq 'fw/fwc') -Message 'FWC-only new did not use the canonical fw/fwc path.'
+    Assert-True -Condition (-not (Test-Path -LiteralPath (Join-Path $onlyPath 'fw/fwe')) -and -not (Test-Path -LiteralPath (Join-Path $onlyPath 'fw/fwa')) -and -not (Test-Path -LiteralPath (Join-Path $onlyPath 'fw/fws'))) -Message 'FWC-only new added an optional component.'
+    Assert-True -Condition (-not (Test-Path -LiteralPath (Join-Path $onlyPath 'fw/.git'))) -Message 'The fw container must not be a repository.'
     $unbornVerify = Invoke-FwSync -ToolArguments @('verify', '-ProjectRoot', $onlyPath, '-Json') -ExpectedExitCodes @(2)
     Assert-True -Condition (-not $unbornVerify.Report.host.head -and $unbornVerify.Report.components[0].verificationScope -eq 'host-gitlink') -Message 'An unborn host was treated as a verified standalone repository.'
     $onlyModulesPath = Join-Path $onlyPath '.gitmodules'
@@ -268,6 +269,11 @@ try {
     [System.IO.File]::WriteAllBytes($onlyModulesPath, $onlyModulesBytes)
     $missingSelection = Invoke-FwSync -ToolArguments @('status', '-ProjectRoot', $onlyPath, '-Component', 'fwa', '-Json') -ExpectedExitCodes @(2)
     Assert-True -Condition (@($missingSelection.Report.components).Count -eq 0) -Message 'Explicit selection silently used another component.'
+
+    $agentOnlyPath = Join-Path $testRoot 'agent-only-container'
+    $agentOnly = Invoke-FwSync -ToolArguments @('new', '-ProjectRoot', $agentOnlyPath, '-Component', 'fwa', '-FwaUrl', $fwa.Bare, '-Apply', '-Json')
+    $agentDiscovery = Invoke-FwSync -ToolArguments @('status', '-ProjectRoot', $agentOnlyPath, '-Json')
+    Assert-True -Condition (@($agentDiscovery.Report.components).Count -eq 1 -and $agentDiscovery.Report.components[0].component -eq 'fwa' -and $agentDiscovery.Report.components[0].path -eq 'fw/fwa') -Message 'The ordinary fw container was mistaken for an extra legacy FWC component.'
 
     $configuredOnlyPath = Join-Path $testRoot 'configured-only-host'
     $configuredOnly = Invoke-FwSync -ToolArguments @('new', '-ProjectRoot', $configuredOnlyPath, '-FwcUrl', $fwc.Bare, '-Apply', '-Json')
@@ -285,7 +291,7 @@ try {
     New-Item -ItemType Directory -Path $initializedOnlyPath | Out-Null
     Invoke-TestGit -WorkingDirectory $initializedOnlyPath -GitArguments @('init') | Out-Null
     $initializedOnly = Invoke-FwSync -ToolArguments @('new', '-ProjectRoot', $initializedOnlyPath, '-Component', 'fwc', '-FwUrl', $fwc.Bare, '-FwTarget', $pinnedHead.Substring(0, 7), '-Apply', '-Json')
-    Assert-True -Condition ($initializedOnly.Report.components[0].path -eq 'fwc' -and $initializedOnly.Report.components[0].indexGitlink -eq $pinnedHead) -Message 'Explicit new misclassified an initialized empty host or lost a legacy short commit target.'
+    Assert-True -Condition ($initializedOnly.Report.components[0].path -eq 'fw/fwc' -and $initializedOnly.Report.components[0].indexGitlink -eq $pinnedHead) -Message 'Explicit new misclassified an initialized empty host or lost a legacy short commit target.'
 
     foreach ($entry in @(@('fwa', $fwa), @('fws', $fws))) {
         $kind = $entry[0]
@@ -425,7 +431,7 @@ try {
     $unbornSync = Invoke-FwSync -ToolArguments @('sync', '-ProjectRoot', $pinnedPath, '-Apply', '-Json') -ExpectedExitCodes @(2)
     Assert-True -Condition (-not $unbornSync.Report.applied) -Message 'Pinned sync accepted an unborn host.'
     Invoke-TestGit -WorkingDirectory $pinnedPath -GitArguments @('commit', '-m', 'pin selected component') | Out-Null
-    $pinnedRepo = Join-Path $pinnedPath 'fwc'
+    $pinnedRepo = Join-Path $pinnedPath 'fw/fwc'
     $newerHead = (Invoke-TestGit -WorkingDirectory $fwc.Seed -GitArguments @('rev-parse', 'HEAD')).Text
     Invoke-TestGit -WorkingDirectory $pinnedRepo -GitArguments @('checkout', '--detach', $newerHead) | Out-Null
     $syncPlan = Invoke-FwSync -ToolArguments @('sync', '-ProjectRoot', $pinnedPath, '-Json')
@@ -433,10 +439,10 @@ try {
     $syncApply = Invoke-FwSync -ToolArguments @('sync', '-ProjectRoot', $pinnedPath, '-Apply', '-Json')
     Assert-True -Condition ($syncApply.Report.applied -and $syncApply.Report.components[0].localHead -eq $pinnedHead -and -not $syncApply.Report.components[0].fetchAttempted) -Message 'sync followed a remote tip or fetched despite a locally available pin.'
     Invoke-TestGit -WorkingDirectory $pinnedRepo -GitArguments @('checkout', '--detach', $newerHead) | Out-Null
-    Invoke-TestGit -WorkingDirectory $pinnedPath -GitArguments @('add', 'fwc') | Out-Null
+    Invoke-TestGit -WorkingDirectory $pinnedPath -GitArguments @('add', 'fw/fwc') | Out-Null
     $stagedSync = Invoke-FwSync -ToolArguments @('sync', '-ProjectRoot', $pinnedPath, '-Apply', '-Json') -ExpectedExitCodes @(2)
     Assert-True -Condition (-not $stagedSync.Report.applied -and (Invoke-TestGit -WorkingDirectory $pinnedRepo -GitArguments @('rev-parse', 'HEAD')).Text -eq $newerHead) -Message 'sync overwrote a staged gitlink choice.'
-    Invoke-TestGit -WorkingDirectory $pinnedPath -GitArguments @('update-index', '--cacheinfo', "160000,$pinnedHead,fwc") | Out-Null
+    Invoke-TestGit -WorkingDirectory $pinnedPath -GitArguments @('update-index', '--cacheinfo', "160000,$pinnedHead,fw/fwc") | Out-Null
     $syncDirtyPath = Join-Path $pinnedRepo 'preserve-sync-work.txt'
     Set-Content -LiteralPath $syncDirtyPath -Value 'user work'
     $dirtySync = Invoke-FwSync -ToolArguments @('sync', '-ProjectRoot', $pinnedPath, '-Apply', '-Json') -ExpectedExitCodes @(2)
@@ -460,7 +466,8 @@ try {
     Invoke-TestGit -WorkingDirectory $fwc.Seed -GitArguments @('push', 'origin', 'main') | Out-Null
     $csvHost = Join-Path $testRoot 'csv-components-host'
     $csvNew = Invoke-FwSync -ToolArguments @('new', '-ProjectRoot', $csvHost, '-Components', 'fwc,fwa', '-FwcUrl', $fwc.Bare, '-FwaUrl', $fwa.Bare, '-FweUrl', $fwe.Bare, '-Apply', '-Json')
-    Assert-True -Condition (@($csvNew.Report.components).Count -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $csvHost 'fwe')) -and -not (Test-Path -LiteralPath (Join-Path $csvHost 'fwc/nested/fwe/.git'))) -Message 'CSV selection added an optional or recursive component.'
+    Assert-True -Condition (@($csvNew.Report.components).Count -eq 2 -and -not (Test-Path -LiteralPath (Join-Path $csvHost 'fw/fwe')) -and -not (Test-Path -LiteralPath (Join-Path $csvHost 'fw/fwc/nested/fwe/.git'))) -Message 'CSV selection added an optional or recursive component.'
+    Assert-True -Condition (@($csvNew.Report.components | Where-Object { $_.path -eq ('fw/' + $_.component) }).Count -eq 2) -Message 'Selected components did not share the ordinary fw container.'
 
     $previousTestPowerShell = $env:FW_TEST_POWERSHELL
     try {

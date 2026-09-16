@@ -20,7 +20,8 @@ const usage = `FW — workspace composition, not a game runtime
   fw build --project <Godot project> [--fwb-path <directory>] [--fwe-path <directory>] [--port <0..65535>] [--no-open]
   fw skills install --target <directory> [--apply]
 
-new/init/install use the component commits recorded in this FW release's HEAD.
+New registrations use this FW release's committed pins and fw/<id> paths.
+init/install retain existing .gitmodules paths and host-locked revisions.
 sync restores the host HEAD gitlinks; update requires an explicit target.
 Mutating dependency/setup commands preview unless --apply. The FWA console is
 read-only unless --allow-write. FWE domains control their own edit capabilities;
@@ -53,11 +54,9 @@ function psArgs(script, args) { return ['-NoLogo', '-NoProfile', '-ExecutionPoli
 function sync(args) { run(powershell(), psArgs(path.join(fwRoot, 'tools/sync.ps1'), args), { inherit: true }); }
 function load(root) { return validateManifest(readJson(safeChild(root, manifestName))); }
 
-function installArgs(root, catalog, apply) {
+function installationCatalog(root, catalog) {
   const registered = moduleDefinitions(root);
-  const args = ['new', '-ProjectRoot', root, '-Components', catalog.map(item => item.id).join(','), '-Json'];
-  for (const item of catalog) {
-    const prefix = item.id[0].toUpperCase() + item.id.slice(1);
+  return catalog.map(item => {
     const existing = registered.find(entry => entry.id === item.id);
     if (existing && canonicalRepository(existing.url) !== canonicalRepository(item.url)) fail('source-conflict', `${item.id} is already registered from a different source; change .gitmodules explicitly after review.`);
     const committed = existing ? gitlink(root, existing.path) : null;
@@ -69,7 +68,22 @@ function installArgs(root, catalog, apply) {
       const location = safeChild(root, existing.path);
       if (fs.existsSync(path.join(location, '.git')) && git(location, ['rev-parse', 'HEAD']).stdout !== revision) fail('working-version-change', `${item.id} worktree is at a different revision. Review it before install; install does not undo an uncommitted component update.`);
     }
-    args.push(`-${prefix}Path`, existing?.path ?? item.path, `-${prefix}Url`, item.url, `-${prefix}Target`, revision);
+    const location = existing?.path ?? item.path;
+    const collision = registered.find(entry => entry.id !== item.id &&
+      (entry.path.toLowerCase() === location.toLowerCase() ||
+       entry.path.toLowerCase().startsWith(location.toLowerCase() + '/') ||
+       location.toLowerCase().startsWith(entry.path.toLowerCase() + '/')));
+    if (collision) fail('overlapping-components', `${item.id} default ${location} overlaps registered ${collision.path}. Select and register a non-overlapping component path explicitly; init does not migrate existing repositories.`);
+    return { ...item, path: location, revision };
+  });
+}
+
+function installArgs(root, catalog, apply) {
+  const selected = installationCatalog(root, catalog);
+  const args = ['new', '-ProjectRoot', root, '-Components', selected.map(item => item.id).join(','), '-Json'];
+  for (const item of selected) {
+    const prefix = item.id[0].toUpperCase() + item.id.slice(1);
+    args.push(`-${prefix}Path`, item.path, `-${prefix}Url`, item.url, `-${prefix}Target`, item.revision);
   }
   if (apply) args.push('-Apply');
   return args;
@@ -85,7 +99,7 @@ export function planCreation(directory, options, source = fwRoot) {
   if (options.runtime !== undefined && !['csharp', 'gdscript'].includes(options.runtime)) fail('invalid-runtime', '--runtime must be csharp or gdscript.');
   if (options.runtime !== undefined && !scaffold) fail('invalid-runtime', '--runtime requires an FWC game preset.');
   if (scaffold && !/^[A-Za-z][A-Za-z0-9_]*$/.test(name)) fail('invalid-name', 'Godot/C# project name must start with a letter and contain only letters, digits and underscores; use --name.');
-  const catalog = releaseCatalog(source, manifest.components);
+  const catalog = installationCatalog(root, releaseCatalog(source, manifest.components));
   return { ok: true, mode: options.apply ? 'apply' : 'preview', project: root, name, manifest, components: catalog, scaffold, ...(scaffold ? { requestedRuntime: options.runtime ?? null, runtimeSource: 'fw.toml; new games default to csharp' } : {}), skillsInstalled: false };
 }
 
@@ -163,8 +177,13 @@ export function doctor(root) {
     return item.actual;
   });
   if (manifest?.components.includes('fwc')) {
+    const hasGameConfig = fs.existsSync(safeChild(root, 'fw.toml'));
+    if (manifest.preset !== 'workbench') check('game-config', () => {
+      if (!hasGameConfig) fail('missing-game-config', 'The game preset requires fw.toml at the Git/Godot project root. Restore it; doctor does not scaffold or relocate the project.');
+      return 'fw.toml';
+    });
     const generatorSdk = check('dotnet:generator', () => ({ purpose: 'FWC development-time generator, including GDScript games', version: run('dotnet', ['--version'], { cwd: root }).stdout }));
-    if (fs.existsSync(safeChild(root, 'fw.toml'))) {
+    if (hasGameConfig) {
       const runtime = generatorSdk ? check('runtime:game', () => {
         const component = components?.find(item => item.id === 'fwc');
         if (!component) fail('missing-component', 'Resolve FWC bindings before checking the game runtime.');

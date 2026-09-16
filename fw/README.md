@@ -2,6 +2,8 @@
 
 FW 是组件工作台和工程入口。程序源码集中在本目录，其他组件在外层同级目录；Git 工作台根保留 `.gitmodules` 与 `fw.workspace.json`。
 
+新游戏采用[统一 Project Layout](docs/project_layout.md)：单一工程根，日常目录为 `src/assets/docs/output/fw`，便捷入口为英文菜单 `start.bat`。工作台自身的组件开发布局与游戏宿主布局分别维护。
+
 Windows 双击本目录的 `start.bat` 可选择组件。以下命令均在外层工作台根执行（包含 `fw/`、`fwc/` 等目录）。
 
 | 组件 | 负责 | 不负责 |
@@ -45,15 +47,23 @@ CLI 可直接用绝对路径调用；愿意注册 `fw` 命令时，进入内层 
 MyGame/
   fw.workspace.json    # 选择和入口，不重复记录版本/路径
   .gitmodules          # 组件来源和路径
-  fwc/                 # 直接 gitlink：具体 SHA 由宿主 Git 提交锁定
-  fwe/
-  fwa/                 # 不含另一个 fwe/
+  fw/                  # 普通目录；各组件直接属于宿主
+    fwc/               # 独立 gitlink：具体 SHA 由宿主 Git 提交锁定
+    fwe/               # 只安装所选组件
+    fwa/               # 不含另一个 fwe/
+  src/                 # 代码、schema、源配置、宿主工具和测试
+  assets/              # 场景、预制体、采用资源与配置包
+  docs/
+  output/              # 交付成果，不是缓存
+  start.bat            # FWC 模板提供的宿主便捷入口
   fw.toml              # FWC 配置，仍由 FWC 独立维护
   .fwa/                # 本机 Agent 状态，初始化时加入忽略规则
   ...                  # FWC 生成的游戏工程
 ```
 
 成功初始化包括 FWC 模板生成/检查（若选中）和 FWA 本机状态初始化（若选中），不等于游戏已经通过构建与运行验收。审阅并提交宿主文件、`.gitmodules` 和组件 gitlink 后，才形成可复现工程版本。
+
+具体游戏布局由所选 FWC 固定版本提供；新模板发布前不把 FW 默认安装位置的变化当成已采用新布局。已有 `.gitmodules` 位置不改名、不迁移；`init/install` 沿用旧注册和宿主固定版本，缺失组件才采用 `fw/<id>`。若旧 `fw/` 本身已是 FWC 子模块，新组件必须先明确登记在不重叠位置，不能把它嵌入旧组件仓库。
 
 ## 选择组件
 
@@ -63,7 +73,7 @@ MyGame/
 | `godot-agent`（默认） | fwc、fwe、fwa |
 | `agent-ui` | fwe、fwa |
 | `agent` | fwa，无 UI 依赖 |
-| `editor` | fwe，需要自己的 `--editor-app tools/editor/app.json` |
+| `editor` | fwe，需要自己的 `--editor-app src/tools/fwe/app.json` |
 | `workbench` | fwc、fwe、fwa、fws，仅组件工作台，不生成游戏模板 |
 
 `--with fws` 可选技能源；也可用逗号选择其他组件。已有 Git 工程用 `fw init --project <root> --preset <preset>` 预演，确认后 `--apply`。不做旧工程兼容迁移，也不覆盖不同的 workspace manifest。
@@ -93,7 +103,7 @@ node fw/bin/fw.mjs doctor --project ../MyGame
 
 ## 编辑器与技能
 
-`fw editor` 从 `.gitmodules` 解析同级 FWE/FWA 的真实位置，使用固定工程打开 FWA 开发工作台。默认只读；`--allow-write --review-config tools/review.json` 允许界面调用工程明确配置的验证、人工验收、采用、撤销与对照实验流程。检查命令与目标分支来自启动时指定的本地配置，浏览器不能提交任意命令。参见 [FWA 操作说明](../fwa/docs/change-review.md)。
+`fw editor` 从 `.gitmodules` 解析 FWE/FWA 的真实位置，使用固定工程打开所选编辑器。FWA 默认只读；`--allow-write --review-config src/tools/review.json` 允许 FWA 界面调用工程明确配置的验证、人工验收、采用、撤销与对照实验流程。FWE 的可编辑能力仍由宿主 domain 决定。检查命令与目标分支来自启动时指定的本地配置，浏览器不能提交任意命令。参见 [FWA 操作说明](../fwa/docs/change-review.md)。
 
 `start.bat fwd` 打开 FWD 美术工作台，默认从素材中心开始；它与原 `start.bat fwv` 使用同一个 `fwv/` 包和项目，保留已有资产与历史。资产修改先成为候选，人工接受并采用后才进入原素材的新版本。
 

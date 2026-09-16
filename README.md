@@ -2,6 +2,8 @@
 
 双击 **`start.bat`** 选择组件，也可以进入任意组件目录双击它的 `start.bat`。
 
+游戏宿主采用[统一 Project Layout](fw/docs/project_layout.md)：Git/Godot/FWC 单根，`src/assets/docs/output/fw` 分工与英文菜单 `start.bat`。本仓库仍是组件开发工作台，不将它误当游戏工程整体搬迁。
+
 | 目录 | 内容 | 双击入口 |
 | --- | --- | --- |
 | [fw/](fw/README.md) | FW 管理程序、CLI、同步工具和测试 | 组件选择菜单 |

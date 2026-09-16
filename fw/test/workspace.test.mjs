@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { bindings, gitlink, makeManifest, moduleDefinitions, releaseCatalog, relativePath, safeChild, validateManifest, findWorkspace, assertGitRoot, assertPhysicalDirectory, physicalProjectPath, canonicalRepository, fwRepositoryRoot } from '../src/workspace.mjs';
-import { parseArgs, planCreation, editorCommand, validateRuntimeReport, validateGodotVersion } from '../src/cli.mjs';
+import { parseArgs, planCreation, editorCommand, validateRuntimeReport, validateGodotVersion, doctor } from '../src/cli.mjs';
 import { git, run, powershell } from '../src/process.mjs';
 
 function fixture(t) {
@@ -126,6 +126,7 @@ test('release pin comes only from FW committed gitlink, not component HEAD or in
   assert.equal(plan.mode, 'preview');
   assert.equal(fs.existsSync(target), false);
   assert.equal(plan.components[0].revision, pinned);
+  assert.equal(plan.components[0].path, 'fw/fwa');
 });
 
 test('unborn bundle fails rather than pinning a floating branch', t => {
@@ -147,11 +148,64 @@ test('nested FW program reads the outer committed component pins and rejects unr
   assert.throws(() => fwRepositoryRoot(path.join(root, 'unrelated')), /direct fw/);
 });
 
+test('new component paths cannot enter an already registered legacy fw repository', t => {
+  const temp = fixture(t);
+  const bundle = path.join(temp, 'bundle'); repository(bundle);
+  write(bundle, 'package.json', { name: 'fw', fwWorkspace: true });
+  const sources = {};
+  for (const id of ['fwc', 'fwe', 'fwa']) {
+    sources[id] = path.join(temp, `source-${id}`); component(sources[id], id);
+    add(bundle, sources[id], id);
+  }
+  commit(bundle);
+  const host = path.join(temp, 'legacy'); repository(host);
+  git(host, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '--name', 'fwc', sources.fwc, 'fw']);
+  commit(host);
+  const before = git(host, ['status', '--porcelain']).stdout;
+  assert.throws(() => planCreation(host, { preset: 'godot-agent' }, bundle), /overlaps registered fw/);
+  assert.equal(fs.existsSync(path.join(host, 'fw.workspace.json')), false);
+  assert.equal(git(host, ['status', '--porcelain']).stdout, before);
+});
+
 test('binding cannot treat a host subdirectory as a component repository', t => {
   const root = fixture(t); repository(root);
   write(root, '.gitmodules', '[submodule "fwa"]\n path = fwa\n url = local\n');
   write(root, 'fwa/package.json', { name: 'fwa' });
   assert.throws(() => bindings(root, makeManifest('agent')), /not initialized/);
+});
+
+test('ordinary fw container binds independent components and routes the real editor project', t => {
+  const temp = fixture(t);
+  const host = path.join(temp, 'host'); repository(host);
+  for (const id of ['fwc', 'fwe', 'fwa']) {
+    const source = path.join(temp, `source-${id}`); component(source, id);
+    git(host, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '--name', id, source, `fw/${id}`]);
+  }
+  commit(host);
+  const manifest = makeManifest('godot-agent');
+  const resolved = bindings(host, manifest);
+  assert.deepEqual(resolved.map(item => item.path), ['fw/fwc', 'fw/fwe', 'fw/fwa']);
+  assert.equal(fs.existsSync(path.join(host, 'fw', '.git')), false);
+  const invocation = editorCommand(host, manifest, {});
+  assert.equal(invocation.args[0], path.join(host, 'fw/fwa/bin/fwa.js'));
+  assert.equal(invocation.args[invocation.args.indexOf('--fwe-path') + 1], path.join(host, 'fw/fwe'));
+  assert.equal(invocation.args[invocation.args.indexOf('--project') + 1], fs.realpathSync.native(host));
+});
+
+test('doctor cannot silently skip a missing game configuration for a game preset', t => {
+  const temp = fixture(t);
+  const host = path.join(temp, 'host'); repository(host);
+  const source = path.join(temp, 'source'); component(source, 'fwc');
+  git(host, ['-c', 'protocol.file.allow=always', 'submodule', 'add', '--name', 'fwc', source, 'fw/fwc']);
+  write(host, 'fw.workspace.json', makeManifest('godot'));
+  commit(host);
+  const before = git(host, ['status', '--porcelain']).stdout;
+  const result = doctor(host);
+  assert.equal(result.ok, false);
+  assert.equal(result.checks.find(item => item.id === 'game-config').ok, false);
+  assert.match(result.checks.find(item => item.id === 'game-config').error, /requires fw.toml/);
+  assert.equal(fs.existsSync(path.join(host, 'fw.toml')), false);
+  assert.equal(git(host, ['status', '--porcelain']).stdout, before);
 });
 
 test('nested FW registration is rejected without recursively installing it', t => {
