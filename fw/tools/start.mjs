@@ -8,7 +8,7 @@ const program = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workspace = path.dirname(program);
 const components = {
   fwa: { label: '开发工作台 · 需求、变化与验收', entry: 'tools/start-editor.mjs' },
-  fwv: { label: 'FWD 美术工作台 · 素材、候选与验收', entry: 'tools/start-editor.mjs' },
+  fwv: { label: 'FWV 美术工作台 · 素材、候选与验收', entry: 'tools/start-editor.mjs' },
   fwb: { label: '构建工作台 · 平台、预检与产物', entry: 'tools/start-editor.mjs' },
   fwe: { label: '通用编辑器', entry: 'bin/start.js' },
   fwc: { label: 'Godot 框架 / 打开宿主工程', entry: 'tools/start.ps1' },
@@ -18,7 +18,7 @@ const components = {
 async function main(argv) {
   let [selected, ...args] = argv;
   if (selected === '--help' || selected === '-h') {
-    console.log('FW 启动入口\n  start.bat [fwa|fwd|fwv|fwb|fwe|fwc|fws] [组件参数]\n  start.bat --check\nfwd 使用现有 fwv/ 美术组件和项目。演示数据与报告保存在各组件的 .local/，已有工程需显式选择。');
+    console.log('FW 启动入口\n  start.bat [fwa|fwv|fwb|fwe|fwc|fws] [组件参数]\n  start.bat --check\nFWV 使用 fwv/ 美术组件和已有项目。演示数据与报告保存在各组件的 .local/，已有工程需显式选择。');
     return;
   }
   if (selected === '--check') {
@@ -39,7 +39,7 @@ async function main(argv) {
     if (answer === '0' || !answer) return;
     selected = ids[Number(answer) - 1] ?? answer;
   }
-  if (selected === 'fwd') selected = 'fwv';
+  if (selected === 'fwd') selected = 'fwv'; // Legacy launcher alias; FWV is the canonical name.
   const target = components[selected];
   if (!target) throw new Error(`未知组件：${selected}。使用 --help 查看入口。`);
   const root = path.join(workspace, selected);
