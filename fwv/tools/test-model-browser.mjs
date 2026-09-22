@@ -19,7 +19,7 @@ async function reveal(css) { await wait(`document.querySelector(${q(css)})`); aw
 async function click(id) { const css=testId(id);await reveal(css);await wait(`!document.querySelector(${q(css)}).matches(':disabled')`);await evaluate(cdp,`document.querySelector(${q(css)}).click()`); }
 async function fill(id,value,event='input') { const css=testId(id);await reveal(css);await wait(`!document.querySelector(${q(css)}).matches(':disabled')`);await evaluate(cdp,`(()=>{const e=document.querySelector(${q(css)});e.value=${q(String(value))};e.dispatchEvent(new Event(${q(event)},{bubbles:true}));})()`); }
 async function snapshot(name) { const shot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});const target=path.join(runRoot,name+'.png');await fs.writeFile(target,Buffer.from(shot.data,'base64'));report.screenshots.push(target); }
-function record(name) { report.checks.push(name); console.log('[FWD model] '+name); }
+function record(name) { report.checks.push(name); console.log('[FWV model] '+name); }
 async function waitStored(check) { const deadline=Date.now()+15000;while(Date.now()<deadline){const data=await project.snapshot();if(check(data))return data;await new Promise(resolve=>setTimeout(resolve,80));}throw new Error('Stored state timeout'); }
 try {
   await project.init({name:'3D model repair acceptance'});const {buffer}=await createModelFixture(),glbFile=path.join(runRoot,'panel.glb');await fs.writeFile(glbFile,buffer);

@@ -44,7 +44,7 @@ async function screenshot(name) {
   const result = await cdp.call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   const target = path.join(runRoot, name + '.png'); await fs.writeFile(target, Buffer.from(result.data, 'base64')); report.screenshots.push(target);
 }
-const record = (name, data = {}) => { report.checks.push({ name, ...data }); console.log(`[FWD assets] ${name}`); };
+const record = (name, data = {}) => { report.checks.push({ name, ...data }); console.log(`[FWV assets] ${name}`); };
 async function latestChange() { return (await project.snapshot()).changes?.at(-1); }
 async function waitDisk(fn, label) {
   const deadline = Date.now() + 12000;
@@ -230,7 +230,7 @@ try {
 } catch (error) {
   report.status = 'failed'; report.failureStage = stage; report.error = error.stack || String(error); process.exitCode = 1;
   if (cdp) try { report.visibleStatus = await evaluate(cdp, `document.querySelector('[data-testid="fwv-status"]')?.textContent`); await screenshot('failure'); } catch {}
-  console.error(`[FWD assets] FAILED at ${stage}: ${error.message}`);
+  console.error(`[FWV assets] FAILED at ${stage}: ${error.message}`);
 } finally {
   if (cdp) cdp.close(); if (chrome) await stopProcess(chrome); if (editor) await editor.close();
   mock.closeAllConnections(); await new Promise(resolve => mock.close(resolve));

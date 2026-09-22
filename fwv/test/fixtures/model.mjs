@@ -2,7 +2,7 @@ import sharp from 'sharp';
 import { encodeGlb } from '../../src/model/glb.mjs';
 
 export async function createModelFixture() {
-  const json = { asset: { version: '2.0', generator: 'FWD isolated acceptance fixture' }, scene: 0, scenes: [{ nodes: [0, 2] }],
+  const json = { asset: { version: '2.0', generator: 'FWV isolated acceptance fixture' }, scene: 0, scenes: [{ nodes: [0, 2] }],
     nodes: [{ name: 'root', children: [1] }, { name: 'tip', translation: [0, 1, 0] }, { name: 'panel', mesh: 0, skin: 0 }],
     buffers: [{ byteLength: 0 }], bufferViews: [], accessors: [],
     skins: [{ name: 'Two bones', joints: [0, 1], skeleton: 0 }], meshes: [{ name: 'Skinned panel', primitives: [{ attributes: {} }] }],

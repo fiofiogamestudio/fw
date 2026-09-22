@@ -46,7 +46,7 @@ async function select(id, value) {
   await wait(`document.querySelector(${q(selector(id))})`);
   await evaluate(cdp, `(() => {const e=document.querySelector(${q(selector(id))});e.value=${q(value)};e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
 }
-function record(name, detail = {}) { report.checks.push({ name, ...detail }); console.log('[FWD demo UI] ' + name); }
+function record(name, detail = {}) { report.checks.push({ name, ...detail }); console.log('[FWV demo UI] ' + name); }
 try {
   editor = await startEditor({ projectRoot, fwePath, port: 0 }); report.url = editor.url;
   const port = await getFreePort(); chrome = startChrome(editor.url, port);
@@ -103,7 +103,7 @@ try {
 } catch (error) {
   report.status = 'failed'; report.stage = stage; report.error = error.stack; process.exitCode = 1;
   if (cdp) try { await capture('failure'); } catch {}
-  console.error(`[FWD demo UI] ${stage}: ${error.message}`);
+  console.error(`[FWV demo UI] ${stage}: ${error.message}`);
 } finally {
   if (cdp) cdp.close(); if (chrome) await stopProcess(chrome); if (editor) await editor.close();
   const file = path.join(runRoot, 'report.json'); await fs.writeFile(file, JSON.stringify(report, null, 2) + '\n');
