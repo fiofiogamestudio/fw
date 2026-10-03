@@ -10,13 +10,15 @@ export function fwcLayoutCommand(project, stage) {
 export function fwcExportFilters(stage, layout) {
   if (!layout || typeof layout !== 'object' || Array.isArray(layout)) fail('fwc-layout-required', 'FWC must provide its layout before configuring export.');
   const required = ['configPack', 'configSchema', 'configSource', 'systemSchema', 'tools', 'tests', 'genGdscript'];
-  const optional = ['bridgeSchema', 'csharp', 'genCsharp', 'genFwe'];
+  const optional = ['bridgeSchema', 'genCsharp', 'genFwe'];
   for (const key of [...required, ...optional]) {
     if (!required.includes(key) && layout[key] == null) continue;
     child(stage, layout[key]);
     if (/[,?*]/.test(layout[key])) fail('invalid-fwc-layout', `FWC ${key} cannot be represented as a literal Godot export filter.`);
   }
-  const directories = ['configSchema', 'configSource', 'tools', 'tests', 'bridgeSchema', 'csharp', 'genFwe'];
+  // [script].csharp contains runtime bridge Nodes loaded by their res:// path.
+  // Only authoring inputs and editor outputs are whole-directory exclusions.
+  const directories = ['configSchema', 'configSource', 'tools', 'tests', 'bridgeSchema', 'genFwe'];
   const generated = [layout.genGdscript, layout.genCsharp].filter(Boolean);
   return {
     include: [`${layout.configPack}/*.bin`],

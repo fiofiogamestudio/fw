@@ -117,7 +117,7 @@ try {
     hostHasGodotCache: fs.existsSync(path.join(host, '.godot')),
   };
   const entries = readPack(path.join(artifact.directory, 'out/index.pck'));
-  const developmentDirectories = [project.inspection.fwc.path, layout.configSchema, layout.configSource, layout.tools, layout.tests, layout.bridgeSchema, layout.csharp, layout.genFwe].filter(Boolean);
+  const developmentDirectories = [project.inspection.fwc.path, layout.configSchema, layout.configSource, layout.tools, layout.tests, layout.bridgeSchema, layout.genFwe].filter(Boolean);
   report.pack = {
     entryCount: entries.length,
     configs: entries.filter(entry => entry.path.startsWith(`${layout.configPack}/`) && entry.path.endsWith('.bin')),

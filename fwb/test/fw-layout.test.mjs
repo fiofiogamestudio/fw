@@ -35,7 +35,7 @@ for (const [name, layout] of Object.entries(layouts)) test(`${name} FWC layout p
   assert(includes.includes('keep/*.json'));
   assert(excludes.includes('private/*'));
   assert(excludes.includes('modules/code kit/*'));
-  for (const key of ['configSchema', 'configSource', 'tools', 'tests', 'bridgeSchema', 'csharp', 'genFwe']) {
+  for (const key of ['configSchema', 'configSource', 'tools', 'tests', 'bridgeSchema', 'genFwe']) {
     if (layout[key]) assert(excludes.includes(`${layout[key]}/*`), key);
   }
   assert(excludes.includes(layout.systemSchema));
@@ -46,6 +46,18 @@ for (const [name, layout] of Object.entries(layouts)) test(`${name} FWC layout p
   assert.equal(fs.readFileSync(path.join(f.root, 'export_presets.cfg'), 'utf8'), f.preset);
   configureExport(f.project, f.stage, 'web', { release: true }, {}, layout);
   assert.equal(fs.readFileSync(path.join(f.stage, 'export_presets.cfg'), 'utf8'), result, 'filter merge is repeatable');
+});
+
+test('C# runtime bridge paths remain exportable while bridge schemas and generated manifests stay private', t => {
+  const f = fixture(t), layout = layouts.custom;
+  configureExport(f.project, f.stage, 'web', { release: true }, {}, layout);
+  const filters = sectionValue(fs.readFileSync(path.join(f.stage, 'export_presets.cfg'), 'utf8'), 'preset.0', 'exclude_filter').split(',');
+  const excluded = file => filters.some(filter => filter.endsWith('/*') ? file.startsWith(filter.slice(0, -1)) : file === filter);
+  assert.equal(excluded(`${layout.csharp}/bridge/game_bridge.cs`), false, 'FWC creates this Godot Node by its res:// C# script path');
+  assert.equal(excluded(`${layout.genCsharp}/_bridge_types.cs`), false);
+  assert.equal(excluded(`${layout.genGdscript}/_bridge.gd`), false);
+  assert.equal(excluded(`${layout.bridgeSchema}/game.proto`), true);
+  assert.equal(excluded(`${layout.genCsharp}/_fwgen_manifest.json`), true);
 });
 
 test('layout discovery uses the already prepared snapshot generator and refuses the live source', t => {
