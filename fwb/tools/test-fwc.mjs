@@ -4,8 +4,31 @@ import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { buildProject } from '../src/core/build.mjs';
 import { initProject, inputFiles, readProject, updateProject } from '../src/core/project.mjs';
-import { atomicJson, digest, fileDigest, walk } from '../src/core/files.mjs';
+import { atomicJson, child, digest, fileDigest, walk } from '../src/core/files.mjs';
 import { runProcess } from '../src/core/process.mjs';
+import { ensureExportPreset } from '../src/core/setup.mjs';
+
+// This probe is pinned to Godot 4.6.2's unencrypted PCK v3. Inspect the actual
+// directory and payload, rather than treating files left in the stage as export evidence.
+function readPack(filename) {
+  const bytes = fs.readFileSync(filename);
+  if (bytes.toString('ascii', 0, 4) !== 'GDPC' || bytes.readUInt32LE(4) !== 3 || bytes.readUInt32LE(20) !== 2) throw new Error('Expected the Godot 4.6.2 unencrypted PCK v3 format.');
+  const base = Number(bytes.readBigUInt64LE(24));
+  let position = Number(bytes.readBigUInt64LE(32));
+  const count = bytes.readUInt32LE(position); position += 4;
+  const entries = [];
+  for (let index = 0; index < count; index++) {
+    const length = bytes.readUInt32LE(position); position += 4;
+    const name = bytes.subarray(position, position + length).toString('utf8').replace(/\0+$/, ''); position += length;
+    const offset = base + Number(bytes.readBigUInt64LE(position)); position += 8;
+    const size = Number(bytes.readBigUInt64LE(position)); position += 8;
+    position += 16; // Godot's per-file MD5; compare our recorded SHA-256 below.
+    const flags = bytes.readUInt32LE(position); position += 4;
+    if (flags !== 0 || !Number.isSafeInteger(offset + size) || offset < base || offset + size > bytes.length) throw new Error(`Invalid PCK entry: ${name}`);
+    entries.push({ path: name, bytes: size, sha256: digest(bytes.subarray(offset, offset + size)) });
+  }
+  return entries;
+}
 
 // A real FWC -> FWB export probe. It creates a fresh host and retains all output.
 // Usage: node tools/test-fwc.mjs [--godot <standard-godot>] [--templates <directory>]
@@ -29,7 +52,8 @@ if (!godot || !templates) throw new Error('Provide a standard Godot 4.6.2 execut
 const framework = path.resolve(options['fwc-dir'] || path.join(packageRoot, '../fwc'));
 const directory = path.join(packageRoot, '.local/fwc-probe', `${Date.now()}_${randomUUID().slice(0, 8)}`);
 const host = path.join(directory, 'game');
-fs.mkdirSync(path.join(host, 'fwc'), { recursive: true });
+const hostFramework = path.join(host, 'fw/fwc');
+fs.mkdirSync(hostFramework, { recursive: true });
 const skip = relative => relative.split('/').some(part => ['.git', '.local', '.godot', 'bin', 'obj', 'node_modules', '.vs', '.idea'].includes(part));
 const fingerprint = (root, files) => digest(JSON.stringify(files.map(file => ({ path: file, hash: fileDigest(path.join(root, file)) }))));
 const frameworkFiles = walk(framework, { skip });
@@ -40,16 +64,16 @@ atomicJson(reportFile, report);
 console.log(`FWB_FWC_PROBE ${directory}`);
 try {
   for (const relative of frameworkFiles) {
-    const destination = path.join(host, 'fwc', relative);
+    const destination = path.join(hostFramework, relative);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(path.join(framework, relative), destination);
   }
   console.log(`Copied ${frameworkFiles.length} current FWC source files.`);
   const logFile = path.join(directory, 'new.log');
   if (process.platform === 'win32') {
-    await runProcess('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(host, 'fwc/tools/new.ps1'), '-ProjectRoot', host, '-Name', 'FwbFwcProbe', '-Runtime', 'gdscript'], { cwd: host, logFile, timeoutSeconds: 600 });
+    await runProcess('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(hostFramework, 'tools/new.ps1'), '-ProjectRoot', host, '-Name', 'FwbFwcProbe', '-Runtime', 'gdscript', '-FrameworkPath', 'fw/fwc'], { cwd: host, logFile, timeoutSeconds: 600 });
   } else {
-    await runProcess('bash', [path.join(host, 'fwc/tools/new.sh'), '--project-root', host, '--name', 'FwbFwcProbe', '--runtime', 'gdscript'], { cwd: host, logFile, timeoutSeconds: 600 });
+    await runProcess('bash', [path.join(hostFramework, 'tools/new.sh'), '--project-root', host, '--name', 'FwbFwcProbe', '--runtime', 'gdscript', '--framework-path', 'fw/fwc'], { cwd: host, logFile, timeoutSeconds: 600 });
   }
   const initialized = initProject(host, { godot, godotVersion: '4.6.2' });
   const config = structuredClone(initialized.config);
@@ -59,6 +83,19 @@ try {
   updateProject(host, config, initialized.revision);
   const project = readProject(host);
   report.inspection = project.inspection;
+  // Ask the selected FWC for its actual paths; both legacy hosts and the shallow
+  // src/assets layout must be verified without hard-coded generated directories.
+  const layoutResult = await runProcess('dotnet', ['run', '--project', child(host, project.inspection.fwc.generator), '--', '--root', host, 'layout'], { cwd: host, logFile: path.join(directory, 'layout.log'), timeoutSeconds: 120 });
+  const layout = JSON.parse(layoutResult.output.trim());
+  report.layout = layout;
+  // Remove only this disposable fixture's template preset: FWB must supply all
+  // layout-aware filters when the user asks it to add a missing export preset.
+  fs.unlinkSync(child(host, 'export_presets.cfg'));
+  report.presetCreatedByFwb = (await ensureExportPreset(project, 'web')).created;
+  for (const [directory, suffix] of [[layout.tools, 'tool'], [layout.tests, 'test']]) {
+    fs.mkdirSync(child(host, directory), { recursive: true });
+    fs.writeFileSync(child(host, `${directory}/fwb_export_probe_${suffix}.gd`), 'extends RefCounted\n# Development-only export sentinel.\n');
+  }
   report.hostHashBefore = fingerprint(host, inputFiles(host, config));
   console.log(`FWC detected: ${JSON.stringify(project.inspection.fwc)}`);
   const artifact = await buildProject(host, { target: 'web', profile: 'release', onEvent: event => console.log(`[${event.phase}] ${event.message}`) });
@@ -71,15 +108,27 @@ try {
   report.frameworkHashAfter = fingerprint(framework, walk(framework, { skip }));
   report.sourceUnchanged = report.hostHashBefore === report.hostHashAfter && report.frameworkHash === report.frameworkHashAfter;
   const stage = path.join(artifact.directory, 'project');
-  const packFiles = walk(path.join(stage, 'pack/config'));
-  const generationManifest = path.join(stage, 'scripts/_gen/_fwgen_manifest.json');
+  const packDirectory = child(stage, layout.configPack);
+  const packFiles = walk(packDirectory);
+  const generationManifest = child(stage, `${layout.genGdscript}/_fwgen_manifest.json`);
   report.generated = {
     manifest: fs.existsSync(generationManifest),
-    packFiles: packFiles.map(file => ({ path: `pack/config/${file}`, bytes: fs.statSync(path.join(stage, 'pack/config', file)).size, sha256: fileDigest(path.join(stage, 'pack/config', file)) })),
+    packFiles: packFiles.map(file => ({ path: `${layout.configPack}/${file}`, bytes: fs.statSync(path.join(packDirectory, file)).size, sha256: fileDigest(path.join(packDirectory, file)) })),
     hostHasGodotCache: fs.existsSync(path.join(host, '.godot')),
+  };
+  const entries = readPack(path.join(artifact.directory, 'out/index.pck'));
+  const developmentDirectories = [project.inspection.fwc.path, layout.configSchema, layout.configSource, layout.tools, layout.tests, layout.bridgeSchema, layout.csharp, layout.genFwe].filter(Boolean);
+  report.pack = {
+    entryCount: entries.length,
+    configs: entries.filter(entry => entry.path.startsWith(`${layout.configPack}/`) && entry.path.endsWith('.bin')),
+    developmentEntries: entries.filter(entry => developmentDirectories.some(directory => entry.path.startsWith(`${directory}/`)) || entry.path === layout.systemSchema || /\/(?:_fwgen_manifest|_fw_sync_manifest)\.json$/.test(entry.path)),
   };
   if (!report.sourceUnchanged) throw new Error('Source fingerprint changed during isolated build.');
   if (!report.generated.manifest || !report.generated.packFiles.some(file => file.path.endsWith('.bin') && file.bytes > 0)) throw new Error('FWC generation or config pack evidence is missing.');
+  for (const file of report.generated.packFiles.filter(file => file.path.endsWith('.bin'))) {
+    if (!report.pack.configs.some(entry => entry.path === file.path && entry.bytes === file.bytes && entry.sha256 === file.sha256)) throw new Error(`Exported config pack is missing or changed: ${file.path}`);
+  }
+  if (report.pack.developmentEntries.length) throw new Error('Development resources leaked into the exported PCK.');
   report.status = 'passed';
   console.log(`FWB_FWC_PROBE_OK ${artifact.id}`);
 } catch (error) {

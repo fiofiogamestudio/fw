@@ -15,6 +15,7 @@ import { validateWebDelivery } from './web-delivery.mjs';
 import { resolveResourcePreparation } from './resource-pipeline.mjs';
 import { convertMinigame, usesWebConversion, validateMinigameOutputs } from './minigame-export.mjs';
 import { runGodotProcess } from './godot-process.mjs';
+import { fwcExportFilters, readFwcLayout } from './fw-layout.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const artifactRoot = root => child(root, '.local/fwb/artifacts');
@@ -125,7 +126,7 @@ export function exportTemplatePaths(project, stage, templates = {}) {
   }));
 }
 
-export function configureExport(project, stage, target, profile, diagnosis) {
+export function configureExport(project, stage, target, profile, diagnosis, fwcLayout) {
   const retired = retiredTargetMessage(target);
   if (retired) fail('retired-target', retired);
   const targetConfig = project.config.targets[target] ?? {};
@@ -138,10 +139,12 @@ export function configureExport(project, stage, target, profile, diagnosis) {
   const extension = web ? '.html' : target === 'google-play' ? (profile.release ? '.aab' : '.apk') : target === 'app-store' ? '.zip' : '.zip';
   const filename = web ? 'index.html' : `game${extension}`;
   source = setSetting(source, section, 'export_path', `../${usesWebConversion(target, targetConfig) ? 'web' : 'out'}/${filename}`);
+  const fwcFilters = project.inspection.fwc ? fwcExportFilters(stage, fwcLayout) : { include: ['pack/config/*.bin'], exclude: [] };
+  const mergeFilters = (...values) => [...new Set(values.flatMap(value => value.split(',')).map(value => value.trim()).filter(Boolean))].join(',');
   const includes = sectionValue(source, section, 'include_filter') ?? '';
-  source = setSetting(source, section, 'include_filter', [includes, 'fwb.runtime.json', 'pack/config/*.bin'].filter(Boolean).join(','));
+  source = setSetting(source, section, 'include_filter', mergeFilters(includes, 'fwb.runtime.json', ...fwcFilters.include));
   const excludes = sectionValue(source, section, 'exclude_filter') ?? '';
-  source = setSetting(source, section, 'exclude_filter', [excludes, 'fwb/*', 'fwe/*', 'fwa/*', 'fws/*', 'fwv/*', 'tools/*', 'tests/*', 'docs/*', 'fwb.project.json', 'fwb.toolchain.lock.json', ...(project.inspection.fwc ? [`${project.inspection.fwc.path}/*`, 'schema/*', 'data/config/*'] : [])].filter(Boolean).join(','));
+  source = setSetting(source, section, 'exclude_filter', mergeFilters(excludes, 'fwb/*', 'fwe/*', 'fwa/*', 'fws/*', 'fwv/*', 'tools/*', 'tests/*', 'docs/*', 'fwb.project.json', 'fwb.toolchain.lock.json', ...(project.inspection.fwc ? [`${project.inspection.fwc.path}/*`, ...fwcFilters.exclude] : [])));
   if (diagnosis.templates) {
     for (const [kind, template] of Object.entries(exportTemplatePaths(project, stage, diagnosis.templates))) source = setSetting(source, options, `custom_template/${kind}`, template.replaceAll('\\', '/'));
   }
@@ -258,8 +261,9 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
       const component = child(stage, project.inspection.fwc.path);
       const prepare = fwcPrepareCommand(component, stage, engine, project.config.timeoutSeconds);
       await runProcess(prepare.executable, prepare.args, runOptions);
+      manifest.fwcLayout = await readFwcLayout(project, stage, runOptions);
     }
-    const exported = configureExport(project, stage, target, releaseProfile, diagnosis);
+    const exported = configureExport(project, stage, target, releaseProfile, diagnosis, manifest.fwcLayout);
     const lock = { schemaVersion: 1, engine: { version: diagnosis.engine.version, executable: engine, sha256: fs.existsSync(engine) ? fileDigest(engine) : null }, templates: Object.fromEntries(Object.entries(exportTemplatePaths(project, stage, diagnosis.templates)).filter(([, value]) => fs.existsSync(value)).map(([key, value]) => [key, { path: value, sha256: fileDigest(value) }])), target, profile, fwbVersion: '0.1.0' };
     const companion = engine.replace(/_console\.exe$/i, '.exe');
     if (companion !== engine && fs.existsSync(companion)) lock.engine.companion = { path: companion, sha256: fileDigest(companion) };
