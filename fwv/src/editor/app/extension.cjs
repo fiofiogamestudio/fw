@@ -5,29 +5,30 @@ module.exports = (fwe) => {
   }
   fwe.registerSource('fwv-authoring', {
     async list(ctx) {
-      const { readAuthoring } = await import('../authoring.mjs');
-      const resource = await readAuthoring(authoringOptions(ctx));
-      return [{ name: 'authoring.json', label: '美术参数草稿', exists: resource.exists }];
+      const { readProjectedAuthoring } = await import('../catalog.mjs');
+      const resource = await readProjectedAuthoring(authoringOptions(ctx));
+      return [{ name: 'authoring.json', label: '2D 美术编辑', exists: resource.exists }];
     },
     async read(ctx, name) {
       assertAuthoringName(name);
-      const { readAuthoring } = await import('../authoring.mjs');
-      return readAuthoring(authoringOptions(ctx));
+      const { readProjectedAuthoring } = await import('../catalog.mjs');
+      return readProjectedAuthoring(authoringOptions(ctx));
     },
     async write(ctx, name, payload) {
       assertAuthoringName(name);
-      const { writeAuthoring } = await import('../authoring.mjs');
-      return writeAuthoring({ ...authoringOptions(ctx), payload });
+      const { writeProjectedAuthoring } = await import('../catalog.mjs');
+      return writeProjectedAuthoring({ ...authoringOptions(ctx), payload });
     }
   });
-  fwe.registerSource('fwv-project', {
-    list: () => [{ name: 'fwv.project.json', label: '美术项目', exists: true }],
+  fwe.registerSource('fwv-catalog', {
+    async list(ctx) {
+      const { listCatalog } = await import('../catalog.mjs');
+      return listCatalog(authoringOptions(ctx));
+    },
     async read(ctx, name) {
-      if (name !== 'fwv.project.json') throw Object.assign(new Error('工作区仅提供当前项目。'), { status: 404 });
-      const { FwvProject } = await import('../../core/project.mjs');
-      const data = await new FwvProject(ctx.workspaceDir).snapshot();
-      if (data.id !== ctx.source.expectedProjectId) throw Object.assign(new Error('项目身份变化，请重启工作台。'), { status: 409 });
-      return { type: 'json', data };
+      if (name !== 'catalog.json') throw Object.assign(new Error('图库仅提供当前项目的素材索引。'), { status: 404 });
+      const { readCatalog } = await import('../catalog.mjs');
+      return readCatalog(authoringOptions(ctx));
     }
   });
   fwe.registerApi('/api/fwv', async context => {

@@ -1,0 +1,33 @@
+{
+  "format": "fwd-skeleton2d",
+  "schemaVersion": 1,
+  "coordinateSystem": "y-up",
+  "bounds": { "x": -48, "y": -8, "width": 96, "height": 112 },
+  "bones": [
+    { "name": "root" },
+    { "name": "tower", "parent": "root", "y": 32 },
+    { "name": "rotor", "parent": "tower", "y": 32 }
+  ],
+  "slots": [
+    { "name": "tower", "bone": "tower", "attachment": "body" },
+    { "name": "rotor", "bone": "rotor", "attachment": "blades" }
+  ],
+  "skins": [{
+    "name": "summer",
+    "attachments": {
+      "tower": { "body": { "type": "region", "path": "tower", "width": 24, "height": 64 } },
+      "rotor": { "blades": { "type": "region", "path": "rotor", "width": 72, "height": 72 } }
+    }
+  }],
+  "textures": { "tower": "tower.png", "rotor": "rotor.png" },
+  "animations": {
+    "turn": { "bones": { "rotor": { "rotate": [{ "time": 0, "value": 0 }, { "time": 2, "value": 360 }] } }, "events": [{ "time": 1, "name": "half-turn" }] },
+    "settle": { "bones": { "tower": { "translate": [{ "time": 0, "y": 6 }, { "time": 0.5, "y": 0, "curve": "stepped" }, { "time": 1, "y": 0 }] } } }
+  },
+  "animationDurations": { "turn": 2, "settle": 1 },
+  "loopAnimations": ["turn"],
+  "skinAnimations": { "summer": { "operate": "turn" } },
+  "skinSockets": { "summer": { "rotor-tip": "rotor" } },
+  "events": { "half-turn": { "int": 1 } },
+  "metadata": { "example": "A reusable mechanical prop, independent of any game actor roster." }
+}

@@ -1,0 +1,29 @@
+{
+  "root": "root",
+  "templates": {
+    "root": {"type":"stack","preset":"compact","testId":"fwv-gallery2d","children":[
+      {"type":"details","testId":"g2d-variants","visible":{"$path":"hasVariants"},"children":[
+        {"type":"summary","text":{"$path":"variantSummary"}},
+        {"type":"field","ref":"variant","testId":"g2d-variant","field":{"path":"variant","type":"select","label":"查看状态","options":[]},"value":{"$path":"variant"}},
+        {"type":"text","text":"状态图归在同一张原图下，切换仅用于预览。","tone":"muted"}
+      ]},
+      {"type":"stack","preset":["preview","stage"],"children":[{"type":"canvas","ref":"canvas","testId":"g2d-canvas","attrs":{"aria-label":"2D 素材图片预览，可拖动画面"}}]},
+      {"type":"toolbar","children":[
+        {"type":"field","ref":"zoom","testId":"g2d-zoom","field":{"path":"zoom","type":"select","valueType":"number","label":"缩放","options":[{"value":1,"label":"适合画布"},{"value":2,"label":"放大 2 倍"},{"value":4,"label":"放大 4 倍"}]},"value":{"$path":"zoom","default":1}},
+        {"type":"field","ref":"background","testId":"g2d-background","field":{"path":"background","type":"select","label":"透明背景","options":[{"value":"checker","label":"透明棋盘"},{"value":"light","label":"浅色"},{"value":"dark","label":"深色"}]},"value":{"$path":"background","default":"checker"}},
+        {"type":"button","testId":"g2d-reset-view","text":"居中适配","on":{"click":"resetView"}},
+        {"type":"button","testId":"g2d-open-skeleton","text":"查看与编辑骨骼动画","visible":{"$path":"skeleton"},"on":{"click":"openSkeleton"}}
+      ]},
+      {"type":"text","testId":"g2d-preview-info","text":{"$path":"previewLabel","default":""}},
+      {"type":"text","text":{"$path":"revisionLabel","default":""},"tone":"muted"},
+      {"type":"text","text":"放大后可拖动画面。浏览历史版本不会更改当前使用版本。","tone":"muted"},
+      {"type":"text","testId":"g2d-status","attrs":{"role":"status","data-error":{"$path":"error","default":false}},"text":{"$path":"notice","default":""},"tone":{"$if":[{"$path":"error"},"danger","muted"]}}
+    ]}
+  },
+  "texts": {
+    "preview":"{name} · {width} × {height} px · {format}",
+    "revision":"{asset} · {revision}", "loading":"正在读取图片…", "loaded":"图片已加载。", "invalidImage":"无法读取登记图片。",
+    "variants":"原图 + {count} 种状态 · 展开查看",
+    "variant-base":"原图", "variant-flash":"受击闪亮", "variant-stone":"石化", "variant-frozen":"冰冻", "variant-poor":"费用不足", "variant-unavailable":"不可用", "variant-visited":"已访问"
+  }
+}

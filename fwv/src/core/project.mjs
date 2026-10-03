@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
-import { imageMime, inspectImage, processImageBuffer } from '../image/processor.mjs';
+import { imageMime, inspectImage } from '../image/processor.mjs';
 
 export const PROJECT_FILE = 'fwv.project.json';
 const MAX_FILE_BYTES = 32 * 1024 * 1024;
@@ -132,7 +132,9 @@ export class FwvProject {
   }
 
   async _save(data) {
-    const serialized = `${JSON.stringify(data, null, 2)}\n`;
+    // Keep the existing 16 MiB guard and atomic write; compact JSON leaves
+    // more room for immutable revision/export history without changing data.
+    const serialized = `${JSON.stringify(data)}\n`;
     if (Buffer.byteLength(serialized) > MAX_MANIFEST_BYTES) throw new Error('Project manifest exceeds the 16 MiB limit.');
     const target = await this._path([PROJECT_FILE]);
     const temp = await this._path([`.fwv-${randomUUID()}.tmp`]);
@@ -259,42 +261,6 @@ export class FwvProject {
     });
   }
 
-  async processImage({ assetId, revisionId, recipe, mode = 'append' }) {
-    if (!['append', 'revise'].includes(mode)) throw new Error('Image processing mode must be append or revise.');
-    return this._withLock(async () => {
-      const data = await this._load();
-      const asset = this._asset(data, assetId);
-      if (asset.kind !== 'image') throw new Error('Image processing requires an image asset.');
-      const parent = this._revision(asset, revisionId);
-      const revisable = parent.parentId && parent.recipe?.version === 1 && !parent.recipe.operation;
-      if (mode === 'revise' && !revisable) throw new Error('This revision has no image processing recipe to revise.');
-      // parentId is the edit history. The recipe input stays fixed while its
-      // parameters are revised, including legacy revisions created before this metadata.
-      const source = mode === 'revise' ? this._revision(asset, parent.metadata?.processing?.inputRevisionId || parent.parentId) : parent;
-      const file = source.files.find((entry) => entry.role === 'image') ?? source.files.find((entry) => entry.role === 'source');
-      if (!file) throw new Error('Revision has no source image.');
-      const input = await this._readFile(asset.id, source.id, file);
-      const processed = await processImageBuffer(input, recipe);
-      const metadata = { ...processed.metadata, processing: { inputRevisionId: source.id, mode } };
-      if (source.metadata.generation) {
-        metadata.generation = { ...clone(source.metadata.generation), originRevisionId: source.metadata.generation.originRevisionId ?? source.id };
-      }
-      const references = [];
-      for (const reference of source.files.filter((entry) => entry.role === 'reference')) {
-        references.push({ name: reference.name, role: reference.role, mime: reference.mime,
-          buffer: await this._readFile(asset.id, source.id, reference) });
-      }
-      const revision = await this._writeRevision(asset.id, {
-        parentId: parent.id, metadata, recipe: processed.recipe,
-        files: normalizeFiles([{ name: 'image.png', role: 'image', mime: 'image/png', buffer: processed.buffer }, ...references]),
-      });
-      asset.revisions.push(revision);
-      asset.selectedRevisionId = revision.id;
-      await this._save(data);
-      return clone(asset);
-    });
-  }
-
   async selectRevision({ assetId, revisionId }) {
     return this._withLock(async () => {
       const data = await this._load();
@@ -342,17 +308,14 @@ export class FwvProject {
         } catch (error) { checks.push({ id: 'image-decode', status: 'failed', message: error.message }); }
       }
     }
-    if (asset.kind === 'model3d') {
-      coverage = 'glb-and-files';
-      const modelFiles = revision.files.filter(file => file.role === 'model');
+    if (asset.kind === 'model3d') checks.push({ id: 'asset-kind', status: 'failed', message: '3D assets are outside the 2D editor scope.' });
+    if (asset.kind === 'skeleton2d') {
+      coverage = 'skeleton2d-and-files';
       try {
-        if (modelFiles.length !== 1 || !buffers.has(modelFiles[0].name)) throw new Error('A model revision requires exactly one intact GLB artifact.');
-        const { inspectGlb } = await import('../model/glb.mjs');
-        const model = await inspectGlb(buffers.get(modelFiles[0].name));
-        checks.push({ id: 'glb-structure', status: model.validation.status, repairable: Boolean(model.validation.repairable),
-          message: model.validation.status === 'passed' ? 'GLB structure, embedded images and skin weights passed technical checks.'
-            : 'GLB has repairable weight errors: ' + model.validation.issues.filter(issue => issue.severity === 0).map(issue => issue.message).join(' ') });
-      } catch (error) { checks.push({ id: 'glb-structure', status: 'failed', repairable: false, message: error.message }); }
+        const { inspectSkeleton2dFiles } = await import('../skeleton2d/application.mjs');
+        const result = await inspectSkeleton2dFiles(revision.files.map(file => ({ ...file, buffer: buffers.get(file.name) })));
+        checks.push({ id: 'skeleton2d-structure', status: 'passed', message: `${result.summary.bones} bones, ${result.summary.animations.length} animations and all PNG references passed validation.` });
+      } catch (error) { checks.push({ id: 'skeleton2d-structure', status: 'failed', message: error.message }); }
     }
     return {
       status: checks.some((check) => check.status === 'failed') ? 'failed' : 'passed',

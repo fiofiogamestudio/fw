@@ -4,10 +4,6 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FwvProject } from '../core/project.mjs';
-import { ImagesProvider } from '../generation/provider.mjs';
-import { GenerationJobs } from '../generation/jobs.mjs';
-import { ReskinWorkflows } from '../workflows/reskin.mjs';
-import { ArtChanges } from '../workflows/changes.mjs';
 
 const require = createRequire(import.meta.url);
 const appPath = fileURLToPath(new URL('./app/fwe.app.json', import.meta.url));
@@ -30,8 +26,11 @@ export async function loadEditorRuntime(fwePath) {
     || fwe.SERVER_INTEGRATION_CONTRACT?.requestGuard !== 'await-before-routing-v1'
     || fwe.SERVER_INTEGRATION_CONTRACT?.extensions !== 'sync-setup-async-handlers-v1'
     || fwe.SERVER_INTEGRATION_CONTRACT?.configuredSurfaces !== 'native-inspector-v1'
+    || fwe.SERVER_INTEGRATION_CONTRACT?.nativeCatalog !== 'media-pagination-forms-v1'
+    || fwe.SERVER_INTEGRATION_CONTRACT?.surfaceCanvas !== 'device-resolution-v1'
+    || fwe.SERVER_INTEGRATION_CONTRACT?.boundedRequestBody !== 'bytes-v1'
     || typeof fwe.loadAppConfig !== 'function' || typeof fwe.startServer !== 'function') {
-    throw failure('所选 FWE 缺少受保护的扩展 API 或原生配置界面合同，请显式更新该组件。');
+    throw failure('所选 FWE 缺少受保护的扩展 API、原生素材集合、Form 生命周期、高清画布或请求体字节限额合同，请显式更新该组件。');
   }
   return { fwe, selectedFwePath, metadata };
 }
@@ -44,30 +43,25 @@ export async function startEditor({ projectRoot, fwePath, port = 3230, signal, o
   const fixedRoot = await realpath(projectRoot);
   const application = new FwvProject(fixedRoot);
   const initial = await application.snapshot();
-  const imageProvider = new ImagesProvider();
-  const generationJobs = new GenerationJobs({ project: application, provider: imageProvider });
-  await generationJobs.initialize();
-  const reskinWorkflows = new ReskinWorkflows({ project: application, generationJobs });
-  const artChanges = new ArtChanges({ project: application, generationJobs });
   const csrfToken = randomBytes(32).toString('hex');
   const app = fwe.loadAppConfig(appPath);
   app.workspaceDir = fixedRoot;
   for (const domain of app.domains) domain.source.expectedProjectId = initial.id;
-  const authoring = app.domains.find(domain => domain.id === 'fwv-authoring');
   const ui = {};
-  for (const [id, relative] of Object.entries(authoring?.workbench?.editor?.configs || {})) {
+  for (const domain of app.domains) for (const [id, relative] of Object.entries(domain.workbench?.editor?.configs || {})) {
     const configPath = await realpath(path.resolve(path.dirname(appPath), relative));
     const local = path.relative(path.dirname(appPath), configPath);
     if (local.startsWith('..') || path.isAbsolute(local) || !configPath.endsWith('.ui.json')) throw failure('界面配置必须位于编辑器配置目录。');
-    ui[id] = JSON.parse(await readFile(configPath, 'utf8'));
+    const config = JSON.parse(await readFile(configPath, 'utf8'));
+    if (ui[id] && JSON.stringify(ui[id]) !== JSON.stringify(config)) throw failure(`界面配置标识重复：${id}。`);
+    ui[id] = config;
   }
   app.fwvWorkbench = Object.freeze({ application, projectRoot: fixedRoot, projectId: initial.id,
-    protocol: EDITOR_PROTOCOL, csrfToken, fweVersion: metadata.version, imageProvider, generationJobs, reskinWorkflows, artChanges, ui });
-  const readableApi = new Set(['/api/app', '/api/domains/fwv-project/files',
-    '/api/domains/fwv-project/files/fwv.project.json', '/api/fwv/session', '/api/fwv/snapshot', '/api/fwv/ui',
+    protocol: EDITOR_PROTOCOL, csrfToken, fweVersion: metadata.version, ui });
+  const readableApi = new Set(['/api/app', '/api/fwv/session', '/api/fwv/snapshot', '/api/fwv/ui',
     '/api/domains/fwv-authoring/files', '/api/domains/fwv-authoring/files/authoring.json',
-    '/api/fwv/artifact', '/api/fwv/spine/part', '/api/fwv/spine-runtime', '/api/fwv/provider', '/api/fwv/generation/jobs',
-    '/api/fwv/reskin/workflows', '/api/fwv/reskin/template', '/api/fwv/reskin/local-task', '/api/fwv/rig/draft', '/api/fwv/changes', '/api/fwv/model-runtime', '/api/fwv/model',
+    '/api/domains/fwv-catalog/files', '/api/domains/fwv-catalog/files/catalog.json', '/api/fwv/image',
+    '/api/fwv/skeleton2d', '/api/fwv/skeleton2d-runtime', '/api/fwv/skeleton2d-thumbnail',
     ...(app.clientExtensions || []).map(entry => `/api/extensions/${entry.id}/${encodeURIComponent(entry.name)}`)]);
   const guard = async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -98,11 +92,9 @@ export async function startEditor({ projectRoot, fwePath, port = 3230, signal, o
   const closed = new Promise(resolve => server.once('close', resolve));
   let shutdown;
   const close = () => shutdown ||= (async () => {
-    reskinWorkflows.close(); const jobsClosed = generationJobs.close();
     server.close(); server.closeIdleConnections?.();
-    await closed; await jobsClosed;
+    await closed;
   })();
-  closed.then(() => { reskinWorkflows.close(); generationJobs.close(); });
   signal?.addEventListener('abort', close, { once: true });
   closed.then(() => signal?.removeEventListener('abort', close));
   if (signal?.aborted) await close();

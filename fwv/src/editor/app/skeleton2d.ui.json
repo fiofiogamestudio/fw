@@ -1,0 +1,991 @@
+{
+  "root": "root",
+  "templates": {
+    "root": {
+      "type": "stack",
+      "testId": "fwv-skeleton2d",
+      "preset": "compact",
+      "attrs": {
+        "inert": {
+          "$path": "busy",
+          "default": false
+        }
+      },
+      "children": [
+        {
+          "type": "heading",
+          "text": {
+            "$text": "title"
+          }
+        },
+        {
+          "type": "text",
+          "text": {
+            "$text": "intro"
+          },
+          "tone": "muted"
+        },
+        {
+          "type": "toolbar",
+          "children": [
+            {
+              "type": "field",
+              "ref": "revision",
+              "testId": "s2d-revision",
+              "field": {
+                "schemaPath": "skeleton2dDrafts[].data.revisionId",
+                "type": "select",
+                "path": "view.revision"
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "text": {
+            "$text": "empty"
+          },
+          "visible": {
+            "$not": {
+              "$path": "hasDocument"
+            }
+          },
+          "tone": "muted"
+        },
+        {
+          "type": "details",
+          "children": [
+            {
+              "type": "summary",
+              "text": "展开骨骼层级"
+            },
+            {
+              "type": "slot",
+              "ref": "boneGraph",
+              "testId": "s2d-bone-graph",
+              "preset": "stage"
+            }
+          ],
+          "visible": {
+            "$path": "hasDocument"
+          }
+        },
+        {
+          "type": "columns",
+          "preset": "workspace",
+          "visible": {
+            "$path": "hasDocument"
+          },
+          "children": [
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "stack",
+                  "preset": [
+                    "preview",
+                    "stage"
+                  ],
+                  "children": [
+                    {
+                      "type": "canvas",
+                      "ref": "canvas",
+                      "testId": "s2d-canvas",
+                      "attrs": {
+                        "aria-label": "2D 骨骼动画预览"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "toolbar",
+                  "children": [
+                    {
+                      "type": "button",
+                      "ref": "play",
+                      "testId": "s2d-play",
+                      "text": {
+                        "$if": [
+                          {
+                            "$path": "playing"
+                          },
+                          "暂停",
+                          "播放"
+                        ]
+                      },
+                      "on": {
+                        "click": "play"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "skin",
+                      "testId": "s2d-skin",
+                      "field": {
+                        "schemaPath": "skeleton2dDrafts[].data.skin",
+                        "type": "select",
+                        "path": "view.skin"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "animation",
+                      "testId": "s2d-animation",
+                      "field": {
+                        "schemaPath": "skeleton2dDrafts[].data.animation",
+                        "type": "select",
+                        "path": "view.animation"
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "speed",
+                      "testId": "s2d-speed",
+                      "field": {
+                        "schemaPath": "skeleton2dDrafts[].data.speed",
+                        "path": "view.speed"
+                      },
+                      "value": {
+                        "$path": "speed",
+                        "default": 1
+                      }
+                    },
+                    {
+                      "type": "field",
+                      "ref": "showBones",
+                      "testId": "s2d-show-bones",
+                      "field": {
+                        "schemaPath": "skeleton2dDrafts[].data.showBones",
+                        "path": "view.showBones"
+                      },
+                      "value": {
+                        "$path": "showBones",
+                        "default": true
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "field",
+                  "ref": "seek",
+                  "testId": "s2d-seek",
+                  "field": {
+                    "type": "range",
+                    "label": "播放位置",
+                    "min": 0,
+                    "max": 1,
+                    "step": 0.001,
+                    "path": "view.time",
+                    "commitEvent": "input"
+                  },
+                  "attrs": {
+                    "max": {
+                      "$path": "duration",
+                      "default": 1
+                    }
+                  },
+                  "value": {
+                    "$path": "time",
+                    "default": 0
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "clock"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "canvas",
+                  "ref": "timeline",
+                  "testId": "s2d-timeline",
+                  "attrs": {
+                    "aria-label": "关键帧时间轴，点击定位关键帧"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$text": "timelineHelp"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "form",
+                  "testId": "s2d-keyframe-form",
+                  "on": {
+                    "submit": "submitFrame"
+                  },
+                  "children": [
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "field",
+                          "ref": "channel",
+                          "testId": "s2d-channel",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.channel",
+                            "path": "view.channel"
+                          },
+                          "value": {
+                            "$path": "channel",
+                            "default": "rotate"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "frame",
+                          "testId": "s2d-frame",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frameIndex",
+                            "type": "select",
+                            "path": "view.frameIndex"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "field",
+                          "ref": "frameTime",
+                          "testId": "s2d-frame-time",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frame.time",
+                            "path": "frame.time",
+                            "required": true,
+                            "commitEvent": "input"
+                          },
+                          "value": {
+                            "$path": "frame.time",
+                            "default": 0
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "frameX",
+                          "testId": "s2d-frame-x",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frame.x",
+                            "path": "frame.x",
+                            "required": true,
+                            "commitEvent": "input"
+                          },
+                          "value": {
+                            "$path": "frame.x",
+                            "default": 0
+                          },
+                          "visible": {
+                            "$not": {
+                              "$eq": [
+                                {
+                                  "$path": "channel"
+                                },
+                                "rotate"
+                              ]
+                            }
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$not": {
+                                  "$eq": [
+                                    {
+                                      "$path": "channel"
+                                    },
+                                    "rotate"
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "frameY",
+                          "testId": "s2d-frame-y",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frame.y",
+                            "path": "frame.y",
+                            "required": true,
+                            "commitEvent": "input"
+                          },
+                          "value": {
+                            "$path": "frame.y",
+                            "default": 0
+                          },
+                          "visible": {
+                            "$not": {
+                              "$eq": [
+                                {
+                                  "$path": "channel"
+                                },
+                                "rotate"
+                              ]
+                            }
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$not": {
+                                  "$eq": [
+                                    {
+                                      "$path": "channel"
+                                    },
+                                    "rotate"
+                                  ]
+                                }
+                              }
+                            }
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "frameValue",
+                          "testId": "s2d-frame-value",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frame.value",
+                            "path": "frame.value",
+                            "required": true,
+                            "commitEvent": "input"
+                          },
+                          "value": {
+                            "$path": "frame.value",
+                            "default": 0
+                          },
+                          "visible": {
+                            "$eq": [
+                              {
+                                "$path": "channel"
+                              },
+                              "rotate"
+                            ]
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$eq": [
+                                  {
+                                    "$path": "channel"
+                                  },
+                                  "rotate"
+                                ]
+                              }
+                            }
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "curve",
+                          "testId": "s2d-curve",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.frame.curve",
+                            "path": "frame.curve"
+                          },
+                          "value": {
+                            "$path": "frame.curve",
+                            "default": "linear"
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "type": "toolbar",
+                      "children": [
+                        {
+                          "type": "button",
+                          "testId": "s2d-key-add",
+                          "text": "在当前时间新增关键帧",
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "canKey"
+                              }
+                            },
+                            "type": "submit",
+                            "name": "operation",
+                            "value": "add"
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "testId": "s2d-key-update",
+                          "text": "更新所选关键帧",
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "hasFrame"
+                              }
+                            },
+                            "type": "submit",
+                            "name": "operation",
+                            "value": "update"
+                          }
+                        },
+                        {
+                          "type": "button",
+                          "testId": "s2d-key-delete",
+                          "text": "删除关键帧",
+                          "on": {
+                            "click": "deleteFrame"
+                          },
+                          "attrs": {
+                            "disabled": {
+                              "$not": {
+                                "$path": "hasFrame"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "stack",
+              "preset": "compact",
+              "children": [
+                {
+                  "type": "field",
+                  "ref": "bone",
+                  "testId": "s2d-bone",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.bone",
+                    "type": "select",
+                    "path": "view.bone"
+                  }
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "bonePath"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "heading",
+                  "text": "骨骼初始姿势"
+                },
+                {
+                  "type": "field",
+                  "ref": "boneX",
+                  "testId": "s2d-bone-x",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.document.bones[].x",
+                    "path": "bone.x"
+                  },
+                  "value": {
+                    "$path": "bone.x",
+                    "default": 0
+                  },
+                  "on": {
+                    "focus": "pauseForEdit"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "boneY",
+                  "testId": "s2d-bone-y",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.document.bones[].y",
+                    "path": "bone.y"
+                  },
+                  "value": {
+                    "$path": "bone.y",
+                    "default": 0
+                  },
+                  "on": {
+                    "focus": "pauseForEdit"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "boneRotation",
+                  "testId": "s2d-bone-rotation",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.document.bones[].rotation",
+                    "path": "bone.rotation"
+                  },
+                  "value": {
+                    "$path": "bone.rotation",
+                    "default": 0
+                  },
+                  "on": {
+                    "focus": "pauseForEdit"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "boneScaleX",
+                  "testId": "s2d-bone-scale-x",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.document.bones[].scaleX",
+                    "path": "bone.scaleX"
+                  },
+                  "value": {
+                    "$path": "bone.scaleX",
+                    "default": 1
+                  },
+                  "on": {
+                    "focus": "pauseForEdit"
+                  }
+                },
+                {
+                  "type": "field",
+                  "ref": "boneScaleY",
+                  "testId": "s2d-bone-scale-y",
+                  "field": {
+                    "schemaPath": "skeleton2dDrafts[].data.document.bones[].scaleY",
+                    "path": "bone.scaleY"
+                  },
+                  "value": {
+                    "$path": "bone.scaleY",
+                    "default": 1
+                  },
+                  "on": {
+                    "focus": "pauseForEdit"
+                  }
+                },
+                {
+                  "type": "details",
+                  "children": [
+                    {
+                      "type": "summary",
+                      "text": "部件绑定与变换"
+                    },
+                    {
+                      "type": "stack",
+                      "preset": "compact",
+                      "children": [
+                        {
+                          "type": "field",
+                          "ref": "slot",
+                          "testId": "s2d-slot",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.slot",
+                            "type": "select",
+                            "path": "view.slot"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "slotBone",
+                          "testId": "s2d-slot-bone",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.document.slots[].bone",
+                            "type": "select",
+                            "path": "slot.bone"
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "attachment",
+                          "testId": "s2d-attachment",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachment",
+                            "type": "select",
+                            "path": "view.attachment"
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "partX",
+                          "testId": "s2d-part-x",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachmentTransform.x",
+                            "path": "part.x"
+                          },
+                          "value": {
+                            "$path": "part.x",
+                            "default": 0
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          },
+                          "visible": {
+                            "$not": {
+                              "$path": "mesh"
+                            }
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "partY",
+                          "testId": "s2d-part-y",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachmentTransform.y",
+                            "path": "part.y"
+                          },
+                          "value": {
+                            "$path": "part.y",
+                            "default": 0
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          },
+                          "visible": {
+                            "$not": {
+                              "$path": "mesh"
+                            }
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "partRotation",
+                          "testId": "s2d-part-rotation",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachmentTransform.rotation",
+                            "path": "part.rotation"
+                          },
+                          "value": {
+                            "$path": "part.rotation",
+                            "default": 0
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          },
+                          "visible": {
+                            "$not": {
+                              "$path": "mesh"
+                            }
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "partScaleX",
+                          "testId": "s2d-part-scale-x",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachmentTransform.scaleX",
+                            "path": "part.scaleX"
+                          },
+                          "value": {
+                            "$path": "part.scaleX",
+                            "default": 1
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          },
+                          "visible": {
+                            "$not": {
+                              "$path": "mesh"
+                            }
+                          }
+                        },
+                        {
+                          "type": "field",
+                          "ref": "partScaleY",
+                          "testId": "s2d-part-scale-y",
+                          "field": {
+                            "schemaPath": "skeleton2dDrafts[].data.attachmentTransform.scaleY",
+                            "path": "part.scaleY"
+                          },
+                          "value": {
+                            "$path": "part.scaleY",
+                            "default": 1
+                          },
+                          "on": {
+                            "focus": "pauseForEdit"
+                          },
+                          "visible": {
+                            "$not": {
+                              "$path": "mesh"
+                            }
+                          }
+                        },
+                        {
+                          "type": "details",
+                          "visible": {
+                            "$path": "mesh"
+                          },
+                          "children": [
+                            {
+                              "type": "summary",
+                              "text": "网格与骨骼权重"
+                            },
+                            {
+                              "type": "stack",
+                              "preset": "compact",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "text": {
+                                    "$path": "meshSummary"
+                                  },
+                                  "tone": "muted"
+                                },
+                                {
+                                  "type": "text",
+                                  "text": "点击控制点选择骨骼；按住 Shift 点击绿色网格顶点。权重以骨骼名称标识，每点 1–4 个正权重，总和必须为 1。",
+                                  "tone": "muted"
+                                },
+                                {
+                                  "type": "field",
+                                  "ref": "meshVertex",
+                                  "testId": "s2d-mesh-vertex",
+                                  "field": {
+                                    "schemaPath": "skeleton2dDrafts[].data.meshEditing.vertex",
+                                    "path": "meshEdit.vertex"
+                                  },
+                                  "value": {
+                                    "$path": "meshEdit.vertex"
+                                  },
+                                  "on": {
+                                    "focus": "pauseForEdit"
+                                  }
+                                },
+                                {
+                                  "type": "field",
+                                  "ref": "meshInfluences",
+                                  "testId": "s2d-mesh-influences",
+                                  "field": {
+                                    "schemaPath": "skeleton2dDrafts[].data.meshEditing.influences",
+                                    "path": "meshEdit.influences",
+                                    "type": "textarea",
+                                    "rows": 10,
+                                    "description": "修改后点击下方按钮校验并应用。"
+                                  },
+                                  "value": {
+                                    "$path": "meshEdit.influences"
+                                  },
+                                  "on": {
+                                    "focus": "pauseForEdit"
+                                  }
+                                },
+                                {
+                                  "type": "button",
+                                  "testId": "s2d-mesh-apply-vertex",
+                                  "text": "校验并应用顶点权重",
+                                  "on": {
+                                    "click": "applyMeshVertex"
+                                  }
+                                },
+                                {
+                                  "type": "details",
+                                  "children": [
+                                    {
+                                      "type": "summary",
+                                      "text": "完整网格拓扑"
+                                    },
+                                    {
+                                      "type": "stack",
+                                      "preset": "compact",
+                                      "children": [
+                                        {
+                                          "type": "field",
+                                          "ref": "meshUvs",
+                                          "testId": "s2d-mesh-uvs",
+                                          "field": {
+                                            "schemaPath": "skeleton2dDrafts[].data.meshEditing.uvs",
+                                            "path": "meshEdit.uvs",
+                                            "type": "textarea",
+                                            "rows": 4,
+                                            "description": "修改后点击下方按钮校验并应用。"
+                                          },
+                                          "value": {
+                                            "$path": "meshEdit.uvs"
+                                          },
+                                          "on": {
+                                            "focus": "pauseForEdit"
+                                          }
+                                        },
+                                        {
+                                          "type": "field",
+                                          "ref": "meshTriangles",
+                                          "testId": "s2d-mesh-triangles",
+                                          "field": {
+                                            "schemaPath": "skeleton2dDrafts[].data.meshEditing.triangles",
+                                            "path": "meshEdit.triangles",
+                                            "type": "textarea",
+                                            "rows": 4,
+                                            "description": "修改后点击下方按钮校验并应用。"
+                                          },
+                                          "value": {
+                                            "$path": "meshEdit.triangles"
+                                          },
+                                          "on": {
+                                            "focus": "pauseForEdit"
+                                          }
+                                        },
+                                        {
+                                          "type": "field",
+                                          "ref": "meshVertices",
+                                          "testId": "s2d-mesh-vertices",
+                                          "field": {
+                                            "schemaPath": "skeleton2dDrafts[].data.meshEditing.vertices",
+                                            "path": "meshEdit.vertices",
+                                            "type": "textarea",
+                                            "rows": 6,
+                                            "description": "修改后点击下方按钮校验并应用。"
+                                          },
+                                          "value": {
+                                            "$path": "meshEdit.vertices"
+                                          },
+                                          "on": {
+                                            "focus": "pauseForEdit"
+                                          }
+                                        },
+                                        {
+                                          "type": "button",
+                                          "testId": "s2d-mesh-apply-topology",
+                                          "text": "校验并应用完整网格",
+                                          "on": {
+                                            "click": "applyMeshTopology"
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "revisionLabel"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "text",
+                  "text": {
+                    "$path": "draftLabel"
+                  },
+                  "tone": "muted"
+                },
+                {
+                  "type": "button",
+                  "testId": "s2d-create-revision",
+                  "text": "创建角色新版本",
+                  "on": {
+                    "click": "createRevision"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$or": [
+                        {
+                          "$path": "busy"
+                        },
+                        {
+                          "$not": {
+                            "$path": "dirty"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "button",
+                  "testId": "s2d-export",
+                  "text": "导出当前确切版本",
+                  "on": {
+                    "click": "export"
+                  },
+                  "attrs": {
+                    "disabled": {
+                      "$or": [
+                        {
+                          "$path": "busy"
+                        },
+                        {
+                          "$path": "dirty"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "testId": "s2d-status",
+          "attrs": {
+            "role": "status",
+            "data-error": {
+              "$path": "error",
+              "default": false
+            }
+          },
+          "text": {
+            "$path": "notice",
+            "default": ""
+          },
+          "tone": {
+            "$if": [
+              {
+                "$path": "error"
+              },
+              "danger",
+              "muted"
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "texts": {
+    "title": "2D 骨骼动画",
+    "intro": "选择角色，调整骨骼与部件，编辑关键帧。草稿支持撤销、重做和保存；创建新版本后可导出。",
+    "empty": "从 FWE 素材列表选择 2D 骨骼角色。",
+    "timelineHelp": "时间轴显示所选骨骼的平移、旋转、缩放关键帧；点击时间轴定位或选择关键帧。",
+    "version": "V{number} · {id}",
+    "setup": "初始姿势",
+    "noFrame": "尚未选择关键帧",
+    "frameLabel": "{time} s · {curve}",
+    "clock": "{time} / {duration} 秒",
+    "dirty": "有尚未创建版本的修改",
+    "clean": "与所选资产版本一致",
+    "loaded": "已加载 {name}。",
+    "missingTexture": "当前确切版本缺少 PNG 贴图：{name}",
+    "created": "已创建并回读校验新版本：{revision}",
+    "exported": "已导出 {path}",
+    "frameDuplicate": "同一轨道在该时间已有关键帧，请选择并更新。",
+    "selectAnimation": "先选择动画。",
+    "revisionMismatch": "新版本回读与编辑内容不一致，未切换草稿。",
+    "runtimeFailed": "无法加载 2D 动画预览：{message}",
+    "bonePath": "父骨骼：{parent}",
+    "rootBone": "根节点",
+    "loading": "正在读取角色与贴图…",
+    "frameAdded": "已新增关键帧。",
+    "frameUpdated": "已更新关键帧。",
+    "frameDeleted": "已删除关键帧。",
+    "loadFailed": "角色加载失败：{message}",
+    "invalidDraft": "已保存的草稿无法显示，原草稿已保留。请使用撤销或 JSON 视图修正。",
+    "frameOutsideClip": "关键帧时间不能超出当前动画长度。",
+    "meshSummary": "{vertices} 个网格顶点 · {triangles} 个三角形",
+    "meshInfluencesInvalid": "每个顶点须包含 1–4 个影响，每项包含 bone、x、y、weight。",
+    "meshApplied": "网格权重已通过校验并应用到当前草稿。"
+  }
+}
