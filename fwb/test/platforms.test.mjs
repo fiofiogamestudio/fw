@@ -84,11 +84,62 @@ test('Web blocks C# and unsupported rendering instead of silently changing proje
   assert.equal(result.compatibility, 'blocked');
 });
 
-test('missing template and mismatched FWC engine block export', async (t) => {
+test('missing template and undeclared FWC baseline deviation block export', async (t) => {
   const project = await fixture(t, { files: ['web_nothreads_release.zip'] });
-  project.inspection.fwc = { requiredGodotVersion: '4.5.0' };
+  project.inspection.fwc = { baselineGodotVersion: '4.5.0' };
+  delete project.config.godot.version;
   const result = await createDoctor({ probe, env: {} })(project);
   assert.equal(status(result, 'export-template'), 'fail');
+  assert.equal(status(result, 'fwc-godot-version'), 'fail');
+});
+
+test('explicit matching host version permits only experimental FWC baseline deviation', async t => {
+  const project = await fixture(t);
+  project.inspection.fwc = { baselineGodotVersion: '4.5.0' };
+  const run = createDoctor({ probe, env: {} });
+  const result = await run(project);
+  assert.equal(result.ok, true, JSON.stringify(result.checks));
+  assert.equal(status(result, 'godot-version'), 'pass');
+  assert.equal(status(result, 'fwc-godot-version'), 'warning');
+  assert.equal(result.compatibility, 'experimental');
+  assert.match(result.checks.find(check => check.id === 'fwc-godot-version').message, /运行验收/);
+
+  project.config.godot.version = '4.7.2';
+  const wrongEngine = await run(project);
+  assert.equal(wrongEngine.ok, false);
+  assert.equal(status(wrongEngine, 'godot-version'), 'fail');
+  assert.equal(status(wrongEngine, 'fwc-godot-version'), 'fail');
+
+  project.config.targets.web.godot = { version: '4.6.2' };
+  const targetOverride = await run(project);
+  assert.equal(targetOverride.ok, true);
+  assert.equal(status(targetOverride, 'fwc-godot-version'), 'warning');
+
+  project.inspection.fwc.baselineGodotVersion = '4.6.2';
+  const baseline = await run(project);
+  assert.equal(baseline.ok, true);
+  assert.equal(status(baseline, 'fwc-godot-version'), 'pass');
+  assert.equal(baseline.compatibility, 'compatible');
+});
+
+test('machine-wide version cannot silently authorize an FWC baseline deviation', async t => {
+  const project = await fixture(t);
+  project.inspection.fwc = { baselineGodotVersion: '4.5.0' };
+  delete project.config.godot.version;
+  const machine = path.join(project.root, 'fwb-home');
+  await mkdir(machine);
+  await writeFile(path.join(machine, 'environment.json'), JSON.stringify({ schemaVersion: 1, godot: { version: '4.6.2' }, android: {}, recentProjects: [] }));
+  const result = await createDoctor({ probe, env: { FWB_HOME: machine } })(project);
+  assert.equal(status(result, 'godot-version'), 'pass');
+  assert.equal(status(result, 'fwc-godot-version'), 'fail');
+  assert.equal(result.ok, false);
+});
+
+test('host baseline deviation does not permit prerelease engines', async t => {
+  const project = await fixture(t);
+  project.inspection.fwc = { baselineGodotVersion: '4.5.0' };
+  const result = await createDoctor({ probe: async () => ({ ok: true, output: '4.6.2.rc1.official.abcdef' }), env: {} })(project);
+  assert.equal(status(result, 'godot-version'), 'fail');
   assert.equal(status(result, 'fwc-godot-version'), 'fail');
 });
 

@@ -13,10 +13,12 @@
     function button(text, action, primary=false) { const n=el('button',text,'fwe-surface-button'); n.type='button'; if(primary)n.dataset.tone='primary'; n.addEventListener('click',()=>void Promise.resolve().then(action).catch(e=>notify(e.message,true))); return n; }
     const heading=el('h2','构建工作台'), projectText=el('p','正在读取工程…','fwb-muted');
     const nav=el('div',undefined,'fwb-toolbar fwb-nav'), notice=el('div','接入工程 → 配置环境 → 检查平台 → 构建与验收','fwb-notice'); notice.setAttribute('role','status');
+    const draftNotice=el('p',undefined,'fwb-notice');draftNotice.dataset.testid='fwb-unsaved';draftNotice.setAttribute('role','status');draftNotice.hidden=true;
     const panels={}, tabs={};
     for(const [id,name] of Object.entries({build:'构建',project:'工程接入',environment:'本机环境',platform:'平台设置',publish:'验收与上传'})) { panels[id]=el('section',undefined,'fwb-card'); tabs[id]=button(name,()=>showPage(id)); nav.append(tabs[id]); }
     const platformButtons=el('div',undefined,'fwb-platforms');
-    const title=el('h3','Web 浏览器'), support=el('p',undefined,'fwb-muted');
+    const targetPicker=el('select');targetPicker.setAttribute('aria-label','构建目标');targetPicker.dataset.testid='fwb-target';targetPicker.addEventListener('change',()=>{selected=targetPicker.value;selectedArtifact='';uploadPlan=undefined;renderBuild();});
+    const title=el('h3','静态网页（浏览器）'), support=el('p',undefined,'fwb-muted');
     const picker=el('select'); picker.setAttribute('aria-label','构建配置'); picker.addEventListener('change',()=>{profile=picker.value; uploadPlan=undefined; renderBuild();});
     const check=button('检查环境',()=>command('doctor',{target:selected,profile})); check.dataset.testid='fwb-doctor';
     const build=button('构建',()=>command('build',{target:selected,profile}),true); build.dataset.testid='fwb-build';
@@ -27,36 +29,66 @@
     const artifacts=el('div'); artifacts.dataset.testid='fwb-artifacts';
     const left=el('section',undefined,'fwb-card'),right=el('section',undefined,'fwb-card'),columns=el('div',undefined,'fwb-columns');
     left.append(title,support,controls,explanation,checks); right.append(el('h3','构建产物'),artifacts); columns.append(left,right);
-    panels.build.append(platformButtons,columns);
+    panels.build.append(targetPicker,platformButtons,columns);
     const detailsTitle=el('h3','任务与日志'),details=el('pre','构建阶段和日志会在这里实时更新。'); details.dataset.testid='fwb-details';
     const detailsCard=el('section',undefined,'fwb-card'); detailsCard.append(detailsTitle,details);
-    root.append(style,heading,projectText,nav,notice,...Object.values(panels),detailsCard); host.replaceChildren(root);
+    root.append(style,heading,projectText,nav,notice,draftNotice,...Object.values(panels),detailsCard); host.replaceChildren(root);
     async function api(url,options={}) { const response=await fetch(url,{cache:'no-store',...options,headers:window.fwe.session.headers(options.headers||{})}); const body=await response.json(); if(!response.ok)throw new Error(body.error||'请求失败 '+response.status); return body; }
     const get=(obj,key)=>key.split('.').reduce((value,part)=>value?.[part],obj);
     function put(obj,key,value) { const parts=key.split('.'); let parent=obj; for(const part of parts.slice(0,-1))parent=parent[part] ||= {}; if(value==='')delete parent[parts.at(-1)]; else parent[parts.at(-1)]=value; }
-    function field(host,text,obj,key,{type='text',hint='',browse=false,dirs=false,options}={}) {
+    const unsavedSettings=()=>[dirty?'工程设置':'',envDirty?'本机环境':''].filter(Boolean).join('和');
+    function renderDraftStatus(){draftNotice.hidden=!dirty&&!envDirty;draftNotice.textContent='有未保存的'+unsavedSettings()+'。请先保存，再检查、构建或补全预设；重新读取会放弃对应草稿。';renderBuild();}
+    function settingsChanged(obj){if(obj===config)dirty=true;else if(obj===environment?.config)envDirty=true;uploadPlan=undefined;renderDraftStatus();}
+    function absoluteBrowsePath(value){if(!value)return snapshot.project.root;if(/^(?:[a-z]:[\\/]|[\\/])/.test(value.toLowerCase()))return value;return snapshot.project.root.replaceAll('\\','/').replace(/\/$/,'')+'/'+value.replaceAll('\\','/');}
+    function projectRelativePath(value){const prefix=snapshot.project.root.replaceAll('\\','/').replace(/\/$/,'')+'/',normalized=value.replaceAll('\\','/'),windows=/^(?:[a-z]:\/|\/\/)/i.test(prefix);return (windows?normalized.toLowerCase().startsWith(prefix.toLowerCase()):normalized.startsWith(prefix))?normalized.slice(prefix.length):value;}
+    function groupedTargets(select) {
+      select.replaceChildren();
+      for(const category of snapshot.targetCategories){
+        const items=snapshot.platforms.filter(item=>item.category===category.id);if(!items.length)continue;
+        const group=el('optgroup');group.label=category.label+' · '+(category.technology==='web'?'Web 技术':'原生');
+        for(const item of items){const option=el('option',item.label);option.value=item.target;group.append(option);}select.append(group);
+      }
+      select.value=selected;
+    }
+    function deliveryDescription(descriptor) {
+      const category=snapshot.targetCategories.find(item=>item.id===descriptor.category)?.label||descriptor.category;
+      if(descriptor.technology!=='web')return category+' · 原生导出；使用平台对应的工具链和包格式。';
+      const delivery=descriptor.category==='static-web'?'静态托管，通过浏览器打开。':descriptor.category==='h5'?'输出平台 H5 候选包，需对应客户端验收。':'需平台适配器生成专用小游戏工程，另行验证加载、解压和分包。';
+      return category+' · Web 技术，可共用资源裁剪、贴图压缩和字体精简。'+delivery;
+    }
+    function resourcePipelineField(host,target) {
+      const wrap=el('label',undefined,'fwb-field'),select=el('select');select.setAttribute('aria-label','共享资源流水线');
+      const options=[['inherit','继承 Web 资源流水线'],['disabled','停用共享资源流水线'],...Object.keys(config.resourcePipelines||{}).map(name=>['pipeline:'+name,name])];
+      for(const [value,name]of options){const option=el('option',name);option.value=value;select.append(option);}
+      select.value=target.resourcePipeline===false?'disabled':typeof target.resourcePipeline==='string'?'pipeline:'+target.resourcePipeline:'inherit';
+      const effective=el('span',undefined,'fwb-muted');effective.dataset.testid='fwb-resource-preparation';
+      const renderEffective=()=>{const name=target.resourcePipeline===false?null:target.resourcePipeline||'web',script=name&&config.resourcePipelines?.[name]?.prepareScript;effective.textContent=target.prepareScript?'实际资源准备：'+target.prepareScript+'（平台单独设置，优先于共享流水线）':script?'实际资源准备：'+script+'（共享流水线 '+name+'）':target.resourcePipeline===false?'共享资源准备已停用。':'尚未配置共享资源准备；请在工程参数中配置 Web 资源准备脚本。';};
+      select.addEventListener('change',()=>{if(select.value==='inherit')delete target.resourcePipeline;else target.resourcePipeline=select.value==='disabled'?false:select.value.slice('pipeline:'.length);settingsChanged(config);renderEffective();});
+      renderEffective();wrap.append(el('span','共享资源流水线'),select,effective);host.append(wrap);return renderEffective;
+    }
+    function field(host,text,obj,key,{type='text',hint='',browse=false,dirs=false,projectRelative=false,options,afterChange}={}) {
       const wrap=el('label',undefined,'fwb-field'),caption=el('span',text),input=el(options?'select':'input'); input.setAttribute('aria-label',text);
       if(options) for(const [value,name] of options) {const option=el('option',name);option.value=value;input.append(option);}
       else input.type=type;
       if(type==='checkbox') input.checked=get(obj,key)===true; else input.value=get(obj,key)??'';
-      const change=()=>{put(obj,key,type==='checkbox'?input.checked:type==='number'&&input.value!==''?Number(input.value):input.value);if(obj===environment?.config)envDirty=true;else dirty=true;uploadPlan=undefined;};
+      const change=()=>{put(obj,key,type==='checkbox'?input.checked:type==='number'&&input.value!==''?Number(input.value):input.value);afterChange?.();settingsChanged(obj);};
       input.addEventListener('input',change); input.addEventListener('change',change);
       wrap.append(caption);
-      if(browse){const row=el('div',undefined,'fwb-toolbar');row.append(input,button('浏览…',()=>browsePath(input.value,dirs,value=>{input.value=value;change();})));wrap.append(row);}else wrap.append(input);
+      if(browse){const row=el('div',undefined,'fwb-toolbar');row.append(input,button('浏览…',()=>browsePath(input.value,dirs,value=>{input.value=projectRelative?projectRelativePath(value):value;change();})));wrap.append(row);}else wrap.append(input);
       if(hint)wrap.append(el('span',hint,'fwb-muted'));host.append(wrap);return input;
     }
     async function browsePath(current,dirs,choose) {
       const dialog=el('dialog'),bar=el('div',undefined,'fwb-toolbar'),address=el('input');address.setAttribute('aria-label','浏览目录');
       const entries=el('div',undefined,'fwb-browser-list'),error=el('p',undefined,'fwb-muted');let directory=snapshot.project.root;
-      address.value=current&&/[/\\]/.test(current)?current:snapshot.project.root;
-      const load=async value=>{try{const response=await api('/api/fwb/commands',{method:'POST',headers:{'Content-Type':'application/json','X-FWB-CSRF':session.csrfToken},body:JSON.stringify({type:'paths.browse',payload:{path:value,directoriesOnly:dirs}})});const result=response.job.result;directory=result.directory;address.value=directory;entries.replaceChildren();entries.append(button('↑ 上一级',()=>load(result.parent)));for(const entry of result.entries)entries.append(button((entry.directory?'文件夹 · ':'文件 · ')+entry.name,()=>entry.directory?load(entry.path):(choose(entry.path),dialog.close())));error.textContent='';}catch(e){error.textContent=e.message;}};
+      address.value=absoluteBrowsePath(current);
+      const load=async value=>{try{const response=await api('/api/fwb/commands',{method:'POST',headers:{'Content-Type':'application/json','X-FWB-CSRF':session.csrfToken},body:JSON.stringify({type:'paths.browse',payload:{path:absoluteBrowsePath(value),directoriesOnly:dirs}})});const result=response.job.result;directory=result.directory;address.value=directory;entries.replaceChildren();entries.append(button('↑ 上一级',()=>load(result.parent)));for(const entry of result.entries)entries.append(button((entry.directory?'文件夹 · ':'文件 · ')+entry.name,()=>entry.directory?load(entry.path):(choose(entry.path),dialog.close())));error.textContent='';}catch(e){error.textContent=e.message;}};
       bar.append(address,button('打开目录',()=>load(address.value)),button('关闭',()=>dialog.close()));if(dirs)bar.append(button('选择此目录',()=>{choose(directory);dialog.close();},true));
       dialog.append(bar,error,entries);root.append(dialog);dialog.addEventListener('close',()=>dialog.remove());dialog.showModal();
       await load(address.value);
     }
     function showPage(value) { page=value;for(const [id,panel]of Object.entries(panels)){panel.hidden=id!==page;tabs[id].setAttribute('aria-pressed',String(id===page));}if(value==='platform')renderPlatform();if(value==='publish')void renderPublish(); }
-    async function loadConfiguration() { const value=await api('/api/fwb/config');config=value.config;revision=value.revision;configRoot=snapshot.project.root;dirty=false;renderProject();renderPlatform(); }
-    async function loadEnvironment() {environment=await api('/api/fwb/environment');envDirty=false;renderEnvironment();}
+    async function loadConfiguration() { const value=await api('/api/fwb/config');config=value.config;revision=value.revision;configRoot=snapshot.project.root;dirty=false;renderProject();renderPlatform();renderDraftStatus(); }
+    async function loadEnvironment() {environment=await api('/api/fwb/environment');envDirty=false;renderEnvironment();renderDraftStatus();}
     function saveSettings(){return command('settings.save',{config,revision});}
     function renderProject() {
       if(!config)return;const panel=panels.project;panel.replaceChildren(el('h3','接入自己的 Godot 工程'),el('p','选择包含 project.godot 的文件夹。首次接入只创建 FWB 配置；已有游戏和已有配置会保留。','fwb-muted'));
@@ -64,6 +96,7 @@
       const recent=el('div',undefined,'fwb-toolbar');for(const item of snapshot.recentProjects||[])recent.append(button(item,()=>command('project.open',{path:item,initialize:false})));panel.append(recent,el('h3','工程参数'));
       const form=el('div',undefined,'fwb-grid');field(form,'游戏名称',config,'name');field(form,'版本号',config,'version');field(form,'构建序号',config,'buildNumber',{type:'number'});field(form,'启用 FWB 运行时桥接',config,'runtimeAddon',{type:'checkbox',hint:'当前内置 Poki 生命周期和广告桥接；其他渠道仍需对应适配。'});
       field(form,'工程 Godot 路径（可选）',config,'godot.executable',{browse:true,hint:'留空继承本机环境。'});field(form,'工程 Godot 版本（可选）',config,'godot.version');field(form,'工程导出模板（可选）',config,'godot.templatesPath',{browse:true,dirs:true});
+      field(form,'共享 Web 资源准备脚本（可选）',config,'resourcePipelines.web.prepareScript',{browse:true,projectRelative:true,hint:'项目内 .mjs 相对路径；静态网页、H5 和小游戏默认共用。留空移除此共享定义，其他流水线和平台设置保留。',afterChange:()=>{if(!config.resourcePipelines?.web?.prepareScript){delete config.resourcePipelines.web;if(!Object.keys(config.resourcePipelines).length)delete config.resourcePipelines;}}});
       panel.append(form,button('保存工程参数',saveSettings,true),button('重新读取工程配置',loadConfiguration));
     }
     function renderEnvironment() {
@@ -73,17 +106,22 @@
     }
     function renderPlatform() {
       if(!config||!snapshot)return;const panel=panels.platform;panel.replaceChildren(el('h3','平台参数'));
-      const select=el('select');select.setAttribute('aria-label','设置平台');for(const item of snapshot.platforms){const option=el('option',item.label);option.value=item.target;select.append(option);}select.value=selected;select.addEventListener('change',()=>{selected=select.value;uploadPlan=undefined;renderPlatform();renderBuild();});panel.append(select);
-      const descriptor=snapshot.platforms.find(item=>item.target===selected);panel.append(el('p',descriptor.requirements.join('；'),'fwb-muted'));
-      const base='targets.'+selected;config.targets[selected] ||= {enabled:false,preset:['web','poki','taptap-h5'].includes(selected)?'Web':selected==='google-play'?'Android':selected==='app-store'?'iOS':selected==='wechat-minigame'?'WeChat':'Douyin'};
-      const form=el('div',undefined,'fwb-grid');field(form,'启用此平台',config,base+'.enabled',{type:'checkbox'});field(form,'导出预设名称',config,base+'.preset');field(form,'包体预算（字节，可选）',config,base+'.maxBytes',{type:'number'});
+      const select=el('select');select.setAttribute('aria-label','设置平台');groupedTargets(select);select.addEventListener('change',()=>{selected=select.value;uploadPlan=undefined;renderPlatform();renderBuild();});panel.append(select);
+      const descriptor=snapshot.platforms.find(item=>item.target===selected);panel.append(el('p',deliveryDescription(descriptor),'fwb-muted'),el('p',descriptor.requirements.join('；'),'fwb-muted'));
+      const base='targets.'+selected;config.targets[selected] ||= {enabled:false,...(descriptor.family==='minigame'?{}:{preset:descriptor.family==='web'?'Web':selected==='google-play'?'Android':'iOS'})};
+      const form=el('div',undefined,'fwb-grid');field(form,'启用此平台',config,base+'.enabled',{type:'checkbox'});field(form,'导出预设名称',config,base+'.preset',{hint:selected==='wechat-minigame'?'留空按导出路线选择默认预设；配置转换脚本时默认使用 Web。':'留空按目标和导出路线选择默认预设。'});field(form,'包体预算（字节，可选）',config,base+'.maxBytes',{type:'number'});
+      if(descriptor.technology==='web'){
+        const renderPreparation=resourcePipelineField(form,config.targets[selected]);
+        field(form,'平台资源准备脚本（覆盖共享，可选）',config,base+'.prepareScript',{browse:true,projectRelative:true,hint:'项目内 .mjs 相对路径，优先于共享流水线；清空后按上方的共享流水线设置执行。',afterChange:renderPreparation});
+      }
       if(!['web','poki','taptap-h5'].includes(selected))field(form,selected==='app-store'?'Bundle ID':'应用 ID / 包名',config,base+'.applicationId');
       if(selected==='app-store')field(form,'Apple Team ID',config,base+'.teamId');
       const extra=el('details'),summary=el('summary','覆盖此平台的工具链（可选）'),extraForm=el('div',undefined,'fwb-grid');extra.append(summary,extraForm);
       field(extraForm,'平台 Godot 路径',config,base+'.godot.executable',{browse:true,hint:'留空继承工程与本机环境。'});field(extraForm,'平台 Godot 版本',config,base+'.godot.version');field(extraForm,'平台导出模板目录',config,base+'.godot.templatesPath',{browse:true,dirs:true});
       if(descriptor.family==='minigame'){
-        field(form,'平台适配 SDK 目录',config,base+'.sdkPath',{browse:true,dirs:true});field(form,'SDK 版本',config,base+'.sdkVersion');field(form,'适配器导出平台名称',config,base+'.exportPlatform');
-        panel.append(el('p','微信 / 抖音需要实际引擎适配器。本页保存路径与验证声明，不会把普通 Web 包转换为小游戏。','fwb-notice'));
+        field(form,'平台适配 SDK 目录',config,base+'.sdkPath',{browse:true,dirs:true,projectRelative:selected==='wechat-minigame',hint:selected==='wechat-minigame'?'转换路线要求工程内相对目录；选择工程内目录时自动转为相对路径。':''});field(form,'SDK 版本',config,base+'.sdkVersion');field(form,'适配器导出平台名称',config,base+'.exportPlatform');
+        panel.append(el('p','微信 / 抖音需要实际引擎适配器和对应版本的验证报告。共用资源优化不会自动完成小游戏运行环境适配。','fwb-notice'));
+        if(selected==='wechat-minigame')field(form,'Web → 微信转换脚本（可选）',config,base+'.convertScript',{browse:true,projectRelative:true,hint:'项目内 .mjs 相对路径。请同时选择 Web 平台的导出预设（通常名为 Web），由脚本调用适配器生成 game.js / game.json 微信工程；留空保留自有小游戏预设路线。'});
         field(form,'适配验证报告文件',config,base+'.validation.evidence',{browse:true});field(form,'报告中的 Godot 版本',config,base+'.validation.godotVersion');field(form,'报告中的 SDK 版本',config,base+'.validation.sdkVersion');field(form,'适配验证声明',config,base+'.validation.status',{options:[['','尚未验证'],['verified','已完成对应版本实测（需报告）']]});
       }
       if(selected==='google-play'){
@@ -96,14 +134,14 @@
         if(selected==='wechat-minigame'){field(uploadForm,'上传私钥路径所在环境变量',config,base+'.upload.privateKeyPathEnv');field(uploadForm,'上传机器人编号',config,base+'.upload.robot',{type:'number'});}
       }
       panel.append(form,extra,upload,button('保存平台设置',saveSettings,true));
-      if(descriptor.family!=='minigame')panel.append(button('补全缺失导出预设',()=>command('preset.create',{target:selected})));
+      if(descriptor.family!=='minigame'||selected==='wechat-minigame'&&config.targets[selected].convertScript)panel.append(button('补全缺失导出预设',()=>command('preset.create',{target:selected})));
       panel.append(button('检查此平台',()=>{showPage('build');return command('doctor',{target:selected,profile});}));
     }
-    function diagnosis(target=selected) {const job=snapshot.jobs.find(job=>(job.type==='doctor'||job.type==='build'&&job.result?.diagnosis||job.type==='build.batch'&&job.diagnostics?.[target])&&(job.payload.target===target||job.payload.targets?.includes(target))&&job.payload.profile===profile&&job.generation===snapshot.generation&&job.environmentRevision===snapshot.environmentRevision&&job.status==='completed');return job?.type==='build'?{...job,result:job.result.diagnosis}:job?.type==='build.batch'?{...job,result:job.diagnostics[target]}:job;}
+    function diagnosis(target=selected) {if(dirty||envDirty)return;const job=snapshot.jobs.find(job=>(job.type==='doctor'||job.type==='build'&&job.result?.diagnosis||job.type==='build.batch'&&job.diagnostics?.[target])&&(job.payload.target===target||job.payload.targets?.includes(target))&&job.payload.profile===profile&&job.generation===snapshot.generation&&job.environmentRevision===snapshot.environmentRevision&&(job.status==='completed'||job.type==='build'&&job.status==='failed'&&job.result?.diagnosis));return job?.type==='build'?{...job,result:job.result.diagnosis}:job?.type==='build.batch'?{...job,result:job.diagnostics[target]}:job;}
     function renderBuild() {
       if(!snapshot)return;const platform=snapshot.platforms.find(item=>item.target===selected),busy=submitting||Boolean(snapshot.activeJobId),report=diagnosis();
-      title.textContent=platform.label;support.textContent=selected==='taptap-h5'?'目标是在手机 TapTap App 内点开游玩；本地预览通过后仍需 App 内验收。':platform.family==='minigame'?'适配尚需验证：须准备对应引擎、SDK 和真实导出预设。':selected==='app-store'?'Godot 导出 Xcode 工程；签名归档和 TestFlight 尚需在 Mac 完成。':platform.requirements.join('；');
-      check.disabled=busy||!platform.configured;build.disabled=busy||!platform.enabled||report?.result?.ok===false;picker.disabled=busy;batch.disabled=busy||!snapshot.platforms.some(item=>item.enabled);
+      title.textContent=platform.label;support.textContent=deliveryDescription(platform)+' '+(selected==='taptap-h5'?'目标是在手机 TapTap App 内点开游玩；本地预览通过后仍需 App 内验收。':platform.family==='minigame'?'适配尚需验证：须准备对应引擎、SDK 和导出路线。':selected==='app-store'?'Godot 导出 Xcode 工程；签名归档和 TestFlight 尚需在 Mac 完成。':platform.requirements.join('；'));
+      groupedTargets(targetPicker);check.disabled=busy||!platform.configured;build.disabled=busy||!platform.enabled||report?.result?.ok===false;picker.disabled=busy;targetPicker.disabled=busy;batch.disabled=busy||!snapshot.platforms.some(item=>item.enabled);
       cancel.hidden=!snapshot.jobs.some(job=>job.id===snapshot.activeJobId&&['build','build.batch'].includes(job.type));cancel.disabled=submitting;
       platformButtons.replaceChildren();for(const item of snapshot.platforms){const previous=diagnosis(item.target);const status=!item.configured?'未配置':!item.enabled?'已停用':previous?previous.result.ok?'环境通过 · 待验收':'缺少条件':item.family==='minigame'?'待适配验证':item.support!=='supported'?'待平台验收':'待检查';const b=button(item.label+' · '+status,()=>{selected=item.target;selectedArtifact='';uploadPlan=undefined;renderBuild();});b.setAttribute('aria-pressed',String(item.target===selected));platformButtons.append(b);}
       checks.replaceChildren();if(!report)checks.append(el('p',platform.enabled?'尚未检查 '+profile+' 配置，构建前会自动预检。':'此平台尚未启用，请进入平台设置。','fwb-muted'));
@@ -128,13 +166,13 @@
         if(!config||configRoot!==snapshot.project.root)await loadConfiguration();if(!environment)await loadEnvironment();
         if(!snapshot.profiles.includes(profile))profile=snapshot.profiles[0];if([...picker.options].map(o=>o.value).join('|')!==snapshot.profiles.join('|')){picker.replaceChildren();for(const name of snapshot.profiles){const option=el('option',name);option.value=name;picker.append(option);}}picker.value=profile;
         const nextBuildSignature=JSON.stringify({platforms:snapshot.platforms,artifacts:snapshot.artifacts,generation:snapshot.generation,environmentRevision:snapshot.environmentRevision,active:snapshot.activeJobId,jobs:snapshot.jobs.map(job=>[job.id,job.status])});if(nextBuildSignature!==lastBuildSignature){lastBuildSignature=nextBuildSignature;renderBuild();}const recent=snapshot.jobs[0];if(recent){const key=recent.id+':'+recent.status;if(recent.status==='running')showDetails('执行中 · '+(recent.phase||recent.type),recent.output||'正在执行，请稍候…');if(key!==seenJob){seenJob=key;if(recent.status==='failed'){notify(recent.error||'任务失败',true);showDetails('任务失败',recent);}else if(recent.status==='completed'){
-          if(['settings.save','config.save','project.open'].includes(recent.type))await loadConfiguration();if(recent.type==='environment.save')await loadEnvironment();if(recent.type==='environment.detect'){Object.assign(environment.config.godot,recent.result.godot);Object.assign(environment.config.android,recent.result.android);envDirty=true;renderEnvironment();}
+          if(['settings.save','config.save','project.open'].includes(recent.type))await loadConfiguration();if(recent.type==='environment.save')await loadEnvironment();if(recent.type==='environment.detect'){Object.assign(environment.config.godot,recent.result.godot);Object.assign(environment.config.android,recent.result.android);envDirty=true;renderEnvironment();renderDraftStatus();}
           if(recent.type==='upload-plan'){uploadPlan=recent.result;selectedArtifact=recent.payload.artifactId;showPage('publish');}else if(['evidence','receipt.record','upload.execute'].includes(recent.type))void renderPublish();
           notify(recent.result?.ok===false?'检查发现阻塞项，请按提示配置。':recent.type==='build'?'构建完成。请继续运行和平台验收。':recent.type.includes('save')?'已保存并生效，请重新检查环境。':'操作完成。',recent.result?.ok===false);
           showDetails('任务完成 · '+recent.type,recent.type==='build'?{artifactId:recent.result.id,target:recent.result.target,profile:recent.result.profile,status:recent.result.status,validation:recent.result.validation,completedAt:recent.result.completedAt}:recent.result);if(recent.type==='preview'&&recent.result?.url){const a=el('a','打开游戏预览');a.href=recent.result.url;a.target='_blank';a.rel='noopener noreferrer';notice.append(document.createTextNode(' '),a);}
         }}}for(const id of ['project','platform','environment','publish']){const busy=submitting||Boolean(snapshot.activeJobId);for(const input of panels[id].querySelectorAll('input,select,textarea'))input.disabled=busy;}
       }catch(e){notify(e.message,true);}finally{refreshing=false;}}
-    async function command(type,payload,interrupt=false){if(!session||submitting||snapshot?.activeJobId&&!interrupt)throw new Error('请等待当前任务完成。');submitting=true;try{if(['build','build.batch','doctor'].includes(type))selectedArtifact='';const response=await api('/api/fwb/commands',{method:'POST',headers:{'Content-Type':'application/json','X-FWB-CSRF':session.csrfToken},body:JSON.stringify({type,payload})});notify(type==='build.cancel'?'正在取消构建…':'操作已开始。');return response;}finally{submitting=false;await refresh();}}
+    async function command(type,payload,interrupt=false){if(!session||submitting||snapshot?.activeJobId&&!interrupt)throw new Error('请等待当前任务完成。');if((dirty||envDirty)&&['doctor','build','build.batch','preset.create','project.open','environment.detect','upload-plan','upload.execute'].includes(type))throw new Error('请先保存未保存的'+unsavedSettings()+'，再执行此操作；也可重新读取以放弃对应草稿。');submitting=true;try{if(['build','build.batch','doctor'].includes(type))selectedArtifact='';const response=await api('/api/fwb/commands',{method:'POST',headers:{'Content-Type':'application/json','X-FWB-CSRF':session.csrfToken},body:JSON.stringify({type,payload})});notify(type==='build.cancel'?'正在取消构建…':'操作已开始。');return response;}finally{submitting=false;await refresh();}}
     showPage('build');void refresh();const timer=setInterval(()=>void refresh(),1000);
     return {root,dispose(){disposed=true;clearInterval(timer);root.remove();}};
   }

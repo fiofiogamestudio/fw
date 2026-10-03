@@ -40,7 +40,7 @@ export async function handleWorkbenchApi({ app, req, res, url, sendJson }) {
     if (req.method === 'GET' && route === '/api/fwb/download') {
       const artifact = await state.artifact(url.searchParams.get('id'));
       const { packageArtifact } = await import('../core/package.mjs');
-      const bytes = packageArtifact(artifact); res.setHeader('Content-Type', 'application/zip');
+      const bytes = await packageArtifact(artifact); res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${artifact.id}.zip"`); res.end(bytes); return true;
     }
     if (req.method === 'POST' && route === '/api/fwb/commands') { const job = await state.command(await readCommand(req)); app.workspaceDir = state.projectRoot; sendJson(202, { job }); return true; }

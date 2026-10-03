@@ -10,6 +10,8 @@ data BuildWorkspace {
 type Platform {
   target: string @key @readonly
   label: string @readonly
+  category: string @readonly
+  technology: string @readonly
   configured: bool @readonly
   upload: string @readonly
 }

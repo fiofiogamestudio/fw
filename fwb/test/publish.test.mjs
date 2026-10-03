@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { createPublisher, listReleases, outputsFingerprint, recordUploadReceipt } from '../src/core/publish.mjs';
 import { fileDigest, atomicJson } from '../src/core/files.mjs';
+import { pckFixture, wasmFixture } from './fixtures/web-output.mjs';
 
 const specifications = {
   'wechat-ci': { target: 'wechat-minigame', name: 'miniprogram-ci', version: '2.1.31', entry: 'bin/miniprogram-ci.js', bin: 'miniprogram-ci', applicationId: 'wx1234567890abcdef' },
@@ -27,7 +28,7 @@ function fixture(t, providerId = 'wechat-ci') {
   const directory = path.join(root, '.local', 'fwb', 'artifacts', id);
   const out = path.join(directory, 'out');
   const files = spec.target === 'poki' ? {
-    'index.html': '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>', 'index.js': '/* fixture */', 'index.wasm': Buffer.from([0, 97, 115, 109]), 'index.pck': 'fixture',
+    'index.html': '<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>', 'index.js': '/* fixture */', 'index.wasm': wasmFixture(), 'index.pck': pckFixture(),
   } : { 'game.js': '/* fixture */', 'game.json': '{}', 'project.config.json': JSON.stringify({ appid: spec.applicationId, compileType: 'game', miniprogramRoot: './' }) };
   for (const [file, data] of Object.entries(files)) write(path.join(out, file), data);
   const artifact = { schemaVersion: 1, id, status: 'built', target: spec.target, version: '1.2.3', buildNumber: 7, profile: 'release',

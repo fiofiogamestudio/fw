@@ -1,10 +1,17 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { child, digest, fail } from './files.mjs';
+import { readArtifact, validateArtifact } from './build.mjs';
 
 const table = Array.from({ length: 256 }, (_, n) => { for (let i = 0; i < 8; i++) n = (n >>> 1) ^ (n & 1 ? 0xedb88320 : 0); return n >>> 0; });
 const crc32 = data => { let crc = 0xffffffff; for (const byte of data) crc = table[(crc ^ byte) & 255] ^ (crc >>> 8); return (crc ^ 0xffffffff) >>> 0; };
-export function packageArtifact(artifact) {
+export async function packageArtifact(artifact) {
   if (artifact.status !== 'built' || !artifact.outputs?.length) fail('invalid-package', '只有构建成功的产物可以下载。');
+  const root = path.resolve(artifact.directory, '../../../..');
+  const current = readArtifact(root, artifact.id);
+  if (current.directory !== path.resolve(artifact.directory)) fail('invalid-package', '下载必须使用工程中已记录的产物。');
+  if (!(await validateArtifact(root, artifact.id)).ok) fail('invalid-package', '产物完整性、包结构或大小预算检查失败，请重新构建。');
+  artifact = current;
   if (artifact.outputs.length > 60000 || artifact.outputs.reduce((n, file) => n + file.size, 0) > 256 * 1024 * 1024) fail('package-too-large', '大于 256 MiB 的产物请使用“打开目录”交付。');
   const local = [], central = []; let offset = 0;
   for (const output of artifact.outputs) {

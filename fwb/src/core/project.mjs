@@ -3,6 +3,7 @@ import path from 'node:path';
 import { atomicJson, child, digest, fail, physicalPath, readJson, sectionValue, walk } from './files.mjs';
 import { targets, retiredTargetMessage } from '../platforms.mjs';
 import { validateToolPaths } from './environment.mjs';
+import { resolveResourcePreparation, validateHookScript, validateResourcePipelines } from './resource-pipeline.mjs';
 
 export const PROJECT_FILE = 'fwb.project.json';
 const TARGETS = targets.map(target => target.id);
@@ -11,12 +12,13 @@ const text = (value, label, max = 240) => { if (typeof value !== 'string' || !va
 
 export function validateConfig(config) {
   if (!plain(config) || config.schemaVersion !== 1) fail('invalid-config', 'Expected FWB schemaVersion 1.');
-  const keys = ['schemaVersion', 'name', 'version', 'buildNumber', 'godot', 'targets', 'profiles', 'runtimeAddon', 'exclude', 'timeoutSeconds'];
+  const keys = ['schemaVersion', 'name', 'version', 'buildNumber', 'godot', 'targets', 'profiles', 'runtimeAddon', 'resourcePipelines', 'exclude', 'timeoutSeconds'];
   for (const key of Object.keys(config)) if (!keys.includes(key)) fail('invalid-config', `Unknown project setting: ${key}`);
   text(config.name, 'name'); text(config.version, 'version', 80);
   if (!Number.isSafeInteger(config.buildNumber) || config.buildNumber < 1) fail('invalid-config', 'buildNumber must be a positive safe integer.');
   if (!plain(config.godot)) fail('invalid-config', 'godot is required.');
   validateToolPaths(config.godot);
+  validateResourcePipelines(config.resourcePipelines);
   if (config.godot.version !== undefined && !/^4\.\d+\.\d+$/.test(config.godot.version)) fail('invalid-config', 'godot.version must be an exact Godot 4 version.');
   if (!plain(config.targets) || !Object.keys(config.targets).length) fail('invalid-config', 'At least one target is required.');
   for (const [id, target] of Object.entries(config.targets)) {
@@ -25,6 +27,9 @@ export function validateConfig(config) {
     if (target.enabled !== undefined && typeof target.enabled !== 'boolean') fail('invalid-config', `${id}.enabled must be boolean.`);
     if (retired && target.enabled !== false) fail('retired-target', retired);
     if (target.preset !== undefined) text(target.preset, `${id}.preset`, 100);
+    for (const hook of ['prepareScript', 'finalizeScript', 'convertScript']) if (target[hook] !== undefined) validateHookScript(target[hook], `${id}.${hook}`);
+    if (target.convertScript !== undefined && id !== 'wechat-minigame') fail('invalid-config', 'convertScript is only supported for wechat-minigame.');
+    resolveResourcePreparation(config, id);
     if (target.maxBytes !== undefined && (!Number.isSafeInteger(target.maxBytes) || target.maxBytes < 1)) fail('invalid-config', `${id}.maxBytes must be positive.`);
     if (target.godot !== undefined) validateToolPaths(target.godot);
     for (const key of ['sdkPath', 'sdkVersion', 'androidSdkPath', 'javaHome', 'exportPlatform', 'applicationId', 'teamId']) if (target[key] !== undefined) text(target[key], `${id}.${key}`, 2048);
@@ -73,8 +78,8 @@ export function inspectProject(root, config) {
     const component = path.resolve(path.dirname(generatorPath), '../..');
     if (!component.startsWith(root + path.sep)) fail('invalid-fwc-path', 'FWC generator must be inside the game project.');
     const spec = path.join(component, 'docs/spec.md');
-    const requiredGodotVersion = fs.existsSync(spec) ? fs.readFileSync(spec, 'utf8').match(/Godot[：:]\s*`(4\.\d+\.\d+)`/)?.[1] : undefined;
-    fwc = { path: path.relative(root, component).replaceAll('\\', '/'), generator, runtime, requiredGodotVersion };
+    const baselineGodotVersion = fs.existsSync(spec) ? fs.readFileSync(spec, 'utf8').match(/Godot[：:]\s*`(4\.\d+\.\d+)`/)?.[1] : undefined;
+    fwc = { path: path.relative(root, component).replaceAll('\\', '/'), generator, runtime, baselineGodotVersion };
   }
   if (!['csharp', 'gdscript'].includes(runtime)) fail('invalid-runtime', 'FWC runtime must be csharp or gdscript.');
   return {
@@ -104,7 +109,7 @@ export function initProject(value, options = {}) {
     schemaVersion: 1, name: options.name ?? path.basename(root), version: '0.1.0', buildNumber: 1,
     godot: { executable: options.godot ?? process.env.GODOT_BIN ?? 'godot', ...(options.godotVersion ? { version: options.godotVersion } : {}) },
     runtimeAddon: false,
-    targets: Object.fromEntries(TARGETS.map(id => [id, { enabled: true, preset: ['web', 'poki', 'taptap-h5'].includes(id) ? 'Web' : id === 'google-play' ? 'Android' : id === 'app-store' ? 'iOS' : id }])),
+    targets: Object.fromEntries(targets.map(({ id, family, preset }) => [id, { enabled: true, ...(family === 'minigame' ? {} : { preset }) }])),
     profiles: { debug: { release: false }, release: { release: true } },
   };
   validateConfig(config);

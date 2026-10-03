@@ -6,14 +6,11 @@ import { readEnvironment, saveEnvironment, rememberProject, browsePaths, resolve
 import { resolveExecutable, probeTool, parseGodotVersion } from '../doctor.mjs';
 import { validateConfig, initProject } from '../core/project.mjs';
 import { ensureExportPreset } from '../core/setup.mjs';
-import { getTarget } from '../platforms.mjs';
+import { getTarget, targetCategories, targets } from '../platforms.mjs';
 import { listReleases, readRelease, recordUploadReceipt, uploadArtifact } from '../core/publish.mjs';
 
 const invalid = (message, status = 400) => Object.assign(new Error(message), { status });
-export const PLATFORM_LABELS = {
-  web: 'Web 浏览器', 'taptap-h5': 'TapTap（App 内即玩）', 'wechat-minigame': '微信小游戏',
-  'douyin-minigame': '抖音小游戏', 'google-play': 'Google Play', 'app-store': 'App Store', poki: 'Poki',
-};
+export const PLATFORM_LABELS = Object.freeze(Object.fromEntries(targets.map(target => [target.id, target.label])));
 function fields(value, required, optional = []) {
   if (!value || typeof value !== 'object' || Array.isArray(value)
     || required.some(key => !Object.hasOwn(value, key))
@@ -124,9 +121,19 @@ export async function createWorkbenchState(root, services) {
         return { url: preview.url, artifactId: payload.artifactId };
       }
       throw invalid('该操作尚未接入。');
-    }).then(result => { job.result = result; job.status = 'completed'; }, error => {
-      job.status = 'failed'; job.error = error.message;
+    }).then(result => { job.result = result; job.status = 'completed'; }, async error => {
+      job.error = error.message;
       if (error.artifactId) job.artifactId = error.artifactId;
+      if (type === 'build' && error.artifactId && services.readArtifact) {
+        try {
+          const artifact = await services.readArtifact(job.projectRoot, error.artifactId);
+          if (artifact.target === payload.target && artifact.profile === payload.profile
+            && typeof artifact.diagnosis?.ok === 'boolean' && Array.isArray(artifact.diagnosis.checks)) {
+            job.result = { diagnosis: artifact.diagnosis };
+          }
+        } catch { /* Keep the original build error when the failure manifest cannot be read. */ }
+      }
+      job.status = 'failed';
     }).finally(() => { job.finishedAt = new Date().toISOString(); active = null; });
     return jobView(job);
   }
@@ -137,7 +144,8 @@ export async function createWorkbenchState(root, services) {
       const environment = readEnvironment(environmentFile);
       return { generation, project: { name: project.config.name, root, revision: project.revision, inspection: project.inspection }, environmentRevision: environment.revision,
         recentProjects: environment.config.recentProjects || [],
-        platforms: Object.entries(PLATFORM_LABELS).map(([target, label]) => ({ target, label, configured: Object.hasOwn(project.config.targets, target), enabled: Object.hasOwn(project.config.targets, target) && project.config.targets[target].enabled !== false, family: getTarget(target).family, support: getTarget(target).status, requirements: getTarget(target).requirements, upload: project.config.targets[target]?.upload?.provider || 'handoff' })),
+        targetCategories,
+        platforms: Object.entries(PLATFORM_LABELS).map(([target, label]) => ({ target, label, configured: Object.hasOwn(project.config.targets, target), enabled: Object.hasOwn(project.config.targets, target) && project.config.targets[target].enabled !== false, family: getTarget(target).family, category: getTarget(target).category, technology: getTarget(target).technology, support: getTarget(target).status, requirements: getTarget(target).requirements, upload: project.config.targets[target]?.upload?.provider || 'handoff' })),
         profiles: Object.keys(project.config.profiles), artifacts: await services.listArtifacts(root),
         jobs: [...jobs.values()].reverse().map(jobView), activeJobId: active?.id ?? null,
         publication: { status: 'development-only', message: '先检查上传条件，再确认上传开发版本；审核与上线在平台操作。' } };

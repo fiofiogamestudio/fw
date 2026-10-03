@@ -3,8 +3,11 @@ import { readFile, stat, readdir, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getTarget, retiredTargetMessage } from './platforms.mjs';
-import { child } from './core/files.mjs';
+import { child, walk } from './core/files.mjs';
 import { resolveEnvironment } from './core/environment.mjs';
+import { usesWebConversion } from './core/minigame-export.mjs';
+import { resolveResourcePreparation } from './core/resource-pipeline.mjs';
+import { inputFiles } from './core/project.mjs';
 
 /** Bounded read-only process probe. Its raw output is not included in doctor reports. */
 export function probeTool(executable, args, { cwd, env = process.env, timeoutMs = 8000, maxBytes = 32768 } = {}) {
@@ -49,7 +52,7 @@ export function probeTool(executable, args, { cwd, env = process.env, timeoutMs 
 const presetKeys = new Set(['name', 'platform', 'custom_template/debug', 'custom_template/release', 'variant/thread_support',
   'variant/extensions_support', 'gradle_build/use_gradle_build', 'gradle_build/gradle_build_directory', 'gradle_build/export_format', 'html/custom_html_shell']);
 
-export const resolvePresetName = (target, config = {}) => config.preset || getTarget(target)?.preset;
+export const resolvePresetName = (target, config = {}) => config.preset || (usesWebConversion(target, config) ? 'Web' : getTarget(target)?.preset);
 
 /** Godot appends /build to this preset path. Reject paths escaping either source or stage. */
 export function resolveAndroidGradleDirectory(root, value = '') {
@@ -189,10 +192,14 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
       const ok = !checks.some((check) => check.status === 'fail');
       return { ok, target, profile, checks, engine, platform: descriptor || null, templates,
         toolchain: { godot: toolchain, androidSdkPath: resolved.androidSdkPath, javaHome: resolved.javaHome },
-        compatibility: !ok ? 'blocked' : descriptor?.status === 'supported' && inspection.runtime !== 'csharp' && !inspection.extensions?.length ? 'compatible' : 'experimental' };
+        compatibility: !ok ? 'blocked' : descriptor?.status === 'supported' && inspection.runtime !== 'csharp' && !inspection.extensions?.length && !checks.some(check => check.id === 'fwc-godot-version' && check.status === 'warning') ? 'compatible' : 'experimental' };
     };
     if (!descriptor) {
       add('target', 'fail', retiredTargetMessage(target) || `未知构建目标：${target}`, '运行 fwb targets 查看可用目标。');
+      return result();
+    }
+    if (!Object.hasOwn(config.targets ?? {}, target)) {
+      add('target-configured', 'fail', `工程未配置构建目标：${target}`, `在 fwb.project.json targets 中配置 ${target} 后再构建。`);
       return result();
     }
     add('target-enabled', targetConfig.enabled === false ? 'fail' : 'pass', targetConfig.enabled === false ? '该目标尚未启用。' : '目标已启用。', targetConfig.enabled === false ? `在 fwb.project.json targets.${target}.enabled 中启用目标。` : undefined);
@@ -210,7 +217,19 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
         engine.version = version.raw;
         add('godot', version.major === 4 ? 'pass' : 'fail', `检测到 Godot ${version.raw}。`, version.major === 4 ? undefined : '首版 FWB 仅支持 Godot 4。');
         add('godot-version', versionMatches(toolchain.version, version) ? 'pass' : 'fail', versionMatches(toolchain.version, version) ? 'Godot 与目标工具链配置匹配。' : 'Godot 实际版本与配置要求不一致。', versionMatches(toolchain.version, version) ? undefined : '选择匹配版本的引擎，不要仅修改版本声明。');
-        if (inspection.fwc?.requiredGodotVersion) add('fwc-godot-version', versionMatches(inspection.fwc.requiredGodotVersion, version) ? 'pass' : 'fail', versionMatches(inspection.fwc.requiredGodotVersion, version) ? 'Godot 符合 FWC 声明版本。' : '目标引擎与 FWC 声明版本冲突。', '使用已验证的相同引擎版本与 FWC 组合。');
+        if (inspection.fwc?.baselineGodotVersion) {
+          const baseline = inspection.fwc.baselineGodotVersion;
+          const matchesBaseline = versionMatches(baseline, version);
+          // FWC documents its regression baseline; a host may explicitly pin another
+          // stable engine, but a machine-wide tool preference is not that declaration.
+          const hostVersion = targetConfig.godot?.version ?? config.godot?.version;
+          const explicitHostMatch = /^4\.\d+\.\d+$/.test(hostVersion ?? '') && versionMatches(hostVersion, version);
+          add('fwc-godot-version', matchesBaseline ? 'pass' : explicitHostMatch ? 'warning' : 'fail',
+            matchesBaseline ? `Godot 符合 FWC 回归基线 ${baseline}。` : explicitHostMatch
+              ? `宿主明确使用 Godot ${hostVersion}，与 FWC 回归基线 ${baseline} 不同；允许实验构建，兼容性仍需运行验收。`
+              : `目标引擎与 FWC 回归基线 ${baseline} 不同，且没有匹配实际引擎的宿主版本声明。`,
+            matchesBaseline ? undefined : '在工程或目标 godot.version 中固定实际标准版本，并验证本次导出包的配置、交互与持久化；本机工具设置不能代替宿主版本声明。');
+        }
       }
     } catch { add('godot', 'fail', 'Godot 版本探测失败。', '检查可执行文件和工程目录是否可访问。'); }
 
@@ -222,7 +241,7 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
       if (matches.length === 1) {
         selectedPreset = matches[0];
         add('export-preset', 'pass', `找到导出预设：${name}。`);
-        const platform = descriptor.platform || targetConfig.exportPlatform;
+        const platform = usesWebConversion(target, targetConfig) ? 'Web' : descriptor.platform || targetConfig.exportPlatform;
         add('export-platform', platform && selectedPreset.platform === platform ? 'pass' : 'fail', platform && selectedPreset.platform === platform ? `预设平台为 ${platform}。` : '导出预设的平台与目标配置不匹配或尚未声明。', '设置正确的 preset；小游戏需显式声明 exportPlatform。');
       } else add('export-preset', 'fail', matches.length ? '导出预设名称重复，无法确定目标。' : `未找到导出预设：${name}。`, '在 Godot 中创建并保存对应导出预设。');
     } catch { add('export-preset', 'fail', '无法读取 export_presets.cfg。', '在工程根目录保存 Godot 导出预设。'); }
@@ -232,7 +251,41 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
       selectedPreset.options['gradle_build/export_format'] = release ? 1 : 0;
     }
 
-    const webRuntime = descriptor.family === 'web' || descriptor.family === 'minigame';
+    const webRuntime = descriptor.technology === 'web';
+    let snapshotInputs;
+    const snapshotKey = relative => process.platform === 'win32' ? relative.replaceAll('\\', '/').toLowerCase() : relative.replaceAll('\\', '/');
+    const inSnapshot = file => {
+      snapshotInputs ??= new Set(inputFiles(project.root, config).map(snapshotKey));
+      return snapshotInputs.has(snapshotKey(path.relative(project.root, file)));
+    };
+    const snapshotScript = async relative => {
+      const file = child(project.root, relative);
+      if (!await exists(file)) throw new Error('脚本不存在、为空或不是文件。');
+      if (!inSnapshot(file)) throw new Error(`脚本 ${relative} 被源码快照排除；检查保留目录和 exclude。`);
+    };
+    try {
+      const preparation = resolveResourcePreparation(config, target);
+      if (preparation) {
+        await snapshotScript(preparation.script);
+        add('resource-preparation', 'pass', `资源准备脚本已包含在快照输入：${preparation.pipeline ? preparation.pipeline + ' / ' : ''}${preparation.script}`);
+      }
+    } catch (error) { add('resource-preparation', 'fail', `资源准备无法进入安全快照：${error.message}`, '提供项目内非空资源准备脚本，禁止链接；不要放入 .local、node_modules 等保留目录或被 exclude 排除。'); }
+    if (usesWebConversion(target, targetConfig)) {
+      try {
+        await snapshotScript(targetConfig.convertScript);
+        add('wechat-converter', 'pass', 'Web → 微信小游戏转换脚本已包含在快照输入。');
+      } catch (error) { add('wechat-converter', 'fail', `微信转换脚本无法进入安全快照：${error.message}`, 'convertScript 必须是项目内 .mjs 非空文件；禁止链接、保留目录或 exclude 排除。脚本接收 --project/--input/--output/--target/--profile。'); }
+      try {
+        const sdk = child(project.root, targetConfig.sdkPath);
+        if (!await exists(sdk, 'directory')) throw new Error('SDK 目录不存在。');
+        const dependencies = walk(sdk);
+        if (!dependencies.length) throw new Error('SDK 目录为空，没有可冻结的文件。');
+        const excluded = dependencies.filter(relative => !inSnapshot(child(sdk, relative)));
+        if (excluded.length) throw new Error(`SDK 有 ${excluded.length} 个文件被源码快照排除，例如 ${excluded.slice(0, 3).join('、')}；检查保留目录和 exclude。`);
+        add('wechat-sdk-snapshot', 'pass', `适配 SDK 的 ${dependencies.length} 个文件均包含在快照输入，将随源码冻结。`);
+      } catch (error) { add('wechat-sdk-snapshot', 'fail', `微信 SDK 无法完整进入安全快照：${error.message}`, 'sdkPath 必须是项目内非空 SDK 相对目录；所有 SDK 文件都应可复制，禁止链接、保留目录或 exclude 排除。'); }
+      add('wechat-export-platform', !targetConfig.exportPlatform || targetConfig.exportPlatform === 'Web' ? 'pass' : 'fail', 'convertScript 路线使用 Web 中间产物。', '选择 Web 平台的 preset，并省略 exportPlatform 或设为 Web。');
+    }
     if (webRuntime) {
       add('engine-flavor', version?.mono ? 'fail' : 'pass', version?.mono ? 'Godot .NET 编辑器本身不能导出 Web；纯 GD 工程也需要标准版编辑器。' : '使用标准 Godot Web 导出工具链。', version?.mono ? '将 godot.executable 指向同版本标准版 Godot。' : undefined);
       add('runtime', inspection.runtime === 'gdscript' ? 'pass' : 'fail', inspection.runtime === 'gdscript' ? '游戏运行时为 GDScript。' : 'Godot 4 Web/小游戏路线不支持 C# 或未知运行时。', inspection.runtime === 'gdscript' ? undefined : '使用经过迁移验证的纯 GDScript 工程。');
@@ -288,6 +341,15 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
       const file = custom ? resolveProjectPath(project.root, custom) : engine.templatesPath && names[variant] ? path.join(engine.templatesPath, names[variant]) : undefined;
       if (file) templates[variant] = file;
       if (variant === mode && names[variant]) add('export-template', await exists(file) ? 'pass' : 'fail', await exists(file) ? `已找到 ${variant} 导出模板。` : `缺少匹配的 ${variant} 导出模板。`, '安装与引擎一致的模板，或配置 godot.templatesPath / preset custom_template。');
+      if (variant === mode && file) {
+        const relative = path.relative(project.root, file);
+        if (relative && !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep)) {
+          try {
+            if (!inSnapshot(child(project.root, relative))) throw new Error('模板被源码快照排除。');
+            add('export-template-snapshot', 'pass', '项目内导出模板已包含在快照输入，将使用冻结副本。');
+          } catch (error) { add('export-template-snapshot', 'fail', `项目内导出模板无法进入安全快照：${error.message}`, '将当前构建模式的模板放入可冻结的项目目录；禁止链接、保留目录或 exclude 排除。'); }
+        }
+      }
     }
     if (toolchain.templatesPath && version) {
       try {

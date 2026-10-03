@@ -8,10 +8,13 @@ import { spawnSync } from 'node:child_process';
 import { readProject, inputFiles } from './project.mjs';
 import { atomicJson, child, digest, fail, fileDigest, outputsFingerprint, physicalPath, readJson, sectionValue, walk } from './files.mjs';
 import { runProcess } from './process.mjs';
-import { runGodotProcess } from './godot-process.mjs';
 import { doctor, resolveAndroidGradleDirectory, resolvePresetName } from '../doctor.mjs';
 import { validateNativeOutputs } from './native-validation.mjs';
-import { retiredTargetMessage } from '../platforms.mjs';
+import { getTarget, retiredTargetMessage } from '../platforms.mjs';
+import { validateWebDelivery } from './web-delivery.mjs';
+import { resolveResourcePreparation } from './resource-pipeline.mjs';
+import { convertMinigame, usesWebConversion, validateMinigameOutputs } from './minigame-export.mjs';
+import { runGodotProcess } from './godot-process.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const artifactRoot = root => child(root, '.local/fwb/artifacts');
@@ -114,6 +117,14 @@ function installAddon(stage, target) {
   return { sha256: digest(JSON.stringify(hashes)), files: hashes };
 }
 
+export function exportTemplatePaths(project, stage, templates = {}) {
+  return Object.fromEntries(Object.entries(templates).map(([kind, file]) => {
+    const relative = path.relative(project.root, file);
+    const internal = relative && !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep);
+    return [kind, internal ? child(stage, relative) : file];
+  }));
+}
+
 export function configureExport(project, stage, target, profile, diagnosis) {
   const retired = retiredTargetMessage(target);
   if (retired) fail('retired-target', retired);
@@ -123,16 +134,16 @@ export function configureExport(project, stage, target, profile, diagnosis) {
   let source = fs.readFileSync(file, 'utf8');
   const section = presetSection(source, preset);
   const options = `${section}.options`;
-  const web = ['web', 'poki', 'taptap-h5'].includes(target);
+  const web = getTarget(target)?.family === 'web' || usesWebConversion(target, targetConfig);
   const extension = web ? '.html' : target === 'google-play' ? (profile.release ? '.aab' : '.apk') : target === 'app-store' ? '.zip' : '.zip';
   const filename = web ? 'index.html' : `game${extension}`;
-  source = setSetting(source, section, 'export_path', `../out/${filename}`);
+  source = setSetting(source, section, 'export_path', `../${usesWebConversion(target, targetConfig) ? 'web' : 'out'}/${filename}`);
   const includes = sectionValue(source, section, 'include_filter') ?? '';
   source = setSetting(source, section, 'include_filter', [includes, 'fwb.runtime.json', 'pack/config/*.bin'].filter(Boolean).join(','));
   const excludes = sectionValue(source, section, 'exclude_filter') ?? '';
   source = setSetting(source, section, 'exclude_filter', [excludes, 'fwb/*', 'fwe/*', 'fwa/*', 'fws/*', 'fwv/*', 'tools/*', 'tests/*', 'docs/*', 'fwb.project.json', 'fwb.toolchain.lock.json', ...(project.inspection.fwc ? [`${project.inspection.fwc.path}/*`, 'schema/*', 'data/config/*'] : [])].filter(Boolean).join(','));
   if (diagnosis.templates) {
-    for (const kind of ['debug', 'release']) if (diagnosis.templates[kind]) source = setSetting(source, options, `custom_template/${kind}`, diagnosis.templates[kind].replaceAll('\\', '/'));
+    for (const [kind, template] of Object.entries(exportTemplatePaths(project, stage, diagnosis.templates))) source = setSetting(source, options, `custom_template/${kind}`, template.replaceAll('\\', '/'));
   }
   if (web) {
     source = setSetting(source, options, 'variant/thread_support', false);
@@ -168,6 +179,41 @@ export function configureExport(project, stage, target, profile, diagnosis) {
   return { filename, preset, web };
 }
 
+export function fwcPrepareCommand(component, stage, engine, timeoutSeconds, platform = process.platform) {
+  // FWC keeps its 180-second default; explicit host budgets use its existing 1800-second cap.
+  const importTimeout = String(Math.min(timeoutSeconds ?? 180, 1800));
+  return platform === 'win32'
+    ? { executable: 'powershell.exe', args: ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(component, 'tools/build.ps1'), '-ProjectRoot', stage, '-Godot', engine, '-Release', '-GodotImportTimeoutSeconds', importTimeout] }
+    : { executable: 'bash', args: [path.join(component, 'tools/build.sh'), '--project-root', stage, '--godot', engine, '--release', '--godot-import-timeout-seconds', importTimeout] };
+}
+
+export async function prepareSnapshot(project, stage, target, profile, options = {}) {
+  const preparation = resolveResourcePreparation(project.config, target);
+  if (!preparation) return null;
+  const { script } = preparation;
+  if (physicalPath(stage) === physicalPath(project.root)) fail('unsafe-stage', 'Preparation must run in an isolated snapshot.');
+  const filename = child(stage, script);
+  if (!fs.existsSync(filename) || !fs.statSync(filename).isFile()) fail('prepare-script-missing', `Snapshot preparation script is missing: ${script}`);
+  const sha256 = fileDigest(filename);
+  await runProcess(process.execPath, [filename, '--project', stage, '--target', target, '--profile', profile], {
+    ...options, cwd: stage, env: { ...(options.env ?? process.env), FWB_SNAPSHOT_ROOT: stage, FWB_RESOURCE_PIPELINE: preparation.pipeline ?? '' },
+  });
+  return { ...preparation, sha256, status: 'passed' };
+}
+
+export async function finalizeExport(project, stage, out, target, profile, options = {}) {
+  const script = project.config.targets[target]?.finalizeScript;
+  if (script === undefined) return null;
+  if (physicalPath(stage) === physicalPath(project.root) || physicalPath(out) === physicalPath(project.root) || path.dirname(physicalPath(stage)) !== path.dirname(physicalPath(out)) || physicalPath(stage) === physicalPath(out)) fail('unsafe-stage', 'Finalization requires separate snapshot and output directories in the same artifact.');
+  const filename = child(stage, script);
+  if (!fs.existsSync(filename) || !fs.statSync(filename).isFile()) fail('finalize-script-missing', `Export finalization script is missing: ${script}`);
+  const sha256 = fileDigest(filename);
+  await runProcess(process.execPath, [filename, '--project', stage, '--output', out, '--target', target, '--profile', profile], {
+    ...options, cwd: stage, env: { ...(options.env ?? process.env), FWB_SNAPSHOT_ROOT: stage, FWB_OUTPUT_ROOT: out },
+  });
+  return { script, sha256, status: 'passed' };
+}
+
 export async function buildProject(root, { target = 'web', profile = 'debug', signal, onEvent, onOutput } = {}) {
   const retired = retiredTargetMessage(target);
   if (retired) fail('retired-target', retired);
@@ -178,6 +224,8 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
   const directory = artifactDirectory(project.root, id);
   const stage = child(directory, 'project');
   const out = child(directory, 'out');
+  const converting = usesWebConversion(target, project.config.targets[target]);
+  const exportOut = converting ? child(directory, 'web') : out;
   const manifest = { schemaVersion: 1, id, target, profile, status: 'building', createdAt: new Date().toISOString(), name: project.config.name, version: project.config.version, buildNumber: project.config.buildNumber, logs: ['build.log'], outputs: [], validation: { package: 'not-tested', runtime: 'not-tested', platform: 'not-tested' }, remote: { status: 'not-uploaded' } };
   const logFile = path.join(directory, 'build.log');
   const emit = (phase, message) => { fs.appendFileSync(logFile, `[${phase}] ${message}\n`); onEvent?.({ artifactId: id, phase, message }); };
@@ -185,6 +233,9 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
   try {
     fs.mkdirSync(directory, { recursive: true });
     fs.mkdirSync(stage); fs.mkdirSync(out);
+    if (converting) fs.mkdirSync(exportOut);
+    manifest.classification = { technology: getTarget(target)?.technology, category: getTarget(target)?.category, family: getTarget(target)?.family };
+    if (project.config.targets[target]?.applicationId) manifest.applicationId = project.config.targets[target].applicationId;
     store(directory, manifest);
     emit('doctor', 'Checking target compatibility and build tools.');
     const diagnosis = await doctor(project, { target, profile });
@@ -198,14 +249,18 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
     if (diagnosis.toolchain?.javaHome) resolved.processEnv.JAVA_HOME = diagnosis.toolchain.javaHome;
     if (diagnosis.toolchain?.androidSdkPath) Object.assign(resolved.processEnv, { ANDROID_HOME: diagnosis.toolchain.androidSdkPath, ANDROID_SDK_ROOT: diagnosis.toolchain.androidSdkPath });
     const runOptions = { cwd: stage, logFile, timeoutSeconds: project.config.timeoutSeconds ?? 600, signal, onOutput, env: resolved.processEnv };
+    if (resolveResourcePreparation(project.config, target)) {
+      emit('prepare-snapshot', 'Running the host preparation script inside the frozen snapshot.');
+      manifest.preparation = await prepareSnapshot(project, stage, target, profile, runOptions);
+    }
     if (project.inspection.fwc) {
       emit('prepare', 'Preparing FWC using its own build and generation contracts.');
       const component = child(stage, project.inspection.fwc.path);
-      if (process.platform === 'win32') await runProcess('powershell.exe', ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(component, 'tools/build.ps1'), '-ProjectRoot', stage, '-Godot', engine, '-Release'], runOptions);
-      else await runProcess('bash', [path.join(component, 'tools/build.sh'), '--project-root', stage, '--godot', engine, '--release'], runOptions);
+      const prepare = fwcPrepareCommand(component, stage, engine, project.config.timeoutSeconds);
+      await runProcess(prepare.executable, prepare.args, runOptions);
     }
     const exported = configureExport(project, stage, target, releaseProfile, diagnosis);
-    const lock = { schemaVersion: 1, engine: { version: diagnosis.engine.version, executable: engine, sha256: fs.existsSync(engine) ? fileDigest(engine) : null }, templates: Object.fromEntries(Object.entries(diagnosis.templates ?? {}).filter(([, value]) => typeof value === 'string' && fs.existsSync(value)).map(([key, value]) => [key, { path: value, sha256: fileDigest(value) }])), target, profile, fwbVersion: '0.1.0' };
+    const lock = { schemaVersion: 1, engine: { version: diagnosis.engine.version, executable: engine, sha256: fs.existsSync(engine) ? fileDigest(engine) : null }, templates: Object.fromEntries(Object.entries(exportTemplatePaths(project, stage, diagnosis.templates)).filter(([, value]) => fs.existsSync(value)).map(([key, value]) => [key, { path: value, sha256: fileDigest(value) }])), target, profile, fwbVersion: '0.1.0' };
     const companion = engine.replace(/_console\.exe$/i, '.exe');
     if (companion !== engine && fs.existsSync(companion)) lock.engine.companion = { path: companion, sha256: fileDigest(companion) };
     lock.fwbSourceSha256 = digest(JSON.stringify(['src', 'runtime'].flatMap(folder => walk(path.join(packageRoot, folder)).map(file => ({ path: `${folder}/${file}`, sha256: fileDigest(path.join(packageRoot, folder, file)) })))));
@@ -214,11 +269,19 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
     emit('import', 'Importing the frozen Godot project.');
     await runGodotProcess(engine, ['--headless', '--path', stage, '--editor', '--import'], { ...runOptions, phase: 'import' });
     emit('export', `Exporting ${target} with preset ${exported.preset}.`);
-    await runGodotProcess(engine, ['--headless', '--path', stage, releaseProfile.release ? '--export-release' : '--export-debug', exported.preset, path.join(out, exported.filename)], { ...runOptions, phase: 'export' });
+    await runGodotProcess(engine, ['--headless', '--path', stage, releaseProfile.release ? '--export-release' : '--export-debug', exported.preset, path.join(exportOut, exported.filename)], { ...runOptions, phase: 'export' });
     if (target === 'poki' && project.config.runtimeAddon) fs.copyFileSync(path.join(packageRoot, 'runtime/web/fwb-poki.js'), path.join(out, 'fwb-poki.js'));
+    if (converting) {
+      emit('convert-minigame', 'Converting the raw Web export with the frozen WeChat adapter.');
+      manifest.conversion = await convertMinigame(project, stage, exportOut, out, target, profile, runOptions);
+    }
+    if (project.config.targets[target]?.finalizeScript) {
+      emit('finalize-export', 'Finalizing the exported files with the frozen host script.');
+      manifest.finalization = await finalizeExport(project, stage, out, target, profile, runOptions);
+    }
     manifest.outputs = walk(out).map(relative => ({ path: `out/${relative}`, size: fs.statSync(child(out, relative)).size, sha256: fileDigest(child(out, relative)) }));
     if (!manifest.outputs.length) fail('empty-export', 'Godot produced no output.');
-    manifest.entry = `out/${exported.filename}`;
+    manifest.entry = converting ? 'out/game.js' : `out/${exported.filename}`;
     manifest.maxBytes = project.config.targets[target]?.maxBytes ?? null;
     manifest.status = 'built'; manifest.completedAt = new Date().toISOString();
     store(directory, manifest);
@@ -267,16 +330,12 @@ export async function validateArtifact(root, id) {
   const web = ['web', 'poki', 'taptap-h5'].includes(artifact.target);
   checks.push(...validateNativeOutputs(artifact));
   if (web) {
-    for (const name of ['index.html', 'index.js', 'index.wasm', 'index.pck']) add(`web:${name}`, names.has(`out/${name}`), `Required Web output: ${name}`);
-    const wasm = child(artifact.directory, 'out/index.wasm');
-    if (fs.existsSync(wasm)) { const fd = fs.openSync(wasm, 'r'); const header = Buffer.alloc(4); try { fs.readSync(fd, header, 0, 4, 0); } finally { fs.closeSync(fd); } add('wasm-header', header.equals(Buffer.from([0, 97, 115, 109])), 'Valid WebAssembly header.'); }
+    checks.push(...validateWebDelivery(artifact, names));
     if (artifact.target === 'poki') {
       const html = child(artifact.directory, 'out/index.html');
       add('poki-sdk', fs.existsSync(html) && fs.readFileSync(html, 'utf8').includes('game-cdn.poki.com/scripts/v2/poki-sdk.js'), 'Poki SDK is referenced; actual SDK events require platform validation.');
     }
-  } else if (['wechat-minigame', 'douyin-minigame'].includes(artifact.target)) {
-    for (const name of ['game.js', 'game.json']) add(`minigame:${name}`, names.has(`out/${name}`), `Mini-game output requires ${name}; a plain Web archive is insufficient.`);
-  }
+  } else checks.push(...validateMinigameOutputs(artifact));
   const ok = checks.every(check => check.status === 'pass');
   const result = { ok, artifactId: id, checkedAt: new Date().toISOString(), checks, scope: 'package', runtimeStatus: artifact.validation?.runtime ?? 'not-tested', bytes };
   const { directory, ...stored } = artifact;

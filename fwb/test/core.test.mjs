@@ -6,10 +6,11 @@ import path from 'node:path';
 import http from 'node:http';
 import { initProject, readProject, updateProject, validateConfig, inputFiles } from '../src/core/project.mjs';
 import { atomicJson, child, fileDigest } from '../src/core/files.mjs';
-import { buildProject, listArtifacts, readArtifact, readArtifactLog, validateArtifact, recordEvidence } from '../src/core/build.mjs';
+import { buildProject, fwcPrepareCommand, listArtifacts, readArtifact, readArtifactLog, validateArtifact, recordEvidence } from '../src/core/build.mjs';
 import { startPreview } from '../src/core/preview.mjs';
 import { parseArgs } from '../src/cli.mjs';
 import { outputsFingerprint } from '../src/core/publish.mjs';
+import { pckFixture } from './fixtures/web-output.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'fwb-core-'));
@@ -23,7 +24,7 @@ function artifact(t) {
   const id = 'build_test123456789';
   const directory = path.join(root, '.local/fwb/artifacts', id);
   fs.mkdirSync(path.join(directory, 'out'), { recursive: true });
-  const files = { 'index.html': '<!doctype html><title>FWB</title>', 'index.js': '// engine', 'index.wasm': Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]), 'index.pck': 'fixture-pack' };
+  const files = { 'index.html': '<!doctype html><title>FWB</title>', 'index.js': '// engine', 'index.wasm': Buffer.from([0, 97, 115, 109, 1, 0, 0, 0]), 'index.pck': pckFixture() };
   for (const [name, bytes] of Object.entries(files)) fs.writeFileSync(path.join(directory, 'out', name), bytes);
   atomicJson(path.join(directory, 'manifest.json'), { schemaVersion: 1, id, target: 'web', profile: 'debug', status: 'built', outputs: Object.keys(files).map(name => ({ path: `out/${name}`, size: fs.statSync(path.join(directory, 'out', name)).size, sha256: fileDigest(path.join(directory, 'out', name)) })), validation: { runtime: 'not-tested', platform: 'not-tested' } });
   return { root, id, directory };
@@ -61,6 +62,37 @@ test('retired TapTap configurations require explicit disabling and preserve lega
   assert.deepEqual(readProject(root).config.targets['taptap-minigame'], legacy);
   assert.equal(initProject(root).created, false);
   assert.equal(fs.readFileSync(file, 'utf8'), before);
+});
+
+test('FWC inspection records its documentation version as a regression baseline', t => {
+  const root = fixture(t);
+  fs.mkdirSync(path.join(root, 'fw/fwc/docs'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'fw/fwc/csharp/FwGen'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'fw/fwc/docs/spec.md'), '- Godot：`4.6.2`；GDScript 可使用标准版。\n');
+  fs.writeFileSync(path.join(root, 'fw.toml'), '[runtime]\ngame="gdscript"\n[dotnet]\nfwgen="fw/fwc/csharp/FwGen/FwGen.csproj"\n');
+  const project = initProject(root, { godotVersion: '4.7.2' });
+  assert.equal(project.inspection.fwc.baselineGodotVersion, '4.6.2');
+  assert.equal(project.config.godot.version, '4.7.2');
+  assert.equal(Object.hasOwn(project.inspection.fwc, 'requiredGodotVersion'), false);
+});
+
+test('FWC preparation forwards explicit host import budgets through both script contracts', () => {
+  for (const platform of ['win32', 'linux', 'darwin']) {
+    for (const [configured, expected] of [[undefined, '180'], [10, '10'], [1200, '1200'], [1800, '1800'], [3600, '1800']]) {
+      const component = path.join('game with spaces', 'fw', 'fwc');
+      const stage = path.join('frozen project', '游戏');
+      const engine = path.join('Godot Engine', 'godot');
+      const command = fwcPrepareCommand(component, stage, engine, configured, platform);
+      const windows = platform === 'win32';
+      assert.equal(command.executable, windows ? 'powershell.exe' : 'bash');
+      assert(command.args.includes(path.join(component, windows ? 'tools/build.ps1' : 'tools/build.sh')));
+      const value = flag => command.args[command.args.indexOf(flag) + 1];
+      assert.equal(value(windows ? '-ProjectRoot' : '--project-root'), stage);
+      assert.equal(value(windows ? '-Godot' : '--godot'), engine);
+      assert.equal(value(windows ? '-GodotImportTimeoutSeconds' : '--godot-import-timeout-seconds'), expected);
+      assert(command.args.includes(windows ? '-Release' : '--release'));
+    }
+  }
 });
 
 test('retired TapTap build stops before creating artifacts or a build lock', async t => {
@@ -157,6 +189,21 @@ test('preview serves only recorded outputs with WebAssembly MIME', async t => {
     request.on('error', reject);
   });
   assert.equal(rejected, 403);
+});
+
+test('preview rejects same-size changes and missing outputs on every GET and HEAD request', async t => {
+  const { root,id,directory }=artifact(t);
+  const preview=await startPreview(root,id);t.after(preview.close);
+  assert.equal((await fetch(preview.url+'index.js')).status,200);
+  const file=path.join(directory,'out/index.js');const original=fs.readFileSync(file);
+  fs.writeFileSync(file,Buffer.alloc(original.length,120));
+  assert.equal((await fetch(preview.url+'index.js')).status,409);
+  assert.equal((await fetch(preview.url+'index.js',{method:'HEAD'})).status,409);
+  fs.unlinkSync(path.join(directory,'out/index.wasm'));
+  assert.equal((await fetch(preview.url+'index.wasm')).status,409);
+  fs.writeFileSync(file,original);
+  assert.equal(await (await fetch(preview.url+'index.js')).text(),original.toString());
+  assert.equal((await fetch(preview.url)).status,200,'failed reads must leave the preview server running');
 });
 
 test('CLI rejects duplicate, unknown, and unscoped positional arguments', () => {
