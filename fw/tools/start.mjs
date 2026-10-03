@@ -8,7 +8,7 @@ const program = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workspace = path.dirname(program);
 const components = {
   fwa: { label: 'Development workbench - goals, changes and acceptance', entry: 'tools/start-editor.mjs' },
-  fwv: { label: 'FWV asset studio - assets, candidates and review', entry: 'tools/start-editor.mjs' },
+  fwv: { label: 'FWD 2D editor - image gallery and skeletal animation', entry: 'tools/start-editor.mjs' },
   fwb: { label: 'Build workbench - platforms, checks and packages', entry: 'tools/start-editor.mjs' },
   fwe: { label: 'Content editor', entry: 'bin/start.js' },
   fwc: { label: 'Godot framework / open a host project', entry: 'tools/start.ps1' },
