@@ -18,15 +18,15 @@ export async function runProcess(executable, args, { cwd, logFile, timeoutSecond
   const timer = setTimeout(() => { timedOut = true; stop(); }, timeoutSeconds * 1000);
   const abort = () => { cancelled = true; stop(); };
   signal?.addEventListener('abort', abort, { once: true });
-  const consume = chunk => {
-    const data = chunk.toString('utf8');
+  const consume = (data, stream) => {
     if (bytes < 16 * 1024 * 1024) output?.write(data);
-    bytes += chunk.length;
+    bytes += Buffer.byteLength(data, 'utf8');
     collected = (collected + data).slice(-128 * 1024);
-    onOutput?.(data);
+    onOutput?.(data, stream);
     if (bytes > 32 * 1024 * 1024) stop();
   };
-  child.stdout.on('data', consume); child.stderr.on('data', consume);
+  child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+  child.stdout.on('data', data => consume(data, 'stdout')); child.stderr.on('data', data => consume(data, 'stderr'));
   try {
     const code = await new Promise((resolve, reject) => { child.once('error', reject); child.once('close', resolve); });
     if (timedOut) throw new Error(`Command timed out after ${timeoutSeconds}s.`);
