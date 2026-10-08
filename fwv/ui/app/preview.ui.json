@@ -4,10 +4,10 @@
     "root": {"type":"stack","preset":"compact","testId":"ui-capture-preview","children":[
       {"type":"toolbar","children":[
         {"type":"button","text":"← 上一张","testId":"capture-previous","attrs":{"disabled":{"$path":"first"}},"on":{"click":"previous"}},
-        {"type":"field","ref":"number","testId":"capture-number","field":{"path":"number","type":"number","label":"跳到编号","valueType":"number","min":1,"step":1},"value":{"$path":"number"},"on":{"keydown":"numberKey"}},
+        {"type":"field","ref":"number","testId":"capture-number","field":{"path":"number","type":"number","label":false,"valueType":"number","min":1,"step":1},"attrs":{"aria-label":"编号"},"value":{"$path":"number"},"on":{"keydown":"numberKey"}},
+        {"type":"text","text":{"$path":"position"},"tone":"muted"},
         {"type":"button","text":"前往","testId":"capture-go","on":{"click":"go"}},
-        {"type":"button","text":"下一张 →","testId":"capture-next","attrs":{"disabled":{"$path":"last"}},"on":{"click":"next"}},
-        {"type":"text","text":{"$path":"position"},"tone":"muted"}
+        {"type":"button","text":"下一张 →","testId":"capture-next","attrs":{"disabled":{"$path":"last"}},"on":{"click":"next"}}
       ]},
       {"type":"stack","preset":"preview","children":[
         {"type":"canvas","ref":"canvas","testId":"capture-canvas","attrs":{"tabindex":0,"aria-label":"截图预览。滚轮缩放、拖动平移；左右方向键切图，0 键适配。"}}
@@ -17,11 +17,11 @@
         {"type":"button","text":"−","attrs":{"aria-label":"缩小截图"},"on":{"click":"zoomOut"}},
         {"type":"badge","text":{"$path":"scaleLabel"},"tone":"info"},
         {"type":"button","text":"+","attrs":{"aria-label":"放大截图"},"on":{"click":"zoomIn"}},
-        {"type":"button","text":"100% 原始尺寸","testId":"capture-actual","on":{"click":"actual"}},
+        {"type":"button","text":"100%","testId":"capture-actual","on":{"click":"actual"}},
         {"type":"link","text":"打开原图 ↗","attrs":{"href":{"$path":"imageUrl"},"target":"_blank","rel":"noopener"}},
         {"type":"link","text":"下载 PNG","attrs":{"href":{"$path":"downloadUrl"},"download":""}}
       ]},
-      {"type":"text","testId":"capture-notice","attrs":{"role":"status"},"text":{"$path":"notice"},"tone":{"$if":[{"$path":"error"},"danger","muted"]}},
+      {"type":"text","testId":"capture-notice","visible":{"$path":"notice"},"attrs":{"role":"status"},"text":{"$path":"notice"},"tone":{"$if":[{"$path":"error"},"danger","muted"]}},
       {"type":"stack","preset":"compact","testId":"capture-auto-check","children":[
         {"type":"row","children":[
           {"type":"heading","text":"自动检查"},
@@ -29,17 +29,13 @@
         ]},
         {"type":"text","text":{"$path":"checkSummary"}}
       ]},
-      {"type":"row","testId":"capture-basic-info","children":[
-        {"type":"text","text":"基本信息","tone":"muted"},
-        {"type":"text","text":{"$path":"basicInfo"},"tone":"muted"}
-      ]},
+      {"type":"text","testId":"capture-basic-info","text":{"$path":"basicInfo"},"tone":"muted"},
       {"type":"toolbar","children":[
         {"type":"button","text":"复制 JSON","testId":"copy-issue","on":{"click":"copyIssue"}},
-        {"type":"button","text":"复制所有 JSON","testId":"copy-all-issues","on":{"click":"copyAll"}},
-        {"type":"text","text":{"$path":"issueCount"},"tone":"muted"}
+        {"type":"button","text":{"$path":"copyAllLabel"},"testId":"copy-all-issues","on":{"click":"copyAll"}}
       ]},
-      {"type":"text","testId":"copy-status","text":{"$path":"copyNotice"},"attrs":{"role":"status"},"tone":"muted"},
-      {"type":"field","ref":"copyFallback","visible":{"$path":"copyFallbackVisible"},"field":{"path":"copyFallback","type":"textarea","label":"复制失败，请手动复制 JSON","rows":6},"value":{"$path":"copyFallback"}}
+      {"type":"text","testId":"copy-status","visible":{"$path":"copyNotice"},"text":{"$path":"copyNotice"},"attrs":{"role":"status"},"tone":"muted"},
+      {"type":"field","ref":"copyFallback","visible":{"$path":"copyFallbackVisible"},"field":{"path":"copyFallback","type":"textarea","label":"JSON","rows":6},"value":{"$path":"copyFallback"}}
     ]}
   }
 }

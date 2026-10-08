@@ -10,9 +10,9 @@
     "inspector": {"forms": {
       "screenshots:review": {"groups": [
         {"fields": [{"path": "reference", "label": false, "form": "fwv-ui-screenshot"}]},
-        {"title": "审阅记录", "fields": [
+        {"fields": [
           {"path": "reviewStatus", "label": false, "form": "fwv-ui-decision"},
-          {"path": "reviewNote", "label": "问题与修改建议", "type": "textarea", "rows": 3, "required": false, "placeholder": "描述位置、现象与期望修改…"}
+          {"path": "reviewNote", "label": "备注", "type": "textarea", "rows": 2, "required": false}
         ]}
       ]},
       "coverage:inspect": {"groups": [{"fields": [{"path": "id", "label": false, "form": "fwv-ui-coverage"}]}]}
