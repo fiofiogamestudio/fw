@@ -82,7 +82,7 @@ view workbench {
     subtitle [category]
     search [id, title, category, status, reason]
     columns [{"path":"category","label":"分类"},{"path":"status","label":"覆盖状态","valueMap":{"captured":"已采集","blocked":"待补拍 / 受阻","excluded":"有据排除"}},{"path":"reason","label":"原因"}]
-    list [detail]
+    list [detail, grid]
     modes [{"id":"inspect","label":"覆盖详情"}]
     pageSize 96
     filters [{"id":"category","label":"分类","options":{"path":"categories","value":"id","label":"name"}},{"id":"status","label":"覆盖状态","options":[{"value":"captured","label":"已采集"},{"value":"blocked","label":"待补拍 / 受阻"},{"value":"excluded","label":"有据排除"}]}]

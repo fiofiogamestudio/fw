@@ -30,6 +30,10 @@ async function nativeDiagnostics(data) {
 test('FWE compiler preserves catalog default, structured filters and native save history', () => {
   assert.equal(domain.workbench.layout, 'catalog');
   assert.deepEqual(domain.workbench.default, { collection: 'screenshots', list: 'grid', mode: 'review' });
+  for (const collection of domain.workbench.collections) {
+    assert.ok(collection.list.includes(domain.workbench.default.list), `${collection.id} must keep the global layout reachable after a deep-link reload`);
+    assert.ok(collection.list.includes('detail'), `${collection.id} must offer an inspection layout`);
+  }
   const [screenshots, coverage] = domain.workbench.collections;
   assert.deepEqual(screenshots.filters.map(filter => filter.id), ['category', 'current', 'reviewStatus']);
   assert.deepEqual(coverage.filters.map(filter => filter.id), ['category', 'status']);
