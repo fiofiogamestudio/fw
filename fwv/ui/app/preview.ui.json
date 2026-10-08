@@ -17,7 +17,9 @@
         {"type":"button","text":"−","attrs":{"aria-label":"缩小截图"},"on":{"click":"zoomOut"}},
         {"type":"badge","text":{"$path":"scaleLabel"},"tone":"info"},
         {"type":"button","text":"+","attrs":{"aria-label":"放大截图"},"on":{"click":"zoomIn"}},
-        {"type":"button","text":"100% 原始尺寸","testId":"capture-actual","on":{"click":"actual"}}
+        {"type":"button","text":"100% 原始尺寸","testId":"capture-actual","on":{"click":"actual"}},
+        {"type":"link","text":"打开原图 ↗","attrs":{"href":{"$path":"imageUrl"},"target":"_blank","rel":"noopener"}},
+        {"type":"link","text":"下载 PNG","attrs":{"href":{"$path":"downloadUrl"},"download":""}}
       ]},
       {"type":"text","testId":"capture-notice","attrs":{"role":"status"},"text":{"$path":"notice"},"tone":{"$if":[{"$path":"error"},"danger","muted"]}},
       {"type":"stack","preset":"compact","testId":"capture-auto-check","children":[
