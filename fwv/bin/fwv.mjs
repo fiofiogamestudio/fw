@@ -6,6 +6,7 @@ import { FwvProject } from '../src/core/project.mjs';
 
 const COMMANDS = {
   help: '', init: '[--name <project name>]', status: '',
+  ui: '<serve|validate|export> --manifest <capture.json> [options]',
   import: '--file <png/jpeg/webp> [--name <asset name>]',
   select: '--asset <id> --revision <id>',
   validate: '--asset <id> [--revision <id>]', export: '--asset <id> [--revision <id>]',
@@ -44,6 +45,10 @@ async function readInput(file) {
 }
 
 export async function run(argv) {
+  if (argv[0] === 'ui') {
+    const { runUi } = await import('../ui/cli.mjs');
+    return runUi(argv.slice(1));
+  }
   const { command, options } = parseArguments(argv);
   if (!Object.hasOwn(COMMANDS, command)) throw new Error(`Unknown command: ${command}. Run fwv help for available commands.`);
   if (command === 'help') return { usage: 'fwv <command> --project <directory> [options]', commands: COMMANDS };

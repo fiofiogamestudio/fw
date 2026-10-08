@@ -20,6 +20,17 @@ const textures = () => ['tower.png', 'rotor.png'].map(name => ({ name, buffer: p
 async function project(t) { const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fwv-skeleton2d-')); t.after(() => fs.rm(root, { recursive: true, force: true })); const p = new FwvProject(root); await p.init(); return p; }
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
 
+test('old serialized skeletons read as FWV without mutating their source data', () => {
+  const oldDocument = { ...document(), format: 'fwd-skeleton2d' };
+  const bytesBefore = JSON.stringify(oldDocument);
+  const normalized = validateSkeleton2dDocument(oldDocument);
+  assert.equal(normalized.format, 'fwv-skeleton2d');
+  assert.equal(JSON.stringify(oldDocument), bytesBefore);
+  assert.deepEqual(sampleSkeleton2d(normalized, { animation: 'turn', time: 0.5 }),
+    sampleSkeleton2d(document(), { animation: 'turn', time: 0.5 }));
+  assert.throws(() => validateSkeleton2dDocument({ ...document(), format: 'unknown' }), /Expected fwv-skeleton2d/);
+});
+
 test('independent windmill example validates and samples parent transforms, aliases, loops and events', () => {
   const d = validateSkeleton2dDocument(document());
   const sample = sampleSkeleton2d(d, { skin: 'summer', animation: 'operate', time: 2.5 });

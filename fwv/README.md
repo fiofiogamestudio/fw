@@ -1,6 +1,20 @@
-# FWD 2D 美术编辑器
+# FWV 可视化工具
 
-FWD 基于 FWE，目前只有两个入口：**2D 美术素材**和**2D 骨骼动画**。源码目录、npm 包和 CLI 延续 `fwv` 名称。
+FWV 基于 FWE，提供 **2D 美术素材**、**2D 骨骼动画**及独立的 **UI 截图审阅**工具。产品、源码目录、npm 包和 CLI 统一使用 FWV / `fwv`。
+
+## UI 截图审阅
+
+固定应用位于 [`ui/`](ui/README.md)，直接读取游戏生成的 `capture.json` 和原图，审阅备注写到独立 `review.json`。FWE 提供列表、筛选、详情、保存及撤销；Skill 负责采集并调用工具，不再生成编辑器代码。
+
+```text
+node ui/cli.mjs serve --manifest <capture.json> --fwe-path ../fwe
+node ui/cli.mjs validate --manifest <capture.json>
+node ui/cli.mjs export --manifest <capture.json> --out <new-directory>
+```
+
+顶层也可用 `start.bat fwv ui --manifest <capture.json>`。离线导出不需要启动 FWE。
+
+## 2D 美术工具
 
 - **2D 美术素材**：浏览素材库所有 PNG / JPEG / WebP，包括自定义资产包、骨骼贴图和历史版本；按素材或文件名搜索，分页查看缩略图，缩放、拖动画布、切换透明棋盘或明暗背景。查看历史版本不会改动当前版本。
 - **2D 骨骼动画**：查看 `skeleton2d` 的角色、皮肤和动作，播放、定位、调整速度；编辑骨骼、区域部件、加权网格的顶点与权重、关键帧及插值，使用 FWE 撤销/重做和草稿保存，创建不可变修订并导出。
@@ -19,9 +33,9 @@ start.bat --project D:/Art/MyGame --fwe-path ../fwe --port 3230
 
 图片使用 `import` 导入；骨骼文档及其 PNG 部件使用 `skeleton2d-import` 或公开 API 导入，宿主负责自己的数据转换。
 
-两个入口均使用 FWE 原生 `catalog` 集合视图，复用搜索、筛选、列表／网格、缩略图、分页、选中导航和深链。FWD 只通过 Form 扩展提供所选图片的画布预览、骨骼播放与编辑；不替换 FWE 的资源浏览区域。
+两个入口均使用 FWE 原生 `catalog` 集合视图，复用搜索、筛选、列表／网格、缩略图、分页、选中导航和深链。FWV 只通过 Form 扩展提供所选图片的画布预览、骨骼播放与编辑；不替换 FWE 的资源浏览区域。
 
-专业 Form 的普通字段、约束与事件也使用 FWE Surface；骨骼层级使用原生 DAG 图。保存草稿只使用顶栏入口，撤销/重做由 FWE 管理。图片视口、骨骼采样和关键帧时间轴是 FWE 尚未提供的专业能力，统一维护在 FWD 中，供不同 2D 游戏复用。
+专业 Form 的普通字段、约束与事件也使用 FWE Surface；骨骼层级使用原生 DAG 图。保存草稿只使用顶栏入口，撤销/重做由 FWE 管理。图片视口、骨骼采样和关键帧时间轴是 FWE 尚未提供的专业能力，统一维护在 FWV 中，供不同 2D 游戏复用。
 
 ```text
 fwv import --project <project> --file <image.png>

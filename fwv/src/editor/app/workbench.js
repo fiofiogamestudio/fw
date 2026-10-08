@@ -29,7 +29,7 @@
     if (!field) throw new Error('Unknown model field: ' + schemaPath);
     return field;
   }
-  window.createFwd2dForm = function (context, panel, mount) {
+  window.createFwv2dForm = function (context, panel, mount) {
     // The native collection owns browsing, selection and history. This element
     // occupies only its selected item's professional preview/edit field.
     const wrapper = window.fwe.ui.createSurface({ root: 'root', templates: { root: { type: 'stack', preset: 'compact', children: [

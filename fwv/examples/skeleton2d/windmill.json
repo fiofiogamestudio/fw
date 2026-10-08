@@ -1,5 +1,5 @@
 {
-  "format": "fwd-skeleton2d",
+  "format": "fwv-skeleton2d",
   "schemaVersion": 1,
   "coordinateSystem": "y-up",
   "bounds": { "x": -48, "y": -8, "width": 96, "height": 112 },

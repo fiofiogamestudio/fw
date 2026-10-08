@@ -325,5 +325,5 @@
     dispose.canLeave = () => !state.busy;
     return dispose;
   }
-  window.fwe.registerForm('fwd-skeleton2d', { render(context) { return window.createFwd2dForm(context, 'skeleton2d', mount); } });
+  window.fwe.registerForm('fwv-skeleton2d', { render(context) { return window.createFwv2dForm(context, 'skeleton2d', mount); } });
 }());

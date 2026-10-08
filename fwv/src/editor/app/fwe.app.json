@@ -1,6 +1,6 @@
 {
   "id": "fwv-workbench",
-  "title": "FWD · 2D 美术编辑器",
+  "title": "FWV · 2D 美术编辑器",
   "workspace": ".",
   "extensions": [{"path": "./extension.cjs", "client": ["./gallery2d-panel.js", "./skeleton2d-panel.js", "./workbench.js"]}],
   "domains": [
@@ -10,7 +10,7 @@
       "workbench": {
         "editor": {"configs": {"gallery2d": "./gallery2d.ui.json"}}
       },
-      "inspector": {"forms": {"images:preview": {"groups": [{"fields": [{"path": "reference", "label": false, "form": "fwd-image-preview"}]}]}}}
+      "inspector": {"forms": {"images:preview": {"groups": [{"fields": [{"path": "reference", "label": false, "form": "fwv-image-preview"}]}]}}}
     },
     {
       "extends": "./authoring.fwe",
@@ -19,7 +19,7 @@
       "workbench": {
         "editor": {"configs": {"skeleton2d": "./skeleton2d.ui.json"}}
       },
-      "inspector": {"forms": {"skeleton2dDrafts:edit": {"groups": [{"fields": [{"path": "data", "label": false, "form": "fwd-skeleton2d"}]}]}}}
+      "inspector": {"forms": {"skeleton2dDrafts:edit": {"groups": [{"fields": [{"path": "data", "label": false, "form": "fwv-skeleton2d"}]}]}}}
     }
   ],
   "navigation": {"workspaces": [{"id": "fwv", "label": "2D 美术", "sections": [

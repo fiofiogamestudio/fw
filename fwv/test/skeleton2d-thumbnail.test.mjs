@@ -8,7 +8,7 @@ const rgba = { red: [255, 0, 0], green: [0, 255, 0], blue: [0, 0, 255], yellow: 
 const solid = color => sharp({ create: { width: 16, height: 16, channels: 4, background: color } }).png().toBuffer();
 const colors = Object.fromEntries(await Promise.all(Object.entries(rgba).map(async ([name, [r, g, b]]) => [name, await solid({ r, g, b, alpha: 1 })])));
 function document(parts) {
-  return { format: 'fwd-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up',
+  return { format: 'fwv-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up',
     // Deliberately unrelated authoring bounds: thumbnail fitting uses sampled art.
     bounds: { x: 1000, y: 1000, width: 1, height: 1 }, bones: [{ name: 'root' }],
     slots: parts.map(part => ({ name: part.name, bone: 'root', attachment: 'part' })),

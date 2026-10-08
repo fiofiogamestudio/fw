@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "UNLICENSED",
-  "description": "Reusable 2D asset gallery and skeletal animation editor, built on FWE.",
+  "description": "Reusable visual tools for 2D assets, skeletal animation and UI capture review, built on FWE.",
   "type": "module",
   "engines": {
     "node": ">=20.10.0"
@@ -22,6 +22,7 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "editor": "node tools/start-editor.mjs",
+    "ui": "node ui/cli.mjs",
     "demo": "node tools/create-demo.mjs .local/demo",
     "test:gallery2d-browser": "node tools/test-gallery2d-browser.mjs",
     "test:skeleton2d-browser": "node tools/test-skeleton2d-browser.mjs"

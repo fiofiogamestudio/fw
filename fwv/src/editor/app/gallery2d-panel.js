@@ -82,7 +82,7 @@
     draw();
     return () => { if (state.disposed) return; state.disposed = true; controller.abort(); imageController?.abort(); resize.disconnect(); state.image = null; };
   }
-  window.fwe.registerForm('fwd-image-preview', {
-    render(context) { return window.createFwd2dForm(context, 'gallery2d', mount); }
+  window.fwe.registerForm('fwv-image-preview', {
+    render(context) { return window.createFwv2dForm(context, 'gallery2d', mount); }
   });
 }());

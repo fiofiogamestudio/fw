@@ -35,7 +35,7 @@ const image = await project.importAsset({ name: 'Seascape', kind: 'image', files
   { name: 'sea__stone.png', mime: 'image/png', role: 'texture', buffer: stoneTexture }
 ] });
 await project.importAsset({ name: 'No artwork', kind: 'metadata', files: [{ name: 'data.json', mime: 'application/json', role: 'data', buffer: Buffer.from('{}') }] });
-const document = { format: 'fwd-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up', bones: [{ name: 'root' }],
+const document = { format: 'fwv-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up', bones: [{ name: 'root' }],
   slots: [{ name: 'body', bone: 'root', attachment: 'body' }], skins: [{ name: 'blue', attachments: { body: { body: { type: 'region', path: 'body', width: 80, height: 100 } } } }],
   animations: { idle: {} }, animationDurations: { idle: 1 }, loopAnimations: ['idle'], textures: { body: 'body.png' }, bounds: { x: -50, y: -60, width: 100, height: 120 } };
 const actor = await importSkeleton2d(project, { name: 'Demo 2D actor', document, textures: [{ name: 'body.png', buffer: texture }] });
@@ -77,8 +77,8 @@ try {
   assert.match(await read(`document.querySelector(${q(`.collection-grid-card[data-item-id="${rowId(image.id, image.selectedRevisionId, 'sea.png')}"]`)}).textContent`), /原图 \+ 2 种状态/);
   await navigate(image.id, image.selectedRevisionId, 'sea.png'); await click('#collectionDetailButton'); await ready(image.id, image.selectedRevisionId, 'sea.png');
   assert.equal(await read('typeof window.FwvPanels'), 'undefined', 'Professional forms must use the FWE registry directly');
-  assert.equal(await read('typeof window.fwe.getForm("fwd-image-preview")?.render'), 'function');
-  assert.equal(await read('typeof window.fwe.getForm("fwd-skeleton2d")?.render'), 'function');
+  assert.equal(await read('typeof window.fwe.getForm("fwv-image-preview")?.render'), 'function');
+  assert.equal(await read('typeof window.fwe.getForm("fwv-skeleton2d")?.render'), 'function');
   assert.equal(await listCount(), 4);
   assert.equal(await read('document.querySelectorAll("#collectionList .collection-thumbnail[loading=lazy]").length'), 4);
   await wait('Array.from(document.querySelectorAll("#collectionList img")).some(image=>image.naturalWidth>0)');

@@ -47,8 +47,8 @@ test('all declared editor surfaces are JSON, resolve model fields and forbid pri
   assert.doesNotMatch(workbench, /fwv-parameters|fwv-production|data-panel|registerWorkbenchLayout|function el\(/);
   const gallery = await fs.readFile(new URL('gallery2d-panel.js', appDir), 'utf8');
   const skeleton = await fs.readFile(new URL('skeleton2d-panel.js', appDir), 'utf8');
-  assert.match(gallery, /registerForm\('fwd-image-preview'/);
-  assert.match(skeleton, /registerForm\('fwd-skeleton2d'/);
+  assert.match(gallery, /registerForm\('fwv-image-preview'/);
+  assert.match(skeleton, /registerForm\('fwv-skeleton2d'/);
   assert.doesNotMatch(workbench + gallery + skeleton, /FwvPanels|registerWorkbenchLayout/);
   assert.doesNotMatch(skeleton, /s2d-save-draft|function finite\(|new Option\(/);
   assert.deepEqual(domain.actions.toolbar, ['undo', 'redo', 'save']);

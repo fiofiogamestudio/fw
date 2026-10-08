@@ -6,11 +6,13 @@
 
 ## 版本 1 合同
 
+新导入和新修订统一写 `fwv-skeleton2d`。旧序列化格式在读取时转换为当前名称；不原地改写历史修订、文件摘要或已有导出，因此已存资产仍可检查和恢复。
+
 必填字段：
 
 ```json
 {
-  "format": "fwd-skeleton2d",
+  "format": "fwv-skeleton2d",
   "schemaVersion": 1,
   "coordinateSystem": "y-up",
   "bones": [{ "name": "root" }],

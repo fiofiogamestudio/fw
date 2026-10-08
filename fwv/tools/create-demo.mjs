@@ -5,7 +5,7 @@ import { createSkeleton2dDemo } from './create-skeleton2d-demo.mjs';
 
 const root = path.resolve(process.argv[2] ?? '.local/demo');
 const project = new FwvProject(root);
-await project.init({ name: 'FWD · 2D 美术与骨骼动画' });
+await project.init({ name: 'FWV · 2D 美术与骨骼动画' });
 const drawings = [
   ['月光药剂', '#dbece9', '<path d="M108 46h40v55l33 58q10 54-53 54t-53-54l33-58z" fill="#87d3c5" stroke="#20594f" stroke-width="7"/><path d="M84 149h88l8 25q0 33-52 33t-49-33z" fill="#31968a"/><rect x="102" y="37" width="52" height="23" rx="7" fill="#c28a56" stroke="#604b40" stroke-width="6"/><path d="M104 111v34" stroke="white" stroke-width="9" stroke-linecap="round"/>'],
   ['琥珀护盾', '#f0e6d4', '<path d="M128 39l73 29-9 90q-15 36-64 63-49-27-64-63l-9-90z" fill="#d7a45c" stroke="#5e4839" stroke-width="8"/><path d="M128 59l51 22-7 69q-11 27-44 48z" fill="#a97542"/><path d="M128 86l12 25 28 4-20 20 5 28-25-13-25 13 5-28-20-20 28-4z" fill="#fff1bb"/>'],

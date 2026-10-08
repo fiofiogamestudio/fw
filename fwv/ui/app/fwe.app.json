@@ -1,0 +1,26 @@
+{
+  "id": "fwv-ui-capture",
+  "title": "FWV · UI 截图审阅",
+  "workspace": ".",
+  "extensions": [{"path": "./extension.cjs", "client": ["./review-panel.js"]}],
+  "domains": [{
+    "extends": "./catalog.fwe",
+    "actions": {"toolbar": ["undo", "redo", "save"], "save": true, "undo": true, "redo": true, "add": false, "duplicate": false, "delete": false, "new": false},
+    "workbench": {"editor": {"configs": {"preview": "./preview.ui.json", "coverage": "./coverage.ui.json"}}},
+    "inspector": {"forms": {
+      "screenshots:review": {"groups": [
+        {"fields": [{"path": "reference", "label": false, "form": "fwv-ui-screenshot"}]},
+        {"title": "审阅记录", "fields": [
+          {"path": "reviewStatus", "label": "审阅状态", "type": "select", "required": true, "options": [{"value":"unreviewed","label":"待审阅"},{"value":"issue","label":"发现问题"},{"value":"accepted","label":"已通过"},{"value":"rejected","label":"不可采用"}]},
+          {"path": "reviewNote", "label": "问题与修改建议", "type": "textarea", "rows": 3, "required": false, "placeholder": "描述位置、现象与期望修改…"}
+        ]}
+      ]},
+      "coverage:inspect": {"groups": [{"fields": [{"path": "id", "label": false, "form": "fwv-ui-coverage"}]}]}
+    }}
+  }],
+  "navigation": {"workspaces": [{"id": "ui-capture", "label": "UI 审阅", "sections": [
+    {"id": "screenshots", "label": "截图图库", "domainId": "fwv-ui-capture", "collectionId": "screenshots", "hideFile": true},
+    {"id": "coverage", "label": "覆盖与缺口", "domainId": "fwv-ui-capture", "collectionId": "coverage", "hideFile": true}
+  ]}]},
+  "labels": {"save": "保存审阅", "undo": "撤销", "redo": "重做"}
+}

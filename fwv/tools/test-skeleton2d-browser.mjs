@@ -17,7 +17,7 @@ const output = path.join(root, '.local/reports/skeleton2d-browser'); await fs.mk
 const runRoot = await fs.mkdtemp(path.join(output, 'run-')), projectRoot = path.join(runRoot, 'project');
 const project = new FwvProject(projectRoot), initial = await project.init({ name: '通用 2D 骨骼工作台验收' });
 const texture = await sharp({ create: { width: 80, height: 100, channels: 4, background: '#499fd4' } }).png().toBuffer();
-const document = { format: 'fwd-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up', bones: [{ name: 'root' }, { name: 'body', parent: 'root', y: 50 }, { name: 'arm', parent: 'body', x: 45, y: 15 }],
+const document = { format: 'fwv-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up', bones: [{ name: 'root' }, { name: 'body', parent: 'root', y: 50 }, { name: 'arm', parent: 'body', x: 45, y: 15 }],
   slots: [{ name: 'body-slot', bone: 'body', attachment: 'body' }, { name: 'arm-slot', bone: 'arm', attachment: 'arm' }],
   skins: [{ name: 'blue', attachments: { 'body-slot': { body: { type: 'region', path: 'body', width: 80, height: 100 } }, 'arm-slot': { arm: { type: 'region', path: 'body', width: 25, height: 65, y: 25 } } } }],
   animations: { idle: { bones: { body: { translate: [{ time: 0, x: 0, y: 0 }, { time: 1, x: 0, y: 6 }, { time: 2, x: 0, y: 0 }] }, arm: { rotate: [{ time: 0, value: -15 }, { time: 1, value: 35 }, { time: 2, value: -15 }] } } } },

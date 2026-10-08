@@ -1,0 +1,30 @@
+{
+  "root": "root",
+  "templates": {
+    "root": {"type":"stack","preset":"compact","testId":"ui-capture-coverage","children":[
+      {"type":"heading","text":{"$path":"title"}},
+      {"type":"row","children":[
+        {"type":"badge","text":{"$path":"statusLabel"},"tone":{"$path":"statusTone"}},
+        {"type":"text","text":{"$path":"category"},"tone":"muted"}
+      ]},
+      {"type":"text","text":{"$path":"summary"},"tone":"muted"},
+      {"type":"card","children":[
+        {"type":"heading","text":"覆盖依据"},
+        {"type":"text","text":{"$path":"reason"}}
+      ]},
+      {"type":"heading","text":"关联截图"},
+      {"type":"list","items":{"$path":"screenshots"},"template":"screenshot","emptyTemplate":"empty"},
+      {"type":"details","children":[
+        {"type":"summary","text":"状态标识与证据"},
+        {"type":"text","text":{"$path":"id"},"tone":"muted"},
+        {"type":"text","text":{"$path":"evidence"}}
+      ]}
+    ]},
+    "screenshot":{"type":"card","children":[
+      {"type":"button","text":{"$path":"heading"},"on":{"click":"openScreenshot"}},
+      {"type":"image","preset":"image","attrs":{"src":{"$path":"imageUrl"},"alt":{"$path":"title"},"loading":"lazy"}},
+      {"type":"text","text":{"$path":"evidence"},"tone":"muted"}
+    ]},
+    "empty":{"type":"text","text":"本状态没有可计入覆盖的截图。","tone":"muted"}
+  }
+}

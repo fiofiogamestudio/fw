@@ -1,5 +1,5 @@
 /** Versioned, engine-independent region/weighted-mesh skeleton contract. */
-export const SKELETON2D_FORMAT = 'fwd-skeleton2d';
+export const SKELETON2D_FORMAT = 'fwv-skeleton2d';
 const fail = message => { throw Object.assign(new Error(`Skeleton2D: ${message}`), { status: 400, code: 'SKELETON2D_INVALID' }); };
 const own = (value, key) => Object.hasOwn(value, key);
 const object = (value, label) => {
@@ -90,12 +90,13 @@ export function validateSkeleton2dMesh(attachment, boneCount) {
   return triangles.length / 3;
 }
 
-/** Validate without normalizing or dropping input fields, then detach caller-owned data. */
+/** Read older serialized documents without rewriting immutable revision bytes. */
 export function validateSkeleton2dDocument(input) {
   json(input, 'document');
+  if (input.format === 'fwd-skeleton2d') input = { ...input, format: SKELETON2D_FORMAT };
   if (new TextEncoder().encode(JSON.stringify(input)).length > 4 * 1024 * 1024) fail('Document exceeds 4 MiB.');
   fields(input, ['format', 'schemaVersion', 'coordinateSystem', 'bones', 'slots', 'skins', 'animations', 'animationDurations', 'loopAnimations', 'skinAnimations', 'skinBones', 'skinSockets', 'textures', 'events', 'bounds', 'clipBounds', 'lines', 'metadata'], 'document');
-  if (input.format !== SKELETON2D_FORMAT || input.schemaVersion !== 1 || input.coordinateSystem !== 'y-up') fail('Expected fwd-skeleton2d schemaVersion 1 with y-up coordinates.');
+  if (input.format !== SKELETON2D_FORMAT || input.schemaVersion !== 1 || input.coordinateSystem !== 'y-up') fail('Expected fwv-skeleton2d schemaVersion 1 with y-up coordinates.');
   const boneNames = bones(input.bones, 'bones'), slotNames = new Set(), skinNames = new Set();
   for (const slot of array(input.slots, 'slots', 256, 1)) {
     fields(slot, ['name', 'bone', 'attachment'], 'slot'); name(slot.name, 'slot.name');

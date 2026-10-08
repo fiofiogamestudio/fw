@@ -8,7 +8,7 @@ const program = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const workspace = path.dirname(program);
 const components = {
   fwa: { label: 'Development workbench - goals, changes and acceptance', entry: 'tools/start-editor.mjs' },
-  fwv: { label: 'FWD 2D editor - image gallery and skeletal animation', entry: 'tools/start-editor.mjs' },
+  fwv: { label: 'FWV visual tools - assets, skeletal animation and UI capture review', entry: 'tools/start-editor.mjs' },
   fwb: { label: 'Build workbench - platforms, checks and packages', entry: 'tools/start-editor.mjs' },
   fwe: { label: 'Content editor', entry: 'bin/start.js' },
   fwc: { label: 'Godot framework / open a host project', entry: 'tools/start.ps1' },
@@ -18,7 +18,7 @@ const components = {
 async function main(argv) {
   let [selected, ...args] = argv;
   if (selected === '--help' || selected === '-h') {
-    console.log('FW launcher\n  start.bat [fwa|fwv|fwb|fwe|fwc|fws] [component arguments]\n  start.bat --check\nFWV uses the fwv/ package and existing asset project. Component demos and reports use .local/. Pass an explicit project to open an existing host.');
+    console.log('FW launcher\n  start.bat [fwa|fwv|fwb|fwe|fwc|fws] [component arguments]\n  start.bat fwv ui --manifest <capture.json> [--port <port>]\n  start.bat --check\nFWV uses the fwv/ package and existing asset project. Component demos and reports use .local/. Pass an explicit project to open an existing host.');
     return;
   }
   if (selected === '--check') {
@@ -39,11 +39,12 @@ async function main(argv) {
     if (answer === '0' || !answer) return;
     selected = ids[Number(answer) - 1] ?? answer;
   }
-  if (selected === 'fwd') selected = 'fwv'; // Legacy launcher alias; FWV is the canonical name.
   const target = components[selected];
   if (!target) throw new Error(`Unknown component: ${selected}. Use --help to list entry points.`);
   const root = path.join(workspace, selected);
-  const entry = path.join(root, target.entry);
+  const uiCapture = selected === 'fwv' && args[0] === 'ui';
+  const entry = path.join(root, uiCapture ? 'ui/cli.mjs' : target.entry);
+  if (uiCapture) args = ['serve', ...args.slice(1), ...(args.includes('--open') ? [] : ['--open'])];
   if (!fs.existsSync(entry)) throw new Error(`Missing component entry: ${entry}. Restore the selected component first.`);
   if (target.entry.endsWith('.ps1')) {
     await launch(powershell(), ['-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', entry, ...args], root);

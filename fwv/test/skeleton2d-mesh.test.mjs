@@ -14,7 +14,7 @@ import { handleSkeleton2dApi } from '../src/editor/skeleton2d-api.mjs';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
 function document() {
-  return { format: 'fwd-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up',
+  return { format: 'fwv-skeleton2d', schemaVersion: 1, coordinateSystem: 'y-up',
     bones: [{ name: 'root' }, { name: 'hinge', parent: 'root', x: 10 }],
     slots: [{ name: 'cloth', bone: 'root', attachment: 'cloth' }],
     skins: [{ name: 'default', attachments: { cloth: { cloth: { type: 'mesh', path: 'cloth', width: 20, height: 20,

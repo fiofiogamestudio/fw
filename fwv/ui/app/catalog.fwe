@@ -1,0 +1,90 @@
+id fwv-ui-capture
+title "UI 截图审阅"
+source "fwv-ui-capture:."
+file "catalog.json"
+
+data Catalog {
+  schemaVersion: int = 1 @readonly
+  manifestId: string @readonly
+  project: string @readonly
+  title: string @readonly
+  run?: json @readonly
+  summary?: json @readonly
+  screenshots: Screenshot[]
+  coverage: Coverage[]
+  categories: Category[]
+}
+
+type Category {
+  id: string @key @readonly
+  name: string @readonly
+}
+
+type Screenshot {
+  id: string @key @readonly
+  number: int @readonly @label("编号")
+  title: string @readonly @label("画面")
+  category: string @readonly @label("分类")
+  current: string @readonly @label("版本")
+  imageUrl: string @readonly
+  reference: ScreenshotReference
+  width: int @readonly
+  height: int @readonly
+  evidence?: string @readonly
+  notes?: string @readonly
+  sha256?: string @readonly
+  bytes?: int @readonly
+  sourcePath?: string @readonly
+  state?: json @readonly
+  reviewStatus: string = "unreviewed" @enum("unreviewed", "issue", "accepted", "rejected") @label("审阅状态")
+  reviewNote?: string = "" @label("问题与修改建议") @textarea(rows=3)
+}
+
+type ScreenshotReference {
+  id: string @readonly
+}
+
+type Coverage {
+  id: string @key @readonly
+  title: string @readonly @label("页面或状态")
+  category: string @readonly @label("分类")
+  status: string @readonly @label("覆盖状态")
+  reason?: string @readonly @label("原因")
+  screenshotIds?: string[] = [] @readonly
+}
+
+view workbench {
+  title "UI 截图审阅"
+  layout catalog
+  inspector false
+  default {
+    collection screenshots
+    list grid
+    mode review
+  }
+  collection screenshots {
+    path screenshots
+    label "截图图库"
+    title title
+    subtitle [number, category]
+    search [number, id, title, category, notes, evidence, reviewNote]
+    columns [{"path":"number","label":"编号"},{"path":"category","label":"分类"},{"path":"reviewStatus","label":"审阅状态","valueMap":{"unreviewed":"待审阅","issue":"发现问题","accepted":"已通过","rejected":"不可采用"}}]
+    list [grid, detail]
+    modes [{"id":"review","label":"审阅"}]
+    thumbnail {"src":"imageUrl","alt":"title"}
+    pageSize 96
+    filters [{"id":"category","label":"分类","options":{"path":"categories","value":"id","label":"name"}},{"id":"current","label":"版本","default":["current"],"options":[{"value":"current","label":"本次截图"},{"value":"historical","label":"历史截图"}]},{"id":"reviewStatus","label":"审阅状态","options":[{"value":"unreviewed","label":"待审阅"},{"value":"issue","label":"发现问题"},{"value":"accepted","label":"已通过"},{"value":"rejected","label":"不可采用"}]}]
+  }
+  collection coverage {
+    path coverage
+    label "覆盖与缺口"
+    title title
+    subtitle [category]
+    search [id, title, category, status, reason]
+    columns [{"path":"category","label":"分类"},{"path":"status","label":"覆盖状态","valueMap":{"captured":"已采集","blocked":"待补拍 / 受阻","excluded":"有据排除"}},{"path":"reason","label":"原因"}]
+    list [detail]
+    modes [{"id":"inspect","label":"覆盖详情"}]
+    pageSize 96
+    filters [{"id":"category","label":"分类","options":{"path":"categories","value":"id","label":"name"}},{"id":"status","label":"覆盖状态","options":[{"value":"captured","label":"已采集"},{"value":"blocked","label":"待补拍 / 受阻"},{"value":"excluded","label":"有据排除"}]}]
+  }
+}

@@ -21,7 +21,7 @@ test('real FWE HTTP protects 2D reads/writes, rejects stale concurrent saves and
   const response = await fetch(`${editor.url}/api/fwv/skeleton2d?${query}`);
   assert.equal(response.status, 200); const detail = await response.json();
   assert.equal(requestLoads, 1, 'one identity-checked manifest load supplies document and every PNG'); loadSpy.mock.restore();
-  assert.equal(detail.document.format, 'fwd-skeleton2d'); assert.equal(detail.textureFiles.length, 2);
+  assert.equal(detail.document.format, 'fwv-skeleton2d'); assert.equal(detail.textureFiles.length, 2);
   assert.deepEqual(Object.keys(detail.textureData).sort(), ['rotor.png', 'tower.png']);
   for (const [fileName, texture] of Object.entries(detail.textureData)) {
     assert.equal(texture.mime, 'image/png');
