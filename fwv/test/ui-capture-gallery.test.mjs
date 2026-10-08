@@ -73,7 +73,7 @@ test('offline browser drafts cannot conceal new exported review revisions or cle
   const f = await fixture(t), checked = await validateManifest(f.manifestPath), storage = new Map();
   async function initialize(revision, note, sourceHash = checked.capture.generated.sourceManifestSha256) {
     const capture = { ...checked.capture, generated: { ...checked.capture.generated, sourceManifestSha256: sourceHash } };
-    const html = await renderGallery({ ...checked, capture, review: { manifestId: sourceHash, revision, annotations: { cover: { status: 'issue', note } } } });
+    const html = await renderGallery({ ...checked, capture, review: { manifestId: sourceHash, revision, annotations: { cover: { status: 'rejected', note } } } });
     const data = [...html.matchAll(/<script id="([^"]+)" type="application\/json">([\s\S]*?)<\/script>/g)];
     const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
     const sandbox = { document: { getElementById(id) { return { textContent: data.find(item => item[1] === id)[2] }; } },
@@ -119,14 +119,66 @@ test('optional empty notes are accepted', async t => {
   assert.equal((await validateManifest(f.manifestPath)).capture.screenshots[0].notes, '');
 });
 
+test('file validation never implies automatic safety and leaves legacy input unchanged', async t => {
+  const f = await fixture(t), before = await fs.readFile(f.manifestPath);
+  const checked = await validateManifest(f.manifestPath);
+  assert.equal(checked.capture.screenshots[0].autoCheck.status, 'risk');
+  assert.match(checked.capture.screenshots[0].autoCheck.summary, /尚未.*自动检查/);
+  assert.equal(checked.manifest.screenshots[0].autoCheck, undefined);
+  await buildGallery(f);
+  const exported = JSON.parse(await fs.readFile(path.join(f.outDirectory, 'capture.json')));
+  assert.deepEqual(exported.screenshots[0].autoCheck, checked.capture.screenshots[0].autoCheck);
+  assert.deepEqual(await fs.readFile(f.manifestPath), before);
+});
+
+test('offline export retains all explicit automatic outcomes and their actual explanations', async t => {
+  const f = await fixture(t);
+  f.manifest.screenshots = ['safe', 'risk', 'error'].map((status, i) => ({ ...f.manifest.screenshots[0],
+    id: status, number: i + 1, autoCheck: { status, summary: `真实检查依据 ${status}` } }));
+  f.manifest.coverage[0].screenshotIds = ['safe', 'risk', 'error'];
+  await f.save(); const before = await fs.readFile(f.manifestPath); await buildGallery(f);
+  const exported = JSON.parse(await fs.readFile(path.join(f.outDirectory, 'capture.json')));
+  const html = await fs.readFile(path.join(f.outDirectory, 'index.html'), 'utf8');
+  const embedded = JSON.parse(/<script id="capture-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
+  for (const document of [exported, embedded]) assert.deepEqual(document.screenshots.map(shot => shot.autoCheck), f.manifest.screenshots.map(shot => shot.autoCheck));
+  assert.deepEqual(await fs.readFile(f.manifestPath), before);
+});
+
+test('generated offline metadata shows canonical review labels, legacy aliases and automatic check explanations', async t => {
+  const f = await fixture(t), statuses = ['accepted', 'skipped', 'rejected', 'unreviewed', 'issue', undefined];
+  f.manifest.screenshots = statuses.map((status, i) => ({ ...f.manifest.screenshots[0], id: `shot-${i}`, number: i + 1,
+    autoCheck: { status: ['safe', 'risk', 'error'][i % 3], summary: `检查依据 ${i}` } }));
+  f.manifest.coverage[0].screenshotIds = f.manifest.screenshots.map(shot => shot.id); await f.save();
+  const checked = await validateManifest(f.manifestPath);
+  // A pre-schema export may omit automatic checks and human annotations.
+  delete checked.capture.screenshots[5].autoCheck;
+  const review = { revision: 1, annotations: Object.fromEntries(statuses.slice(0, 5).map((status, i) => [`shot-${i}`, { status, note: '' }])) };
+  const html = await renderGallery({ ...checked, review });
+  const data = [...html.matchAll(/<script id="([^"]+)" type="application\/json">([\s\S]*?)<\/script>/g)];
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1];
+  const sandbox = { document: { getElementById(id) { return { textContent: data.find(item => item[1] === id)[2] }; } }, localStorage: { getItem() { return null; } } };
+  vm.runInNewContext(script.slice(0, script.indexOf('if(!storageOK)')) + ';globalThis.result=shots.map(metadata);', sandbox);
+  const expected = ['通过', '跳过', '不通过', '跳过', '不通过', '跳过'];
+  for (const [i, line] of sandbox.result.entries()) {
+    assert.ok(line.includes(`审阅：${expected[i]} ·`), line);
+    if (i < 5) assert.ok(line.includes(`自动检查：${['安全', '风险', '错误'][i % 3]} — 检查依据 ${i}`), line);
+    else assert.ok(line.includes('自动检查：风险 — 尚未进行自动检查；此状态不代表安全。'), line);
+    assert.ok(!line.includes('审阅： ·') && !line.includes('不可采用'));
+  }
+  assert.ok(script.includes("el('p',metadata(shot),'meta')"), 'cards render these metadata');
+  assert.ok(script.includes("$('viewerMeta').textContent=metadata(shot)"), 'enlarged view renders the same metadata');
+});
+
 test('JSON embedded in HTML cannot terminate scripts or inject markup', async t => {
   const f = await fixture(t), hostile = '</script><img src=x onerror="globalThis.pwned=true"><script>&\u2028\u2029';
   f.manifest.title = hostile; f.manifest.screenshots[0].notes = hostile; f.manifest.screenshots[0].state = { value: hostile };
+  f.manifest.screenshots[0].autoCheck = { status: 'risk', summary: hostile };
   await f.save(); await buildGallery(f);
   const html = await fs.readFile(path.join(f.outDirectory, 'index.html'), 'utf8');
   assert.ok(!html.includes(hostile)); assert.ok(!html.includes('<img src=x')); assert.ok(html.includes('\\u003c/script\\u003e'));
   const embedded = JSON.parse(/<script id="capture-data" type="application\/json">([\s\S]*?)<\/script>/.exec(html)[1]);
   assert.equal(embedded.title, hostile); assert.equal(embedded.screenshots[0].state.value, hostile);
+  assert.equal(embedded.screenshots[0].autoCheck.summary, hostile.trim());
   assert.ok(!/\.innerHTML\s*=/.test(html));
 });
 
@@ -168,6 +220,13 @@ const invalidCases = [
   ['viewport invalid', m => { m.screenshots[0].viewport.height = 0; }, /viewport.height/],
   ['state wrong type', m => { m.screenshots[0].state = 'menu'; }, /state/],
   ['history wrong type', m => { m.screenshots[0].historical = 'yes'; }, /historical/],
+  ['automatic check null', m => { m.screenshots[0].autoCheck = null; }, /autoCheck/],
+  ['automatic check array', m => { m.screenshots[0].autoCheck = []; }, /autoCheck/],
+  ['automatic check unknown status', m => { m.screenshots[0].autoCheck = { status: 'accepted', summary: 'Human approval is not an automatic check.' }; }, /autoCheck/],
+  ['automatic check empty summary', m => { m.screenshots[0].autoCheck = { status: 'safe', summary: '  ' }; }, /autoCheck.summary/],
+  ['automatic check missing summary', m => { m.screenshots[0].autoCheck = { status: 'safe' }; }, /autoCheck.summary/],
+  ['automatic check unbounded summary', m => { m.screenshots[0].autoCheck = { status: 'safe', summary: 'x'.repeat(501) }; }, /autoCheck.summary/],
+  ['automatic check unknown field', m => { m.screenshots[0].autoCheck = { status: 'safe', summary: 'File exists.', editable: true }; }, /autoCheck/],
   ['unknown coverage status', m => { m.coverage[0].status = 'done'; }, /status/],
   ['duplicate coverage ID', m => { m.coverage.push({ ...m.coverage[0] }); }, /Duplicate coverage id/],
   ['empty captured evidence', m => { m.coverage[0].screenshotIds = []; }, /current screenshot/],

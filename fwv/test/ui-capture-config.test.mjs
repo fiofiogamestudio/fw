@@ -35,10 +35,10 @@ test('FWE compiler preserves catalog default, structured filters and native save
     assert.ok(collection.list.includes('detail'), `${collection.id} must offer an inspection layout`);
   }
   const [screenshots, coverage] = domain.workbench.collections;
-  assert.deepEqual(screenshots.filters.map(filter => filter.id), ['category', 'current', 'reviewStatus']);
+  assert.deepEqual(screenshots.filters.map(filter => filter.id), ['category', 'autoCheckStatus', 'reviewStatus']);
   assert.deepEqual(coverage.filters.map(filter => filter.id), ['category', 'status']);
-  assert.deepEqual(screenshots.filters.find(filter => filter.id === 'current').default, ['current']);
-  assert.equal(screenshots.columns.find(column => column.path === 'reviewStatus').valueMap.unreviewed, '待审阅');
+  assert.deepEqual(screenshots.filters.find(filter => filter.id === 'autoCheckStatus').options.map(option => option.value), ['safe', 'risk', 'error']);
+  assert.deepEqual(screenshots.filters.find(filter => filter.id === 'reviewStatus').options.map(option => option.value), ['accepted', 'skipped', 'rejected']);
   assert.ok(!screenshots.columns.some(column => column.path === 'title'), 'the native card already renders its title');
   assert.deepEqual(domain.actions.toolbar, ['undo', 'redo', 'save']);
   for (const action of ['add', 'duplicate', 'delete', 'new']) assert.equal(domain.actions[action], false);
@@ -47,8 +47,7 @@ test('FWE compiler preserves catalog default, structured filters and native save
 test('mode-specific review form explicitly supplies native control metadata and permits an empty note', () => {
   const fields = domain.inspector.forms['screenshots:review'].groups.flatMap(group => group.fields);
   const status = fields.find(field => field.path === 'reviewStatus');
-  assert.equal(status.type, 'select');
-  assert.deepEqual(status.options.map(option => option.value), ['unreviewed', 'issue', 'accepted', 'rejected']);
+  assert.equal(status.form, 'fwv-ui-decision');
   assert.equal(fields.find(field => field.path === 'reviewNote').type, 'textarea');
   assert.ok(!domain.validate.some(rule => rule.path === 'screenshots[].reviewNote' && rule.rule === 'required'));
   assert.ok(domain.validate.some(rule => rule.path === 'screenshots[].reviewStatus' && rule.rule === 'enum'));
@@ -57,7 +56,7 @@ test('mode-specific review form explicitly supplies native control metadata and 
 test('real FWE validator allows empty screenshot references on blocked and excluded coverage', async () => {
   const data = {
     schemaVersion: 1, manifestId: 'fixture', project: 'fixture', title: 'Fixture',
-    screenshots: [{ id: 'shot', number: 1, title: 'Shot', category: 'Menu', current: 'current', imageUrl: '/image', reference: { id: 'shot' }, width: 1920, height: 1080, reviewStatus: 'unreviewed', reviewNote: '' }],
+    screenshots: [{ id: 'shot', number: 1, title: 'Shot', category: 'Menu', autoCheck: {status: 'safe', summary: 'Controls are visible.'}, autoCheckStatus: 'safe', imageUrl: '/image', reference: { id: 'shot' }, width: 1920, height: 1080, reviewStatus: 'skipped', reviewNote: '' }],
     coverage: ['blocked', 'excluded'].map(status => ({ id: status, title: status, category: 'Menu', status, reason: 'Fixture has no screenshot for this state.', screenshotIds: [] })),
     categories: [{ id: 'Menu', name: 'Menu' }]
   };
@@ -75,6 +74,6 @@ test('real supplied capture Source passes native FWE validation before and after
   assert.ok(resource.data.screenshots.length > 0);
   assert.deepEqual(await nativeDiagnostics(resource.data), []);
   const shot = resource.data.screenshots.find(item => item.number === 60) || resource.data.screenshots[0];
-  shot.reviewStatus = 'issue'; shot.reviewNote = 'Native validator review edit fixture.';
+  shot.reviewStatus = 'rejected'; shot.reviewNote = 'Native validator review edit fixture.';
   assert.deepEqual(await nativeDiagnostics(resource.data), []);
 });

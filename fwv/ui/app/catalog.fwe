@@ -25,7 +25,8 @@ type Screenshot {
   number: int @readonly @label("编号")
   title: string @readonly @label("画面")
   category: string @readonly @label("分类")
-  current: string @readonly @label("版本")
+  autoCheck: AutoCheck
+  autoCheckStatus: string @readonly @label("自动检查")
   imageUrl: string @readonly
   reference: ScreenshotReference
   width: int @readonly
@@ -36,8 +37,13 @@ type Screenshot {
   bytes?: int @readonly
   sourcePath?: string @readonly
   state?: json @readonly
-  reviewStatus: string = "unreviewed" @enum("unreviewed", "issue", "accepted", "rejected") @label("审阅状态")
+  reviewStatus: string = "skipped" @enum("accepted", "skipped", "rejected") @label("审阅状态")
   reviewNote?: string = "" @label("问题与修改建议") @textarea(rows=3)
+}
+
+type AutoCheck {
+  status: string @readonly @enum("safe", "risk", "error")
+  summary: string @readonly
 }
 
 type ScreenshotReference {
@@ -67,13 +73,13 @@ view workbench {
     label "截图图库"
     title title
     subtitle [number, category]
-    search [number, id, title, category, notes, evidence, reviewNote]
-    columns [{"path":"number","label":"编号"},{"path":"category","label":"分类"},{"path":"reviewStatus","label":"审阅状态","valueMap":{"unreviewed":"待审阅","issue":"发现问题","accepted":"已通过","rejected":"不可采用"}}]
+    search [number, id, title, category, autoCheck.summary, reviewNote]
+    columns [{"path":"number","label":"编号"},{"path":"category","label":"模块"},{"path":"autoCheckStatus","label":"自动检查","valueMap":{"safe":"🟢 安全","risk":"🟡 风险","error":"🔴 错误"}},{"path":"reviewStatus","label":"审阅状态","valueMap":{"skipped":"跳过","accepted":"通过","rejected":"不通过"}}]
     list [grid, detail]
     modes [{"id":"review","label":"审阅"}]
     thumbnail {"src":"imageUrl","alt":"title"}
     pageSize 96
-    filters [{"id":"category","label":"分类","options":{"path":"categories","value":"id","label":"name"}},{"id":"current","label":"版本","default":["current"],"options":[{"value":"current","label":"本次截图"},{"value":"historical","label":"历史截图"}]},{"id":"reviewStatus","label":"审阅状态","options":[{"value":"unreviewed","label":"待审阅"},{"value":"issue","label":"发现问题"},{"value":"accepted","label":"已通过"},{"value":"rejected","label":"不可采用"}]}]
+    filters [{"id":"category","label":"模块","options":{"path":"categories","value":"id","label":"name"}},{"id":"autoCheckStatus","label":"自动检查","options":[{"value":"safe","label":"🟢 安全"},{"value":"risk","label":"🟡 风险"},{"value":"error","label":"🔴 错误"}]},{"id":"reviewStatus","label":"审阅状态","options":[{"value":"accepted","label":"通过"},{"value":"skipped","label":"跳过"},{"value":"rejected","label":"不通过"}]}]
   }
   collection coverage {
     path coverage

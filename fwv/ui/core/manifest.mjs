@@ -38,6 +38,15 @@ function embeddedJSON(value) {
   return JSON.stringify(value).replace(/[<>&\u2028\u2029]/g, character => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
 }
 
+export const AUTO_CHECK_STATUSES = Object.freeze(['safe', 'risk', 'error']);
+export function normalizeAutoCheck(value, field = 'autoCheck') {
+  if (value === undefined) return { status: 'risk', summary: '尚未进行自动检查；此状态不代表安全。' };
+  object(value, field);
+  if (Object.keys(value).some(key => !['status', 'summary'].includes(key)) || !AUTO_CHECK_STATUSES.includes(value.status)) fail(`${field} requires a safe, risk or error status and a summary.`);
+  text(value.summary, `${field}.summary`, { max: 500 });
+  return { status: value.status, summary: value.summary.trim() };
+}
+
 /** Validate metadata, path containment, real PNG dimensions, and coverage before any output is written. */
 export async function validateManifest(manifestPath) {
   const absoluteManifest = path.resolve(manifestPath);
@@ -70,6 +79,7 @@ export async function validateManifest(manifestPath) {
     text(entry.title, `${label}.title`, { max: 200 });
     text(entry.category, `${label}.category`, { max: 200 });
     text(entry.notes, `${label}.notes`, { optional: true, allowEmpty: true });
+    const autoCheck = normalizeAutoCheck(entry.autoCheck, `${label}.autoCheck`);
     if (entry.state !== undefined) object(entry.state, `${label}.state`);
     text(entry.evidence, `${label}.evidence`, { optional: true, max: 1000 });
     if (entry.historical !== undefined && typeof entry.historical !== 'boolean') fail(`${label}.historical must be a boolean.`);
@@ -94,7 +104,7 @@ export async function validateManifest(manifestPath) {
     if (entry.sha256 !== undefined && entry.sha256 !== sha256) fail(`${label} declared SHA-256 does not match its PNG.`);
     if (entry.bytes !== undefined && entry.bytes !== bytes.length) fail(`${label} declared byte size does not match its PNG.`);
     const outputPath = `images/${String(entry.number).padStart(3, '0')}-${entry.id}.png`;
-    screenshots.push({ ...entry, path: outputPath, sourcePath: entry.path, sha256, bytes: bytes.length });
+    screenshots.push({ ...entry, autoCheck, path: outputPath, sourcePath: entry.path, sha256, bytes: bytes.length });
     files.push({ path: outputPath, bytes });
   }
   const byId = new Map(screenshots.map(entry => [entry.id, entry])), coverageIds = new Set(), referenced = new Set();

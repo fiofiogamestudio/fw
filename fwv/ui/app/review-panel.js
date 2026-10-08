@@ -4,7 +4,8 @@
   const views = new Map();
   let configuration;
   const numbered = row => `#${String(row.number).padStart(3, '0')} · ${row.title}`;
-  const ordered = context => [...(context.data.screenshots || [])].sort((a, b) => a.number - b.number);
+  const logic = window.fwvUiReview;
+  const ordered = context => logic.ordered(context.data.screenshots || []);
   const stateNames = { captured: '已采集', blocked: '待补拍 / 受阻', excluded: '有据排除' };
 
   async function loadConfiguration() {
@@ -56,26 +57,28 @@
     const surface = createSurface({
       data: {
         heading: numbered(row), number: row.number,
-        version: row.current === 'historical' ? '历史截图' : '本次截图',
         first: index <= 0, last: index === rows.length - 1,
         position: `${index + 1} / ${rows.length} 张 · 编号固定`,
-        scaleLabel: '适配', imageUrl: row.imageUrl,
-        downloadUrl: `${API}/media?${new URLSearchParams({ id: row.id, download: '1' })}`,
-        exportUrl: `${API}/export`,
-        dimensions: `${row.width} × ${row.height} px · ${row.category} · 滚轮缩放，拖动平移`,
+        scaleLabel: '适配',
         notice: '正在读取原始 PNG…', error: false,
-        evidence: row.evidence || '清单没有提供采集路径说明。',
-        captureNotes: row.notes || '',
-        captureMeta: [meta.captureKind, meta.mode, meta.sourceRun, meta.capturedAt, row.sourcePath].filter(Boolean).join(' · '),
-        hash: row.sha256 ? `SHA-256 · ${row.sha256}` : '清单未提供图片 SHA-256。',
-        runLabel: [context.data.title, context.data.run?.id, context.data.run?.capturedAt].filter(Boolean).join(' · ')
+        checkLabel: { safe: '🟢 安全', risk: '🟡 风险', error: '🔴 错误' }[row.autoCheck?.status] || '🟡 风险',
+        checkTone: { safe: 'success', risk: 'warning', error: 'danger' }[row.autoCheck?.status] || 'warning',
+        checkSummary: row.autoCheck?.summary || '尚未进行自动检查；此状态不代表安全。',
+        basicInfo: [`#${String(row.number).padStart(3, '0')}`, row.category, `${row.width} × ${row.height}`, (meta.capturedAt || context.data.run?.capturedAt || '').replace('T', ' ').replace(/\.\d+(Z|[+-].*)$/, '$1')].filter(Boolean).join(' · '),
+        issueCount: `全库问题 ${logic.issues(rows).length} 项 · 已通过的项目不计入`,
+        copyNotice: '', copyFallbackVisible: false, copyFallback: ''
       },
       actions: {
         previous: () => navigate(index - 1), next: () => navigate(index + 1),
         go, numberKey: ({ event }) => { if (event.key === 'Enter') { event.preventDefault(); go(); } },
         fit: () => { view.mode = 'fit'; view.x = view.y = 0; draw(); },
         actual: () => { view.mode = 'scale'; view.scale = 1; view.x = view.y = 0; draw(); },
-        zoomIn: () => zoom(1.25), zoomOut: () => zoom(0.8)
+        zoomIn: () => zoom(1.25), zoomOut: () => zoom(0.8),
+        copyIssue: () => copyJSON(logic.issue(context.data, row), '已复制当前截图 JSON。'),
+        copyAll: () => {
+          const problems = logic.issues(context.data.screenshots || []);
+          return copyJSON(problems.map(item => logic.issue(context.data, item)), `已复制 ${problems.length} 项问题 JSON。`);
+        }
       }
     });
     const canvas = surface.refs.canvas;
@@ -84,6 +87,18 @@
     canvas.dataset.screenshotId = row.id;
     canvas.dataset.ready = 'false';
     canvas.style.touchAction = 'none';
+
+    async function copyJSON(value, message) {
+      const text = JSON.stringify(value, null, 2);
+      try {
+        await navigator.clipboard.writeText(text);
+        if (!disposed) surface.update({ copyNotice: message, copyFallbackVisible: false, copyFallback: '' });
+      } catch {
+        if (disposed) return;
+        surface.update({ copyNotice: '浏览器未允许写入剪贴板，完整 JSON 已显示在下方。', copyFallbackVisible: true, copyFallback: text });
+        surface.refs.copyFallback.focus(); surface.refs.copyFallback.select();
+      }
+    }
 
     function navigate(targetIndex) {
       if (disposed || !rows[targetIndex]) return;
@@ -193,5 +208,27 @@
   }
 
   window.fwe.registerForm('fwv-ui-screenshot', { render: context => form(context, 'preview', mountPreview) });
+  window.fwe.registerForm('fwv-ui-decision', { render(context) {
+    const row = context.target, status = logic.status(row), rows = ordered(context);
+    const pending = rows.filter(item => !logic.resolved(item));
+    const surface = window.fwe.ui.createSurface({ root: 'root', templates: { root: { type: 'stack', preset: 'compact', children: [
+      { type: 'toolbar', children: [
+        { type: 'button', text: status === 'accepted' ? '✓ 通过' : '通过', tone: status === 'accepted' ? 'primary' : 'success', testId: 'review-accept', attrs: { 'aria-pressed': status === 'accepted' }, on: { click: 'accept' } },
+        { type: 'button', text: '跳过 →', testId: 'review-skip', attrs: { disabled: pending.length === 0 }, on: { click: 'skip' } },
+        { type: 'button', text: status === 'rejected' ? '✓ 不通过' : '不通过', tone: status === 'rejected' ? 'primary' : 'danger', testId: 'review-reject', attrs: { 'aria-pressed': status === 'rejected' }, on: { click: 'reject' } },
+        { type: 'badge', text: { accepted: '通过', skipped: '跳过 · 待审阅', rejected: '不通过' }[status], tone: { accepted: 'success', skipped: 'muted', rejected: 'danger' }[status] }
+      ] },
+      { type: 'text', text: { $path: 'notice' }, tone: 'muted', attrs: { role: 'status' } }
+    ] } } }, { data: { notice: pending.length ? `剩余 ${pending.length} 张待审阅；跳过会循环查找下一张。` : '全部截图已通过或不通过。' }, actions: {
+      accept: () => context.setValue('accepted'), reject: () => context.setValue('rejected'),
+      skip: () => {
+        const next = logic.nextPending(context.data.screenshots || [], row.id);
+        if (!next) surface.update({ notice: '全部截图已通过或不通过。' });
+        else if (next.id === row.id) surface.update({ notice: '只剩当前这张待审阅；请选择通过或不通过。' });
+        else void openScreenshot(context, next.id);
+      }
+    } });
+    return { element: surface.root, dispose: () => surface.dispose() };
+  } });
   window.fwe.registerForm('fwv-ui-coverage', { render: context => form(context, 'coverage', mountCoverage) });
 }());

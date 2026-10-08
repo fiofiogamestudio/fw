@@ -16,8 +16,9 @@ export class CaptureWorkspace {
     workspace.manifestId = checked.capture.generated.sourceManifestSha256;
     workspace.manifest = checked.manifest; workspace.summary = checked.capture.summary;
     workspace.shots = new Map(checked.manifest.screenshots.map((shot, index) => [shot.id,
-      { ...shot, sha256: checked.capture.screenshots[index].sha256, bytes: checked.capture.screenshots[index].bytes }]));
-    workspace.review = new ReviewStore({ sourceRoot: workspace.root, manifestId: workspace.manifestId, ids: workspace.shots.keys() });
+      { ...shot, autoCheck: checked.capture.screenshots[index].autoCheck, sha256: checked.capture.screenshots[index].sha256, bytes: checked.capture.screenshots[index].bytes }]));
+    workspace.currentIds = new Set([...workspace.shots.values()].filter(shot => !shot.historical).map(shot => shot.id));
+    workspace.review = new ReviewStore({ sourceRoot: workspace.root, manifestId: workspace.manifestId, ids: workspace.shots.keys(), editableIds: workspace.currentIds });
     if (workspace.manifestPath === workspace.review.path || [...workspace.shots.values()].some(shot => path.resolve(workspace.root, shot.path) === workspace.review.path)) throw failure('review.json is reserved for annotations.');
     await workspace.review.read();
     return workspace;
@@ -32,16 +33,16 @@ export class CaptureWorkspace {
     const review = await this.review.read();
     const coverage = this.manifest.coverage.map(item => ({ ...item, reason: item.reason || '', captureCount: item.screenshotIds.length,
       category: item.category || this.shots.get(item.screenshotIds[0])?.category || item.surface || '未分类' }));
-    return { name: 'catalog.json', type: 'json', exists: true, revision: this.token(review), data: {
+    return structuredClone({ name: 'catalog.json', type: 'json', exists: true, revision: this.token(review), data: {
       schemaVersion: 1, manifestId: this.manifestId, project: this.manifest.project, title: this.manifest.title,
       run: this.manifest.run, summary: this.summary,
-      screenshots: [...this.shots.values()].sort((a, b) => a.number - b.number).map(shot => ({ ...shot,
+      screenshots: [...this.shots.values()].filter(shot => !shot.historical).sort((a, b) => a.number - b.number).map(shot => ({ ...shot,
         evidence: shot.evidence || this.manifest.run.evidence, notes: shot.notes || '', sourcePath: shot.path,
-        current: shot.historical ? 'historical' : 'current', imageUrl: '/api/fwv/ui-capture/media?id=' + encodeURIComponent(shot.id),
-        reviewStatus: review.annotations[shot.id]?.status || 'unreviewed', reviewNote: review.annotations[shot.id]?.note || '', reference: { id: shot.id } })),
+        autoCheckStatus: shot.autoCheck.status, imageUrl: '/api/fwv/ui-capture/media?id=' + encodeURIComponent(shot.id),
+        reviewStatus: review.annotations[shot.id]?.status || 'skipped', reviewNote: review.annotations[shot.id]?.note || '', reference: { id: shot.id } })),
       coverage,
       categories: [...new Set([...this.manifest.screenshots.map(shot => shot.category), ...coverage.map(item => item.category)])].sort().map(id => ({ id, name: id }))
-    } };
+    } });
   }
   async saveCatalog(payload) {
     if (!plain(payload) || Object.keys(payload).some(key => !['data', 'revision', 'createOnly'].includes(key)) || payload.createOnly === true) throw failure('Invalid catalog save.');
@@ -51,10 +52,10 @@ export class CaptureWorkspace {
     if (!plain(payload.data) || payload.data.manifestId !== this.manifestId || !Array.isArray(payload.data.screenshots)) throw failure('Invalid capture catalog identity.');
     const seen = new Set(), annotations = Object.create(null);
     for (const shot of payload.data.screenshots) {
-      if (!plain(shot) || !this.shots.has(shot.id) || seen.has(shot.id)) throw failure('Cannot add, delete or repeat screenshot identities.');
+      if (!plain(shot) || !this.currentIds.has(shot.id) || seen.has(shot.id)) throw failure('Only the complete current screenshot set may be reviewed; no added, historical or repeated identities.');
       seen.add(shot.id); annotations[shot.id] = { status: shot.reviewStatus, note: shot.reviewNote };
     }
-    if (seen.size !== this.shots.size) throw failure('Cannot remove capture records.');
+    if (seen.size !== this.currentIds.size) throw failure('Cannot remove current capture records.');
     const saved = await this.review.write({ expectedRevision: review.revision, annotations });
     return { name: 'catalog.json', exists: true, revision: this.token(saved) };
   }

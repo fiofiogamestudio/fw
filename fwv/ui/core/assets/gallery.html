@@ -30,7 +30,11 @@ let filtered=[],active=null,previousFocus=null,storageOK=true;
 const number=shot=>'#'+String(shot.number).padStart(3,'0'), key=shot=>'fw-ui-capture:'+JSON.stringify([capture.project,capture.run.id,capture.generated.sourceManifestSha256,capture.review?.revision??0,shot.id]);
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 function message(value){$('notice').textContent=value;}
-function metadata(shot){return [shot.category,shot.width+' × '+shot.height,shot.state?JSON.stringify(shot.state):'',shot.historical?'历史截图':'审阅截图',capture.review?.annotations?.[shot.id]?.status?('审阅：'+({unreviewed:'待审阅',issue:'发现问题',accepted:'已通过',rejected:'不可采用'}[capture.review.annotations[shot.id].status]||'')):''].filter(Boolean).join(' · ');}
+function metadata(shot){
+  const status=capture.review?.annotations?.[shot.id]?.status||'skipped',reviewLabel={accepted:'通过',skipped:'跳过',rejected:'不通过',unreviewed:'跳过',issue:'不通过'}[status]||'跳过';
+  const check=shot.autoCheck||{status:'risk',summary:'尚未进行自动检查；此状态不代表安全。'},checkLabel={safe:'安全',risk:'风险',error:'错误'}[check.status]||'风险';
+  return [shot.category,shot.width+' × '+shot.height,shot.state?JSON.stringify(shot.state):'',shot.historical?'历史截图':'审阅截图','审阅：'+reviewLabel,'自动检查：'+checkLabel+' — '+check.summary].filter(Boolean).join(' · ');
+}
 for(const shot of shots){let note=capture.review?.annotations?.[shot.id]?.note||'';try{note=localStorage.getItem(key(shot))??note;}catch{storageOK=false;}notes.set(shot.id,note);}
 if(!storageOK)message('浏览器无法保存本地备注。本页内仍可编辑，请在关闭前导出备注 JSON。');
 function saveNote(shot,value){notes.set(shot.id,value);try{localStorage.setItem(key(shot),value);}catch{storageOK=false;message('本地存储不可用或已满。请导出备注 JSON 保存当前修改。');}for(const box of document.querySelectorAll('textarea[data-shot]'))if(box.dataset.shot===shot.id&&box.value!==value)box.value=value;}

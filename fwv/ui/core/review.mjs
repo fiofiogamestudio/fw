@@ -3,20 +3,22 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 export const MAX_REVIEW_BYTES = 4 * 1024 * 1024;
-export const REVIEW_STATUSES = Object.freeze(['unreviewed', 'issue', 'accepted', 'rejected']);
+export const REVIEW_STATUSES = Object.freeze(['accepted', 'skipped', 'rejected']);
 export const failure = (message, status = 400, code = 'UI_CAPTURE_INVALID') => Object.assign(new Error(message), { status, code });
 export const plain = value => value && typeof value === 'object' && !Array.isArray(value) && [null, Object.prototype].includes(Object.getPrototypeOf(value));
 function exact(value, keys, label) {
   if (!plain(value) || Object.keys(value).some(key => !keys.includes(key))) throw failure(`${label} contains invalid fields.`);
 }
-export function validateAnnotations(value, ids) {
+export function validateAnnotations(value, ids, { allowLegacy = false } = {}) {
   if (!plain(value)) throw failure('annotations must be an object.');
   const result = Object.create(null);
   for (const [id, entry] of Object.entries(value)) {
     if (!ids.has(id)) throw failure(`Unknown screenshot: ${id}`);
     exact(entry, ['status', 'note'], 'annotation');
-    if (!REVIEW_STATUSES.includes(entry.status) || typeof entry.note !== 'string' || entry.note.length > 12000) throw failure(`Invalid annotation for ${id}.`);
-    result[id] = { status: entry.status, note: entry.note };
+    const status = allowLegacy && entry.status === 'unreviewed' ? 'skipped'
+      : allowLegacy && entry.status === 'issue' ? 'rejected' : entry.status;
+    if (!REVIEW_STATUSES.includes(status) || typeof entry.note !== 'string' || entry.note.length > 12000) throw failure(`Invalid annotation for ${id}.`);
+    result[id] = { status, note: entry.note };
   }
   if (Buffer.byteLength(JSON.stringify(result)) > MAX_REVIEW_BYTES / 2) throw failure('Annotations exceed their size limit.', 413);
   return result;
@@ -24,8 +26,10 @@ export function validateAnnotations(value, ids) {
 
 /** Sidecar writes are independent of capture metadata and protected across processes. */
 export class ReviewStore {
-  constructor({ sourceRoot, manifestId, ids }) {
+  constructor({ sourceRoot, manifestId, ids, editableIds }) {
     this.root = sourceRoot; this.manifestId = manifestId; this.ids = new Set(ids);
+    this.editableIds = editableIds === undefined ? this.ids : new Set(editableIds);
+    for (const id of this.editableIds) if (!this.ids.has(id)) throw failure('Editable review IDs must belong to the capture manifest.');
     this.path = path.join(sourceRoot, 'review.json');
   }
   async assertRoot() {
@@ -47,12 +51,12 @@ export class ReviewStore {
     exact(document, ['schemaVersion', 'manifestId', 'revision', 'updatedAt', 'annotations'], 'review.json');
     if (document.schemaVersion !== 1 || document.manifestId !== this.manifestId) throw failure('review.json belongs to another capture manifest.', 409, 'UI_CAPTURE_MANIFEST_CONFLICT');
     if (!Number.isSafeInteger(document.revision) || document.revision < 0) throw failure('Invalid review revision.');
-    document.annotations = validateAnnotations(document.annotations, this.ids);
+    document.annotations = validateAnnotations(document.annotations, this.ids, { allowLegacy: true });
     return document;
   }
   async write({ expectedRevision, annotations }) {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0) throw failure('expectedRevision must be a non-negative integer.');
-    const validated = validateAnnotations(annotations, this.ids);
+    const validated = validateAnnotations(annotations, this.editableIds);
     await this.assertRoot();
     const lockPath = this.path + '.lock';
     let lock;
@@ -63,8 +67,12 @@ export class ReviewStore {
       await lock.writeFile(JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() }));
       const current = await this.read();
       if (current.revision !== expectedRevision) throw failure('Review changed in another window. Reload before saving.', 409, 'UI_CAPTURE_REVIEW_CONFLICT');
+      // Hidden historical captures retain their annotations, including legacy
+      // notes canonicalized during read. Clients cannot edit those hidden IDs.
+      const merged = Object.assign(Object.create(null), Object.fromEntries(Object.entries(current.annotations).filter(([id]) => !this.editableIds.has(id))), validated);
+      validateAnnotations(merged, this.ids);
       const next = { schemaVersion: 1, manifestId: this.manifestId, revision: current.revision + 1,
-        updatedAt: new Date().toISOString(), annotations: validated };
+        updatedAt: new Date().toISOString(), annotations: merged };
       const handle = await open(temporary, 'wx');
       try { await handle.writeFile(JSON.stringify(next, null, 2) + '\n'); await handle.sync(); }
       finally { await handle.close(); }

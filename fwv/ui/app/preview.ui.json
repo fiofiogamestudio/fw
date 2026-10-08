@@ -2,10 +2,6 @@
   "root": "root",
   "templates": {
     "root": {"type":"stack","preset":"compact","testId":"ui-capture-preview","children":[
-      {"type":"row","children":[
-        {"type":"heading","text":{"$path":"heading"}},
-        {"type":"badge","text":{"$path":"version"},"tone":"muted"}
-      ]},
       {"type":"toolbar","children":[
         {"type":"button","text":"← 上一张","testId":"capture-previous","attrs":{"disabled":{"$path":"first"}},"on":{"click":"previous"}},
         {"type":"field","ref":"number","testId":"capture-number","field":{"path":"number","type":"number","label":"跳到编号","valueType":"number","min":1,"step":1},"value":{"$path":"number"},"on":{"keydown":"numberKey"}},
@@ -21,28 +17,27 @@
         {"type":"button","text":"−","attrs":{"aria-label":"缩小截图"},"on":{"click":"zoomOut"}},
         {"type":"badge","text":{"$path":"scaleLabel"},"tone":"info"},
         {"type":"button","text":"+","attrs":{"aria-label":"放大截图"},"on":{"click":"zoomIn"}},
-        {"type":"button","text":"100% 原始尺寸","testId":"capture-actual","on":{"click":"actual"}},
-        {"type":"link","text":"打开原图 ↗","attrs":{"href":{"$path":"imageUrl"},"target":"_blank","rel":"noopener"}},
-        {"type":"link","text":"下载 PNG","attrs":{"href":{"$path":"downloadUrl"},"download":""}}
+        {"type":"button","text":"100% 原始尺寸","testId":"capture-actual","on":{"click":"actual"}}
       ]},
-      {"type":"text","text":{"$path":"dimensions"},"tone":"muted"},
       {"type":"text","testId":"capture-notice","attrs":{"role":"status"},"text":{"$path":"notice"},"tone":{"$if":[{"$path":"error"},"danger","muted"]}},
-      {"type":"details","testId":"capture-evidence","children":[
-        {"type":"summary","text":"采集证据与原始说明"},
-        {"type":"text","text":{"$path":"evidence"}},
-        {"type":"text","text":{"$path":"captureNotes"},"visible":{"$path":"captureNotes"},"tone":"warning"},
-        {"type":"text","text":{"$path":"captureMeta"},"tone":"muted"},
-        {"type":"text","text":{"$path":"hash"},"tone":"muted"}
+      {"type":"stack","preset":"compact","testId":"capture-auto-check","children":[
+        {"type":"row","children":[
+          {"type":"heading","text":"自动检查"},
+          {"type":"badge","testId":"auto-check-result","text":{"$path":"checkLabel"},"tone":{"$path":"checkTone"}}
+        ]},
+        {"type":"text","text":{"$path":"checkSummary"}}
       ]},
-      {"type":"details","children":[
-        {"type":"summary","text":"导出与采集信息"},
-        {"type":"text","text":{"$path":"runLabel"},"tone":"muted"},
-        {"type":"text","text":"导出包含已保存的审阅记录；修改后请先点击顶部“保存审阅”。","tone":"muted"},
-        {"type":"toolbar","children":[
-          {"type":"link","text":"导出已保存审阅 JSON","attrs":{"href":"/api/fwv/ui-capture/review?download=1","download":""}},
-          {"type":"link","text":"下载离线图库","visible":{"$path":"exportUrl"},"attrs":{"href":{"$path":"exportUrl"},"download":""}}
-        ]}
-      ]}
+      {"type":"row","testId":"capture-basic-info","children":[
+        {"type":"text","text":"基本信息","tone":"muted"},
+        {"type":"text","text":{"$path":"basicInfo"},"tone":"muted"}
+      ]},
+      {"type":"toolbar","children":[
+        {"type":"button","text":"复制 JSON","testId":"copy-issue","on":{"click":"copyIssue"}},
+        {"type":"button","text":"复制所有 JSON","testId":"copy-all-issues","on":{"click":"copyAll"}},
+        {"type":"text","text":{"$path":"issueCount"},"tone":"muted"}
+      ]},
+      {"type":"text","testId":"copy-status","text":{"$path":"copyNotice"},"attrs":{"role":"status"},"tone":"muted"},
+      {"type":"field","ref":"copyFallback","visible":{"$path":"copyFallbackVisible"},"field":{"path":"copyFallback","type":"textarea","label":"复制失败，请手动复制 JSON","rows":6},"value":{"$path":"copyFallback"}}
     ]}
   }
 }
