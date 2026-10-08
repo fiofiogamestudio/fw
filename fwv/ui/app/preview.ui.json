@@ -25,9 +25,13 @@
       {"type":"stack","preset":"compact","testId":"capture-auto-check","children":[
         {"type":"row","children":[
           {"type":"heading","text":"自动检查"},
-          {"type":"badge","testId":"auto-check-result","text":{"$path":"checkLabel"},"tone":{"$path":"checkTone"}}
+          {"type":"card","preset":"compact","testId":"auto-check-result","children":[
+            {"type":"heading","text":{"$path":"checkLabel"},"tone":{"$path":"checkTone"}}
+          ]}
         ]},
-        {"type":"text","text":{"$path":"checkSummary"}}
+        {"type":"card","preset":"compact","testId":"auto-check-summary","children":[
+          {"type":"text","text":{"$path":"checkSummary"}}
+        ]}
       ]},
       {"type":"text","testId":"capture-basic-info","text":{"$path":"basicInfo"},"tone":"muted"},
       {"type":"toolbar","children":[

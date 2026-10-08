@@ -26,6 +26,7 @@ async function runtime(fwePath) {
   if (c?.version !== 1 || c.requestGuard !== 'await-before-routing-v1' || c.extensions !== 'sync-setup-async-handlers-v1'
     || c.nativeCatalog !== 'media-pagination-forms-v1' || c.configuredSurfaces !== 'native-inspector-v1'
     || c.boundedRequestBody !== 'bytes-v1' || c.surfaceCanvas !== 'device-resolution-v1'
+    || c.surfaceFilledButtons !== 'semantic-tones-v1'
     || typeof fwe.loadAppConfig !== 'function' || typeof fwe.startServer !== 'function') throw failure('Selected FWE lacks the required integration contracts.');
   return { fwe, selected };
 }

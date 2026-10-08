@@ -6,6 +6,7 @@ import path from 'node:path';
 import http from 'node:http';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { CaptureWorkspace } from '../ui/core/workspace.mjs';
 import { validateManifest } from '../ui/core/manifest.mjs';
 import { startUiServer, DEFAULT_FWE_PATH } from '../ui/server.mjs';
@@ -14,6 +15,7 @@ import { parseUiArguments, runUi } from '../ui/cli.mjs';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a1z8AAAAASUVORK5CYII=', 'base64');
 const sha = value => createHash('sha256').update(value).digest('hex');
 const fwePath = process.env.FWV_TEST_FWE_PATH || DEFAULT_FWE_PATH;
+const require = createRequire(import.meta.url);
 async function fixture(t, serve = false, configure = () => {}) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'fwv-ui-server-'));
   const manifestPath = path.join(root, 'capture.json');
@@ -186,6 +188,21 @@ test('declared hashes and byte counts are verified; changed capture blocks all s
   await assert.rejects(() => f.workspace.catalog(), { status: 409 });
   f.manifest.screenshots[0].sha256 = sha(PNG); f.manifest.screenshots[0].bytes = PNG.length + 1;
   await fs.writeFile(f.manifestPath, JSON.stringify(f.manifest)); await assert.rejects(() => validateManifest(f.manifestPath), /byte size/);
+});
+
+test('older FWE fails at startup instead of opening a broken filled-button form', async t => {
+  const f = await fixture(t);
+  const oldRuntime = path.join(f.root, 'old-fwe');
+  await fs.mkdir(path.join(oldRuntime, 'src'), { recursive: true });
+  const contract = { ...require(path.join(fwePath, 'src/server.js')).SERVER_INTEGRATION_CONTRACT };
+  delete contract.surfaceFilledButtons;
+  await fs.writeFile(path.join(oldRuntime, 'package.json'), JSON.stringify({ name: 'fwe', version: '0.2.0', type: 'commonjs' }));
+  await fs.writeFile(path.join(oldRuntime, 'src/server.js'), `module.exports = {
+    SERVER_INTEGRATION_CONTRACT: ${JSON.stringify(contract)},
+    loadAppConfig() { throw new Error('must reject before loading the app'); },
+    startServer() { throw new Error('must reject before listening'); }
+  };`);
+  await assert.rejects(() => startUiServer({ manifestPath: f.manifestPath, fwePath: oldRuntime }), /Selected FWE lacks the required integration contracts/);
 });
 
 test('real FWE serves catalog, original PNG, durable native saves and self-contained offline download', async t => {

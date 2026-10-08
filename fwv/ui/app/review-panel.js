@@ -213,9 +213,9 @@
     const pending = rows.filter(item => !logic.resolved(item));
     const surface = window.fwe.ui.createSurface({ root: 'root', templates: { root: { type: 'stack', preset: 'compact', children: [
       { type: 'toolbar', children: [
-        { type: 'button', text: status === 'accepted' ? '✓ 通过' : '通过', tone: status === 'accepted' ? 'primary' : 'success', testId: 'review-accept', attrs: { 'aria-pressed': status === 'accepted' }, on: { click: 'accept' } },
-        { type: 'button', text: '跳过 →', testId: 'review-skip', attrs: { disabled: pending.length === 0 }, on: { click: 'skip' } },
-        { type: 'button', text: status === 'rejected' ? '✓ 不通过' : '不通过', tone: status === 'rejected' ? 'primary' : 'danger', testId: 'review-reject', attrs: { 'aria-pressed': status === 'rejected' }, on: { click: 'reject' } }
+        { type: 'button', preset: 'filled', text: status === 'accepted' ? '✓ 通过' : '通过', tone: 'success', testId: 'review-accept', attrs: { 'aria-pressed': status === 'accepted' }, on: { click: 'accept' } },
+        { type: 'button', preset: 'filled', text: '跳过', tone: 'warning', testId: 'review-skip', attrs: { disabled: pending.length === 0 }, on: { click: 'skip' } },
+        { type: 'button', preset: 'filled', text: status === 'rejected' ? '✓ 不通过' : '不通过', tone: 'danger', testId: 'review-reject', attrs: { 'aria-pressed': status === 'rejected' }, on: { click: 'reject' } }
       ] },
       { type: 'text', visible: { $path: 'notice' }, text: { $path: 'notice' }, tone: 'muted', attrs: { role: 'status' } }
     ] } } }, { data: { notice: '' }, actions: {
