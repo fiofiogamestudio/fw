@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 
+const maxJsonBytes = 4 * 1024 * 1024;
+
 export function fail(code, message) {
   const error = new Error(message);
   error.code = code;
@@ -26,7 +28,7 @@ export function child(root, relative) {
 }
 
 export function readJson(file) {
-  if (fs.statSync(file).size > 4 * 1024 * 1024) fail('oversize-json', `JSON is too large: ${file}`);
+  if (fs.statSync(file).size > maxJsonBytes) fail('oversize-json', `JSON is too large: ${file}`);
   return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 }
 
@@ -45,9 +47,16 @@ export function fileDigest(file) {
 
 export function atomicJson(file, value) {
   physicalPath(file);
+  let content = JSON.stringify(value, null, 2) + '\n';
+  if (Buffer.byteLength(content) > maxJsonBytes) {
+    // Preserve the first serialization's exact JSON value, including strings
+    // and toJSON results, while removing only insignificant formatting.
+    content = JSON.stringify(JSON.parse(content)) + '\n';
+    if (Buffer.byteLength(content) > maxJsonBytes) fail('oversize-json', `JSON is too large: ${file}`);
+  }
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${randomUUID()}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + '\n', { flag: 'wx' });
+  fs.writeFileSync(temporary, content, { flag: 'wx' });
   try { fs.renameSync(temporary, file); }
   catch (error) { fs.unlinkSync(temporary); throw error; }
 }
