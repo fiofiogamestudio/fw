@@ -3,10 +3,11 @@ import { readFile, stat, readdir, realpath } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { getTarget, retiredTargetMessage } from './platforms.mjs';
-import { child, walk } from './core/files.mjs';
+import { child, walk, sectionValue } from './core/files.mjs';
 import { resolveEnvironment } from './core/environment.mjs';
 import { usesWebConversion } from './core/minigame-export.mjs';
 import { resolveResourcePreparation } from './core/resource-pipeline.mjs';
+import { resolveExternalAssets } from './core/external-assets.mjs';
 import { inputFiles } from './core/project.mjs';
 
 /** Bounded read-only process probe. Its raw output is not included in doctor reports. */
@@ -207,6 +208,14 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
     add('profile', selectedProfile ? 'pass' : 'fail', selectedProfile ? `使用 ${profile} 构建配置。` : `未定义构建配置：${profile}`, selectedProfile ? undefined : '在 profiles 中定义该配置。');
     const release = selectedProfile?.release === true;
     const mode = release ? 'release' : 'debug';
+    try {
+      const autoload = sectionValue(await readSmall(child(project.root, 'project.godot')), 'autoload', 'FwbPlatform');
+      if (config.runtimeAddon === false && autoload?.replace(/^\*/, '') === 'res://addons/fwb/platform.gd') {
+        add('runtime-addon-conflict', 'fail', 'runtimeAddon:false 与工程中已安装的 FwbPlatform 自动加载冲突；跳过装配不能禁用现有自动加载。', '需要发行运行时则设 runtimeAddon:true；确需禁用时先显式移除宿主自动加载并检查玩法依赖。FWB 不会删除宿主文件。');
+      } else if (config.runtimeAddon === true && autoload && autoload !== '*res://addons/fwb/platform.gd') {
+        add('runtime-addon-conflict', 'fail', 'FwbPlatform 名称已由其他自动加载脚本占用。', '保留自定义脚本并改名，或显式采用受管 FWB 自动加载后再构建。');
+      }
+    } catch (error) { add('runtime-addon-config', 'fail', `无法检查运行时自动加载：${error.message}`); }
 
     let version;
     try {
@@ -270,6 +279,22 @@ export function createDoctor({ probe = probeTool, env = process.env, hostPlatfor
         add('resource-preparation', 'pass', `资源准备脚本已包含在快照输入：${preparation.pipeline ? preparation.pipeline + ' / ' : ''}${preparation.script}`);
       }
     } catch (error) { add('resource-preparation', 'fail', `资源准备无法进入安全快照：${error.message}`, '提供项目内非空资源准备脚本，禁止链接；不要放入 .local、node_modules 等保留目录或被 exclude 排除。'); }
+    for (const [key, checkId] of [['finalizeScript', 'export-finalization'], ['deliveryValidationScript', 'delivery-validation']]) {
+      if (!targetConfig[key]) continue;
+      try { await snapshotScript(targetConfig[key]); add(checkId, 'pass', `脚本已包含在快照输入：${targetConfig[key]}`); }
+      catch (error) { add(checkId, 'fail', `脚本无法进入安全快照：${error.message}`, `${key} 必须是工程内非空 .mjs 文件并包含在快照中。`); }
+    }
+    try {
+      const assets = resolveExternalAssets(config, target);
+      for (const asset of assets) await snapshotScript(asset.source);
+      if (assets.length) add('external-assets', 'pass', `${assets.length} 个外置资源已包含在快照中；导出后复制并验证。`);
+      if (targetConfig.externalAssetsManifest) {
+        const file = child(project.root, targetConfig.externalAssetsManifest);
+        if (await exists(file)) await snapshotScript(targetConfig.externalAssetsManifest);
+        else if (!resolveResourcePreparation(config, target)) throw new Error('外置资源清单不存在且没有准备脚本生成它。');
+        add('external-assets-manifest', 'warning', '外置资源清单会在准备脚本完成后读取并逐项验证。');
+      }
+    } catch (error) { add('external-assets', 'fail', `外置资源无法进入快照：${error.message}`, '外置资源必须为工程内非空文件，且未被 exclude 或保留目录排除。'); }
     if (usesWebConversion(target, targetConfig)) {
       try {
         await snapshotScript(targetConfig.convertScript);

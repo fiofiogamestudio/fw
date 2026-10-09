@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "name": "FWB Save Flow",
+  "version": "0.1.0",
+  "buildNumber": 1,
+  "godot": { "executable": "godot", "version": "4.6.2" },
+  "runtimeAddon": true,
+  "runtime": {
+    "taptap": { "enabled": true, "cloudSave": true },
+    "saveFlow": {
+      "enabled": true,
+      "platforms": ["web", "taptap-h5"],
+      "autoUpload": true,
+      "debounceSeconds": 5
+    },
+    "ads": {
+      "enabled": true,
+      "placements": { "bonus": "rewarded", "between_rounds": "interstitial" },
+      "interstitialCooldownSeconds": 120
+    }
+  },
+  "webShell": {
+    "enabled": true,
+    "label": "FWB Save Flow",
+    "locale": "en",
+    "maxWidth": 540,
+    "maxDevicePixelRatio": 2,
+    "safeArea": true,
+    "background": "#07131a"
+  },
+  "targets": {
+    "web": { "enabled": true, "preset": "Web" },
+    "taptap-h5": { "enabled": true, "preset": "Web" }
+  },
+  "profiles": { "debug": { "release": false }, "release": { "release": true } }
+}

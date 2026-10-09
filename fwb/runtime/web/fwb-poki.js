@@ -58,12 +58,17 @@
         }
         pending = true;
         let sdkRequestStarted = false;
+        let timedOut = false;
         try {
           const sdkRequest = Promise.resolve(sdk[method](() => emit({ type: 'ad_started', kind, request_id: String(requestId) })));
           sdkRequestStarted = true;
           // Timeout cannot cancel the SDK itself. Keep its lock until settlement
           // so a retry cannot display a second ad over an outstanding first one.
-          sdkRequest.then(() => { pending = false; }, () => { pending = false; });
+          const settled = () => {
+            pending = false;
+            if (timedOut) emit({ type: 'ad_settled', request_id: String(requestId) });
+          };
+          sdkRequest.then(settled, settled);
           const reward = await deadline(sdkRequest, 120000);
           if (kind === 'rewarded') {
             emit({ ...base, status: reward === true ? 'success' : 'cancelled', reward_eligible: reward === true,
@@ -74,12 +79,10 @@
           }
         } catch (error) {
           if (!sdkRequestStarted) pending = false;
-          emit({ ...base, status: 'error', message: message(error) });
+          timedOut = pending;
+          emit({ ...base, status: 'error', message: message(error), pending });
         }
       });
     },
   };
-  root.document?.addEventListener('visibilitychange', () => emit({
-    type: 'lifecycle', event: root.document.hidden ? 'background' : 'foreground',
-  }));
 })(globalThis);

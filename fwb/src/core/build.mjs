@@ -16,6 +16,11 @@ import { resolveResourcePreparation } from './resource-pipeline.mjs';
 import { convertMinigame, usesWebConversion, validateMinigameOutputs } from './minigame-export.mjs';
 import { runGodotProcess } from './godot-process.mjs';
 import { fwcExportFilters, readFwcLayout } from './fw-layout.mjs';
+import { copyExternalAssets } from './external-assets.mjs';
+import { resourceReport, resourceBudgetChecks } from './resource-report.mjs';
+import { prepareWebShell, copyWebShellOutput } from './web-shell.mjs';
+import { applyTexturePolicy, resolveTexturePolicy } from './texture-policy.mjs';
+import { installRuntimeAddon, runtimeHeadScripts, runtimeWebFiles } from './runtime-dev.mjs';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const artifactRoot = root => child(root, '.local/fwb/artifacts');
@@ -100,24 +105,6 @@ function copySnapshot(project, stage) {
   return { sha256: digest(JSON.stringify(records)), files: records, gitRevision: git.status === 0 ? git.stdout.trim() : null };
 }
 
-function installAddon(stage, target) {
-  const source = path.join(packageRoot, 'runtime/addons/fwb');
-  if (!fs.existsSync(source)) fail('missing-runtime-addon', 'FWB runtime addon is missing.');
-  const files = walk(source);
-  const hashes = [];
-  for (const relative of files) {
-    const destination = child(stage, `addons/fwb/${relative}`);
-    fs.mkdirSync(path.dirname(destination), { recursive: true });
-    fs.copyFileSync(path.join(source, relative), destination);
-    hashes.push({ path: `addons/fwb/${relative}`, sha256: fileDigest(destination) });
-  }
-  atomicJson(path.join(stage, 'fwb.runtime.json'), { platform: target });
-  let project = fs.readFileSync(path.join(stage, 'project.godot'), 'utf8');
-  project = setSetting(project, 'autoload', 'FwbPlatform', '*res://addons/fwb/platform.gd');
-  fs.writeFileSync(path.join(stage, 'project.godot'), project);
-  return { sha256: digest(JSON.stringify(hashes)), files: hashes };
-}
-
 export function exportTemplatePaths(project, stage, templates = {}) {
   return Object.fromEntries(Object.entries(templates).map(([kind, file]) => {
     const relative = path.relative(project.root, file);
@@ -144,7 +131,7 @@ export function configureExport(project, stage, target, profile, diagnosis, fwcL
   const includes = sectionValue(source, section, 'include_filter') ?? '';
   source = setSetting(source, section, 'include_filter', mergeFilters(includes, 'fwb.runtime.json', ...fwcFilters.include));
   const excludes = sectionValue(source, section, 'exclude_filter') ?? '';
-  source = setSetting(source, section, 'exclude_filter', mergeFilters(excludes, 'fwb/*', 'fwe/*', 'fwa/*', 'fws/*', 'fwv/*', 'tools/*', 'tests/*', 'docs/*', 'fwb.project.json', 'fwb.toolchain.lock.json', ...(project.inspection.fwc ? [`${project.inspection.fwc.path}/*`, ...fwcFilters.exclude] : [])));
+  source = setSetting(source, section, 'exclude_filter', mergeFilters(excludes, 'fwb/*', 'fwe/*', 'fwa/*', 'fws/*', 'fwv/*', 'tools/*', 'tests/*', 'docs/*', 'fwb.project.json', 'fwb.toolchain.lock.json', '.fwb-runtime-install.json', 'fwb.external-assets.json', 'addons/fwb_web/*', targetConfig.externalAssetsManifest ?? '', ...(project.inspection.fwc ? [`${project.inspection.fwc.path}/*`, ...fwcFilters.exclude] : [])));
   if (diagnosis.templates) {
     for (const [kind, template] of Object.entries(exportTemplatePaths(project, stage, diagnosis.templates))) source = setSetting(source, options, `custom_template/${kind}`, template.replaceAll('\\', '/'));
   }
@@ -159,9 +146,15 @@ export function configureExport(project, stage, target, profile, diagnosis, fwcL
     projectSettings = setSetting(projectSettings, 'rendering', 'textures/vram_compression/import_etc2_astc', true);
     fs.writeFileSync(projectFile, projectSettings);
   }
-  if (target === 'poki' && project.config.runtimeAddon) {
+  const shell = prepareWebShell({ project, stage, target, profile });
+  if (shell) {
+    source = setSetting(source, options, 'html/custom_html_shell', shell.customShell);
+    source = setSetting(source, options, 'html/canvas_resize_policy', shell.canvasResizePolicy);
+  }
+  if (getTarget(target)?.family === 'web' && project.config.runtimeAddon) {
     const include = sectionValue(source, options, 'html/head_include') ?? '';
-    source = setSetting(source, options, 'html/head_include', `${include}\n<script src="https://game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>\n<script src="fwb-poki.js"></script>`);
+    const scripts = runtimeHeadScripts(target, project.config.runtime).filter(script => !include.includes(`src="${script}"`));
+    source = setSetting(source, options, 'html/head_include', `${include}${scripts.map(script => `\n<script src="${script}"></script>`).join('')}`);
   }
   if (target === 'google-play') {
     const gradleDirectory = resolveAndroidGradleDirectory(stage, sectionValue(source, options, 'gradle_build/gradle_build_directory'));
@@ -179,7 +172,7 @@ export function configureExport(project, stage, target, profile, diagnosis, fwcL
     source = setSetting(source, options, 'application/version', String(project.config.buildNumber));
   }
   fs.writeFileSync(file, source);
-  return { filename, preset, web };
+  return { filename, preset, web, ...(shell ? { shell } : {}) };
 }
 
 export function fwcPrepareCommand(component, stage, engine, timeoutSeconds, platform = process.platform) {
@@ -246,7 +239,16 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
     if (!diagnosis.ok) fail('preflight-failed', diagnosis.checks.filter(check => check.status === 'fail').map(check => check.message).join('\n'));
     emit('snapshot', 'Freezing the build inputs in an isolated project.');
     manifest.source = copySnapshot(project, stage);
-    if (project.config.runtimeAddon) manifest.runtimeAddon = installAddon(stage, target);
+    if (project.config.runtimeAddon) manifest.runtimeAddon = installRuntimeAddon(stage, { platform: target, config: project.config.runtime });
+    if (getTarget(target)?.family === 'web' && project.config.runtimeAddon) {
+      manifest.runtimeWeb = runtimeWebFiles(target, project.config.runtime).map(file => {
+        const relative = `addons/fwb_web/runtime/${file.destination}`, destination = child(stage, relative);
+        fs.mkdirSync(path.dirname(destination), { recursive: true }); fs.copyFileSync(file.source, destination);
+        const sha256 = fileDigest(destination);
+        if (fileDigest(file.source) !== sha256) fail('runtime-source-changed', 'FWB Web runtime changed while being frozen; retry the build.');
+        return { path: relative, destination: file.destination, sha256 };
+      });
+    }
     const engine = target === 'google-play' ? prepareAndroidTools(directory, diagnosis).executable : diagnosis.engine.executable;
     const resolved = resolveEnvironment(project, target);
     if (diagnosis.toolchain?.javaHome) resolved.processEnv.JAVA_HOME = diagnosis.toolchain.javaHome;
@@ -256,6 +258,8 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
       emit('prepare-snapshot', 'Running the host preparation script inside the frozen snapshot.');
       manifest.preparation = await prepareSnapshot(project, stage, target, profile, runOptions);
     }
+    const texturePolicy = resolveTexturePolicy(project.config, target);
+    if (texturePolicy) manifest.texturePolicy = applyTexturePolicy(stage, texturePolicy);
     if (project.inspection.fwc) {
       emit('prepare', 'Preparing FWC using its own build and generation contracts.');
       const component = child(stage, project.inspection.fwc.path);
@@ -274,11 +278,21 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
     await runGodotProcess(engine, ['--headless', '--path', stage, '--editor', '--import'], { ...runOptions, phase: 'import' });
     emit('export', `Exporting ${target} with preset ${exported.preset}.`);
     await runGodotProcess(engine, ['--headless', '--path', stage, releaseProfile.release ? '--export-release' : '--export-debug', exported.preset, path.join(exportOut, exported.filename)], { ...runOptions, phase: 'export' });
-    if (target === 'poki' && project.config.runtimeAddon) fs.copyFileSync(path.join(packageRoot, 'runtime/web/fwb-poki.js'), path.join(out, 'fwb-poki.js'));
+    for (const file of manifest.runtimeWeb ?? []) {
+      const source = child(stage, file.path), destination = child(out, file.destination);
+      if (fileDigest(source) !== file.sha256) fail('runtime-source-changed', `Frozen Web runtime changed: ${file.path}`);
+      fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+      if (fileDigest(destination) !== file.sha256) fail('runtime-source-changed', `Web runtime copy changed: ${file.destination}`);
+    }
     if (converting) {
       emit('convert-minigame', 'Converting the raw Web export with the frozen WeChat adapter.');
       manifest.conversion = await convertMinigame(project, stage, exportOut, out, target, profile, runOptions);
     }
+    if (exported.shell) {
+      for (const file of exported.shell.files) if (fileDigest(child(stage, file.path)) !== file.sha256) fail('shell-source-changed', `Frozen Web shell changed: ${file.path}`);
+      manifest.webShell = { ...exported.shell, outputs: copyWebShellOutput({ project, stage, out, target }) };
+    }
+    manifest.externalAssets = copyExternalAssets(project, stage, out, target);
     if (project.config.targets[target]?.finalizeScript) {
       emit('finalize-export', 'Finalizing the exported files with the frozen host script.');
       manifest.finalization = await finalizeExport(project, stage, out, target, profile, runOptions);
@@ -287,6 +301,18 @@ export async function buildProject(root, { target = 'web', profile = 'debug', si
     if (!manifest.outputs.length) fail('empty-export', 'Godot produced no output.');
     manifest.entry = converting ? 'out/game.js' : `out/${exported.filename}`;
     manifest.maxBytes = project.config.targets[target]?.maxBytes ?? null;
+    if (project.config.targets[target]?.deliveryValidationScript) {
+      const script = project.config.targets[target].deliveryValidationScript;
+      const files = inputFiles(stage, project.config).map(relative => ({ path: relative, size: fs.statSync(child(stage, relative)).size, sha256: fileDigest(child(stage, relative)) }));
+      const inputs = { schemaVersion: 1, exclude: project.config.exclude ?? [], files };
+      const inputsPath = path.join(directory, 'delivery-validation-inputs.json'); atomicJson(inputsPath, inputs);
+      manifest.deliveryValidation = { script, sha256: fileDigest(child(stage, script)), inputs: { path: 'delivery-validation-inputs.json', sha256: fileDigest(inputsPath) } };
+    }
+    manifest.budgets = project.config.targets[target]?.budgets ?? {};
+    if (project.config.targets[target]?.startupFiles) manifest.startupFiles = project.config.targets[target].startupFiles;
+    const resources = resourceReport({ ...manifest, directory });
+    atomicJson(path.join(directory, 'resource-report.json'), resources);
+    manifest.resources = { path: 'resource-report.json', sha256: fileDigest(path.join(directory, 'resource-report.json')), metrics: resources.metrics };
     manifest.status = 'built'; manifest.completedAt = new Date().toISOString();
     store(directory, manifest);
     const validation = await validateArtifact(project.root, id);
@@ -340,6 +366,9 @@ export async function validateArtifact(root, id) {
       add('poki-sdk', fs.existsSync(html) && fs.readFileSync(html, 'utf8').includes('game-cdn.poki.com/scripts/v2/poki-sdk.js'), 'Poki SDK is referenced; actual SDK events require platform validation.');
     }
   } else checks.push(...validateMinigameOutputs(artifact));
+  try {
+    checks.push(...resourceBudgetChecks(artifact, resourceReport(artifact, { inspectPacks: false })));
+  } catch (error) { add('resource-budget', false, error.message); }
   const ok = checks.every(check => check.status === 'pass');
   const result = { ok, artifactId: id, checkedAt: new Date().toISOString(), checks, scope: 'package', runtimeStatus: artifact.validation?.runtime ?? 'not-tested', bytes };
   const { directory, ...stored } = artifact;

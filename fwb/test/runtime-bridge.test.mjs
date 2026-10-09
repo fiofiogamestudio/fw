@@ -117,12 +117,7 @@ test('ad timeout cannot grant a late reward', async () => {
   assert.equal(events.filter(event => event.type === 'ad' && event.request_id === 'timeout').length, 1);
 });
 
-test('browser visibility is delivered as lifecycle data', async () => {
-  const { handlers, context, events } = await bridge(undefined);
-  context.document.hidden = true;
-  handlers.visibilitychange();
-  assert.deepEqual(events.at(-1), { type: 'lifecycle', event: 'background' });
-  context.document.hidden = false;
-  handlers.visibilitychange();
-  assert.deepEqual(events.at(-1), { type: 'lifecycle', event: 'foreground' });
+test('Poki does not install browser lifecycle listeners owned by the common bridge', async () => {
+  const { handlers } = await bridge(undefined);
+  assert.deepEqual(handlers, {});
 });

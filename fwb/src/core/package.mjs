@@ -1,7 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { deflateRawSync } from 'node:zlib';
 import { child, digest, fail } from './files.mjs';
 import { readArtifact, validateArtifact } from './build.mjs';
+import { zipPolicy, validateZipSize } from './zip-policy.mjs';
 
 const table = Array.from({ length: 256 }, (_, n) => { for (let i = 0; i < 8; i++) n = (n >>> 1) ^ (n & 1 ? 0xedb88320 : 0); return n >>> 0; });
 const crc32 = data => { let crc = 0xffffffff; for (const byte of data) crc = table[(crc ^ byte) & 255] ^ (crc >>> 8); return (crc ^ 0xffffffff) >>> 0; };
@@ -12,7 +14,8 @@ export async function packageArtifact(artifact) {
   if (current.directory !== path.resolve(artifact.directory)) fail('invalid-package', '下载必须使用工程中已记录的产物。');
   if (!(await validateArtifact(root, artifact.id)).ok) fail('invalid-package', '产物完整性、包结构或大小预算检查失败，请重新构建。');
   artifact = current;
-  if (artifact.outputs.length > 60000 || artifact.outputs.reduce((n, file) => n + file.size, 0) > 256 * 1024 * 1024) fail('package-too-large', '大于 256 MiB 的产物请使用“打开目录”交付。');
+  const policy = zipPolicy(artifact);
+  if (artifact.outputs.length > 60000 || artifact.outputs.reduce((n, file) => n + file.size, 0) > 256 * 1024 * 1024) fail('package-too-large', '工作台下载最多缓冲 256 MiB 原始产物；更大的产物请使用流式 deliver 或目录交付。');
   const local = [], central = []; let offset = 0;
   for (const output of artifact.outputs) {
     if (!output.path.startsWith('out/')) fail('invalid-package', '产物必须位于输出目录。');
@@ -20,14 +23,18 @@ export async function packageArtifact(artifact) {
     if (fs.statSync(file).size !== output.size) fail('changed-output', '产物大小已变化，请重新构建。');
     const bytes = fs.readFileSync(file);
     if (digest(bytes) !== output.sha256) fail('changed-output', '产物哈希已变化，请重新构建。');
-    const name = Buffer.from(output.path.slice(4)), crc = crc32(bytes);
+    const name = Buffer.from((policy.rootDirectory ? `${policy.rootDirectory}/` : '') + output.path.slice(4)), crc = crc32(bytes);
+    if (name.length > 0xffff) fail('invalid-package', 'ZIP 文件名过长。');
+    const compressed = deflateRawSync(bytes, { level: 9 });
     const header = Buffer.alloc(30); header.writeUInt32LE(0x04034b50); header.writeUInt16LE(20, 4); header.writeUInt16LE(0x800, 6);
-    header.writeUInt32LE(crc, 14); header.writeUInt32LE(bytes.length, 18); header.writeUInt32LE(bytes.length, 22); header.writeUInt16LE(name.length, 26);
+    header.writeUInt16LE(8, 8); header.writeUInt32LE(crc, 14); header.writeUInt32LE(compressed.length, 18); header.writeUInt32LE(bytes.length, 22); header.writeUInt16LE(name.length, 26);
     const record = Buffer.alloc(46); record.writeUInt32LE(0x02014b50); record.writeUInt16LE(20, 4); record.writeUInt16LE(20, 6); record.writeUInt16LE(0x800, 8);
-    record.writeUInt32LE(crc, 16); record.writeUInt32LE(bytes.length, 20); record.writeUInt32LE(bytes.length, 24); record.writeUInt16LE(name.length, 28); record.writeUInt32LE(offset, 42);
-    local.push(header, name, bytes); central.push(record, name); offset += header.length + name.length + bytes.length;
+    record.writeUInt16LE(8, 10); record.writeUInt32LE(crc, 16); record.writeUInt32LE(compressed.length, 20); record.writeUInt32LE(bytes.length, 24); record.writeUInt16LE(name.length, 28); record.writeUInt32LE(offset, 42);
+    local.push(header, name, compressed); central.push(record, name); offset += header.length + name.length + compressed.length;
   }
   const directory = Buffer.concat(central), end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50);
   end.writeUInt16LE(artifact.outputs.length, 8); end.writeUInt16LE(artifact.outputs.length, 10); end.writeUInt32LE(directory.length, 12); end.writeUInt32LE(offset, 16);
-  return Buffer.concat([...local, directory, end]);
+  const archive = Buffer.concat([...local, directory, end]);
+  validateZipSize(policy, archive.length);
+  return archive;
 }

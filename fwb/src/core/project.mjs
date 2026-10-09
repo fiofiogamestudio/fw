@@ -4,6 +4,11 @@ import { atomicJson, child, digest, fail, physicalPath, readJson, sectionValue, 
 import { targets, retiredTargetMessage } from '../platforms.mjs';
 import { validateToolPaths } from './environment.mjs';
 import { resolveResourcePreparation, validateHookScript, validateResourcePipelines } from './resource-pipeline.mjs';
+import { validateExternalAssets } from './external-assets.mjs';
+import { validateResourceBudgets } from './resource-report.mjs';
+import { validateWebShell } from './web-shell.mjs';
+import { validateTexturePolicy } from './texture-policy.mjs';
+import { validateRuntimeConfig } from './runtime-dev.mjs';
 
 export const PROJECT_FILE = 'fwb.project.json';
 const TARGETS = targets.map(target => target.id);
@@ -12,13 +17,15 @@ const text = (value, label, max = 240) => { if (typeof value !== 'string' || !va
 
 export function validateConfig(config) {
   if (!plain(config) || config.schemaVersion !== 1) fail('invalid-config', 'Expected FWB schemaVersion 1.');
-  const keys = ['schemaVersion', 'name', 'version', 'buildNumber', 'godot', 'targets', 'profiles', 'runtimeAddon', 'resourcePipelines', 'exclude', 'timeoutSeconds'];
+  const keys = ['schemaVersion', 'name', 'version', 'buildNumber', 'godot', 'targets', 'profiles', 'runtimeAddon', 'runtime', 'resourcePipelines', 'externalAssets', 'webShell', 'texturePolicy', 'exclude', 'timeoutSeconds'];
   for (const key of Object.keys(config)) if (!keys.includes(key)) fail('invalid-config', `Unknown project setting: ${key}`);
   text(config.name, 'name'); text(config.version, 'version', 80);
   if (!Number.isSafeInteger(config.buildNumber) || config.buildNumber < 1) fail('invalid-config', 'buildNumber must be a positive safe integer.');
   if (!plain(config.godot)) fail('invalid-config', 'godot is required.');
   validateToolPaths(config.godot);
   validateResourcePipelines(config.resourcePipelines);
+  validateTexturePolicy(config.texturePolicy, 'texturePolicy');
+  validateRuntimeConfig(config.runtime);
   if (config.godot.version !== undefined && !/^4\.\d+\.\d+$/.test(config.godot.version)) fail('invalid-config', 'godot.version must be an exact Godot 4 version.');
   if (!plain(config.targets) || !Object.keys(config.targets).length) fail('invalid-config', 'At least one target is required.');
   for (const [id, target] of Object.entries(config.targets)) {
@@ -27,9 +34,11 @@ export function validateConfig(config) {
     if (target.enabled !== undefined && typeof target.enabled !== 'boolean') fail('invalid-config', `${id}.enabled must be boolean.`);
     if (retired && target.enabled !== false) fail('retired-target', retired);
     if (target.preset !== undefined) text(target.preset, `${id}.preset`, 100);
-    for (const hook of ['prepareScript', 'finalizeScript', 'convertScript']) if (target[hook] !== undefined) validateHookScript(target[hook], `${id}.${hook}`);
+    for (const hook of ['prepareScript', 'finalizeScript', 'convertScript', 'deliveryValidationScript']) if (target[hook] !== undefined) validateHookScript(target[hook], `${id}.${hook}`);
     if (target.convertScript !== undefined && id !== 'wechat-minigame') fail('invalid-config', 'convertScript is only supported for wechat-minigame.');
     resolveResourcePreparation(config, id);
+    validateResourceBudgets(target, id);
+    validateTexturePolicy(target.texturePolicy, `${id}.texturePolicy`);
     if (target.maxBytes !== undefined && (!Number.isSafeInteger(target.maxBytes) || target.maxBytes < 1)) fail('invalid-config', `${id}.maxBytes must be positive.`);
     if (target.godot !== undefined) validateToolPaths(target.godot);
     for (const key of ['sdkPath', 'sdkVersion', 'androidSdkPath', 'javaHome', 'exportPlatform', 'applicationId', 'teamId']) if (target[key] !== undefined) text(target[key], `${id}.${key}`, 2048);
@@ -39,6 +48,8 @@ export function validateConfig(config) {
     }
     if (target.upload !== undefined && (!plain(target.upload) || Object.keys(target.upload).some(key => !['provider', 'packagePath', 'toolVersion', 'applicationId', 'robot', 'privateKeyPathEnv', 'notes', 'timeoutSeconds', 'acceptance'].includes(key)))) fail('invalid-config', '上传配置仅支持工具设置及凭据引用，不接受密码或令牌。');
   }
+  validateExternalAssets(config);
+  validateWebShell(config);
   if (!plain(config.profiles) || !Object.keys(config.profiles).length) fail('invalid-config', 'profiles is required.');
   for (const [name, profile] of Object.entries(config.profiles)) {
     if (!/^[a-z][a-z0-9-]{0,39}$/.test(name) || !plain(profile) || typeof profile.release !== 'boolean') fail('invalid-config', `Invalid profile: ${name}`);

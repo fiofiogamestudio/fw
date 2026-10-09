@@ -1,0 +1,5 @@
+.godot/
+.local/
+addons/fwb/
+fwb.runtime.json
+.fwb-runtime-install.json

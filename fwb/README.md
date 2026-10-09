@@ -50,7 +50,7 @@ Web 使用标准版 Godot、GDScript、Compatibility 和对应的单线程模板
 | Google Play | Android APK/AAB 导出编排、依赖/签名变量预检、包结构检查 | 本机 SDK/JDK/模板、真机与签名验收、Play 轨道上传 |
 | App Store | Mac/Xcode 预检、Godot iOS 工程导出、Xcode ZIP 检查 | Mac 执行器、Archive/IPA 签名、真机及 TestFlight/商店上传 |
 
-当前维护 7 个构建目标：Web 基线及上述 6 个发布平台。TapTap 的内部目标 ID 保持 `taptap-h5`，验收要求是玩家在手机 TapTap App 内点开并正常游玩；本地浏览器预览或 Web 包检查通过不代表达成这一要求。广告、云存档等 TapTap API 仍需按游戏需求接入，当前未实现。
+当前维护 7 个构建目标：Web 基线及上述 6 个发布平台。TapTap 的内部目标 ID 保持 `taptap-h5`，验收要求是玩家在手机 TapTap App 内点开并正常游玩；本地浏览器预览或 Web 包检查通过不代表达成这一要求。框架已提供可选的[独立云存档与广告模块](docs/platform-services.md)：默认启动选档页、设置备份面板、单文件适配器与按用途名称调用广告。游戏保留存档规则和奖励事务，真实账号/广告仍须平台验收。
 
 工作台按静态网页、H5 平台、小游戏、Android、iOS 分类，目标 ID 保持不变。前三类标为 Web 技术，可在 `resourcePipelines.web.prepareScript` 声明同一套资源裁剪和压缩。微信通过 `convertScript` 调用项目内的实际适配器，生成独立 `game.js` / `game.json` / `project.config.json` 工程；浏览器后处理与微信加载器分别配置。详见 [导出端分类和共用资源流水线](docs/platforms.md#导出端分类)。框架提供转换编排与检查，没有内置已验证的微信 Godot 引擎，不因分类或压缩复用而宣称微信真机支持。
 
@@ -105,3 +105,5 @@ node fwb/bin/fwb.mjs upload-plan --project D:/Games/MyGame --artifact <build_id>
 已配置 Windows/Linux 的框架回归 CI，尚未远程运行。下一阶段需完成 TapTap H5 候选包在手机 TapTap App 内的运行验收、建立 Android 工具链与设备验证，并以一个实际游戏完成 Poki Inspector 闭环；微信和抖音分别验证运行时适配。Mac 执行器、游戏导出 CI 矩阵、工具链安装、分包/CDN、各渠道登录/分享/支付/隐私接口、Google/Apple 上传及商店元数据管理仍未实现。
 
 更多说明：[平台与配置](docs/platforms.md) · [Godot 运行时与示例](docs/runtime.md) · [上传接口](docs/publishing.md) · [本轮实测记录](docs/verification-2026-09-14.md)。
+
+资源报告、可选纹理导入策略、外置资源、包体预算和流式本地交付见 [资源与交付合同](docs/build-delivery.md)。`deliver --zip` 可生成超过工作台内存下载上限的 ZIP32 交付；既有 256 MiB 下载接口保持兼容。框架预览支持媒体 MIME 与 HTTP Range，并继续逐请求验证产物身份。

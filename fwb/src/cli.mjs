@@ -5,6 +5,9 @@ import { startPreview } from './core/preview.mjs';
 import { doctor } from './doctor.mjs';
 import { targets } from './platforms.mjs';
 import { fail } from './core/files.mjs';
+import { resourceReport } from './core/resource-report.mjs';
+import { deliverArtifact } from './core/delivery.mjs';
+import { installRuntimeAddon } from './core/runtime-dev.mjs';
 
 const help = `FWB — Godot build and distribution workbench
 
@@ -14,6 +17,9 @@ const help = `FWB — Godot build and distribution workbench
   fwb build --project <game> [--target web] [--profile debug]
   fwb artifacts --project <game>
   fwb artifact|logs|validate --project <game> --artifact <id>
+  fwb resources --project <game> --artifact <id>
+  fwb runtime-install --project <game> [--target web]
+  fwb deliver --project <game> --artifact <id> --destination <parent> [--zip] [--no-latest]
   fwb preview --project <game> --artifact <id> [--port <number>]
   fwb evidence --project <game> --artifact <id> --kind runtime|platform --result passed|failed --file <report>
   fwb upload-plan|upload --project <game> --artifact <id> --channel <name> [--execute]
@@ -26,8 +32,8 @@ Upload defaults to a plan. No command automatically submits or releases a game.
 
 export function parseArgs(args) {
   const positional = []; const options = {};
-  const values = new Set(['project', 'godot', 'godot-version', 'target', 'profile', 'artifact', 'port', 'fwe-path', 'channel', 'kind', 'result', 'file']);
-  const flags = new Set(['help', 'json', 'execute', 'no-open']);
+  const values = new Set(['project', 'godot', 'godot-version', 'target', 'profile', 'artifact', 'port', 'fwe-path', 'channel', 'kind', 'result', 'file', 'destination']);
+  const flags = new Set(['help', 'json', 'execute', 'no-open', 'zip', 'no-latest']);
   for (let index = 0; index < args.length; index++) {
     const value = args[index];
     if (!value.startsWith('--')) { positional.push(value); continue; }
@@ -49,6 +55,8 @@ export async function main(args) {
     artifacts: ['project'], artifact: ['project', 'artifact'], logs: ['project', 'artifact'], validate: ['project', 'artifact'], preview: ['project', 'artifact', 'port'],
     editor: ['project', 'fwe-path', 'port', 'no-open'], 'upload-plan': ['project', 'artifact', 'channel'], upload: ['project', 'artifact', 'channel', 'execute'],
     evidence: ['project', 'artifact', 'kind', 'result', 'file'],
+    resources: ['project', 'artifact'], deliver: ['project', 'artifact', 'destination', 'zip', 'no-latest'],
+    'runtime-install': ['project', 'target'],
   };
   if (!accepted[command]) fail('unknown-command', `Unknown command: ${command}`);
   for (const key of Object.keys(options)) if (!['json', 'help', ...accepted[command]].includes(key)) fail('invalid-arguments', `--${key} is not valid for ${command}.`);
@@ -65,6 +73,11 @@ export async function main(args) {
     finally { process.removeListener('SIGINT', abort); process.removeListener('SIGTERM', abort); }
   }
   if (command === 'artifacts') return report(listArtifacts(root));
+  if (command === 'runtime-install') {
+    const project = readProject(root), target = options.target ?? 'web';
+    if (!targets.some(item => item.id === target)) fail('unknown-target', `Unknown runtime target: ${target}`);
+    return report({ ok: true, ...installRuntimeAddon(root, { platform: target, config: project.config.runtime, development: true }) });
+  }
   if (command === 'editor') {
     const { startEditor } = await import('./editor/server.mjs');
     const editor = await startEditor({ projectRoot: root, fwePath: options['fwe-path'] ? path.resolve(options['fwe-path']) : undefined, port: Number(options.port ?? 0), open: !options['no-open'] && process.env.FWE_NO_BROWSER !== '1' });
@@ -77,6 +90,18 @@ export async function main(args) {
   if (command === 'artifact') return report(readArtifact(root, options.artifact));
   if (command === 'logs') { console.log(readArtifactLog(root, options.artifact)); return; }
   if (command === 'validate') return report(await validateArtifact(root, options.artifact));
+  if (command === 'resources') {
+    const validation = await validateArtifact(root, options.artifact);
+    const blockers = validation.checks.filter(check => check.status !== 'pass' && check.id !== 'build-status' && check.id !== 'package-budget' && !check.id.startsWith('resource-budget:'));
+    if (blockers.length) fail('invalid-package', 'Resource reporting requires intact outputs and valid package structure.');
+    return report({ ...resourceReport(readArtifact(root, options.artifact)), packageValidationPassed: validation.ok });
+  }
+  if (command === 'deliver') {
+    const controller = new AbortController(), abort = () => controller.abort();
+    process.once('SIGINT', abort); process.once('SIGTERM', abort);
+    try { return report(await deliverArtifact(root, options.artifact, { destination: options.destination, zip: options.zip === true, latest: !options['no-latest'], signal: controller.signal })); }
+    finally { process.removeListener('SIGINT', abort); process.removeListener('SIGTERM', abort); }
+  }
   if (command === 'evidence') return report(await recordEvidence(root, options.artifact, options));
   if (command === 'preview') {
     const preview = await startPreview(root, options.artifact, { port: Number(options.port ?? 0) });
