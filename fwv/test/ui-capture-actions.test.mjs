@@ -38,3 +38,157 @@ test('legacy and missing assessments stay unresolved and conservatively included
   assert.equal(logic.issues([unknown]).length, 1);
   assert.equal(logic.issue({}, unknown).autoCheck.status, 'risk');
 });
+
+const queueData = manifestId => ({ project: 'Game', run: { id: 'run' }, manifestId });
+const queueIds = (queue, rows) => Array.from(queue.pending(rows), item => item.id);
+const plain = value => JSON.parse(JSON.stringify(value));
+function memoryStorage() {
+  const values = new Map();
+  return {
+    values,
+    getItem(key) { return values.get(key) ?? null; },
+    setItem(key, value) { values.set(key, value); }
+  };
+}
+
+test('clearing and restoring the export queue preserves review data and unconditional single JSON', () => {
+  const data = queueData('clear-and-restore');
+  const rows = [row('safe', 1), row('risk', 2, 'skipped', 'risk'), row('passed', 3, 'accepted', 'error'),
+    { ...row('rejected', 4, 'rejected'), reviewNote: 'Keep my note' },
+    { ...row('historical', 5, 'rejected'), historical: true }];
+  const before = structuredClone(rows), storage = memoryStorage();
+  storage.setItem('unrelated-review-state', 'keep');
+  const queue = logic.exportQueue(data, storage);
+  assert.deepEqual(queueIds(queue, rows), ['risk', 'rejected']);
+  assert.equal(queue.hasCleared(), false);
+  assert.deepEqual(plain(queue.clear(rows)), { count: 2, persisted: true });
+  assert.deepEqual(queueIds(queue, rows), []);
+  assert.equal(queue.hasCleared(), true);
+  assert.deepEqual(plain(queue.clear(rows)), { count: 0, persisted: true });
+  assert.deepEqual(Array.from(logic.issues(rows), item => item.id), ['risk', 'rejected']);
+  assert.deepEqual(plain(logic.issue(data, rows[3])).review, { status: 'rejected', note: 'Keep my note' });
+  assert.deepEqual(rows, before);
+  assert.deepEqual(plain(queue.restore()), { count: 2, persisted: true });
+  assert.deepEqual(queueIds(queue, rows), ['risk', 'rejected']);
+  assert.equal(queue.hasCleared(), false);
+  assert.deepEqual(plain(queue.restore()), { count: 0, persisted: true });
+  assert.equal(storage.values.get('unrelated-review-state'), 'keep');
+  assert.deepEqual(rows, before);
+});
+
+test('a changed issue payload re-enters the queue and clearing only acknowledges pending payloads', () => {
+  const data = queueData('payload-change'), storage = memoryStorage();
+  const rows = [row('first', 1, 'rejected'), row('second', 2, 'skipped', 'risk')];
+  const queue = logic.exportQueue(data, storage);
+  queue.clear(rows);
+  rows[0].reviewNote = 'New unsaved feedback';
+  assert.deepEqual(queueIds(queue, rows), ['first']);
+  assert.deepEqual(plain(queue.clear(rows)), { count: 1, persisted: true });
+  assert.deepEqual(queueIds(queue, rows), []);
+  rows[0].reviewStatus = 'skipped';
+  assert.deepEqual(queueIds(queue, rows), [], 'a safe skipped row is no longer a problem');
+  rows[0].autoCheck.status = 'risk';
+  assert.deepEqual(queueIds(queue, rows), ['first']);
+  queue.clear(rows);
+  for (const mutate of [
+    () => { rows[0].autoCheck.summary = 'Changed AI assessment'; },
+    () => { rows[0].notes = 'New source observation'; },
+    () => { rows[0].state = { tab: 2 }; },
+    () => { rows[0].sha256 = 'updated-pixels'; }
+  ]) {
+    mutate();
+    assert.deepEqual(queueIds(queue, rows), ['first']);
+    queue.clear(rows);
+  }
+  rows.push(row('new', 3, 'rejected'));
+  assert.deepEqual(queueIds(queue, rows), ['new']);
+  rows[2].reviewStatus = 'accepted';
+  assert.deepEqual(queueIds(queue, rows), []);
+  rows[2].reviewStatus = 'rejected';
+  rows[2].historical = true;
+  assert.deepEqual(queueIds(queue, rows), []);
+  const saved = JSON.parse(Array.from(storage.values.values())[0]);
+  assert.equal(saved.cleared.length, 2, 'one current fingerprint is retained per screenshot');
+});
+
+test('export acknowledgements survive reopen and restore without crossing manifest identities', () => {
+  const storage = memoryStorage(), data = queueData('manifest-one'), rows = [row('same-id', 1, 'rejected')];
+  logic.exportQueue(data, storage).clear(rows);
+  const reopened = logic.exportQueue(structuredClone(data), storage);
+  assert.deepEqual(queueIds(reopened, rows), []);
+  assert.equal(reopened.hasCleared(), true);
+  const otherManifest = logic.exportQueue(queueData('manifest-two'), storage);
+  assert.deepEqual(queueIds(otherManifest, rows), ['same-id']);
+  assert.equal(otherManifest.hasCleared(), false);
+  otherManifest.clear(rows);
+  reopened.restore();
+  assert.deepEqual(queueIds(logic.exportQueue(data, storage), rows), ['same-id']);
+  assert.deepEqual(queueIds(logic.exportQueue(queueData('manifest-two'), storage), rows), []);
+  assert.equal(storage.values.size, 2);
+});
+
+test('export storage treats prototype-like screenshot and manifest keys as plain data', () => {
+  const data = queueData('__proto__'), storage = memoryStorage();
+  const rows = [row('__proto__', 1, 'rejected'), row('constructor', 2, 'rejected'), row('toString', 3, 'rejected')];
+  const queue = logic.exportQueue(data, storage);
+  assert.deepEqual(plain(queue.clear(rows)), { count: 3, persisted: true });
+  assert.deepEqual(queueIds(logic.exportQueue(data, storage), rows), []);
+  rows[0].reviewNote = '__proto__';
+  assert.deepEqual(queueIds(queue, rows), ['__proto__']);
+  assert.equal({}.polluted, undefined);
+  assert.deepEqual(plain(queue.restore()), { count: 3, persisted: true });
+  assert.deepEqual(queueIds(queue, rows), ['__proto__', 'constructor', 'toString']);
+});
+
+test('malformed, foreign and unsupported export storage is ignored safely', () => {
+  const data = queueData('stored-input'), rows = [row('first', 1, 'rejected')];
+  const valid = { schemaVersion: 1, manifestId: data.manifestId, cleared: [['first', JSON.stringify(logic.issue(data, rows[0]))]] };
+  const invalid = [
+    '{invalid', 'null', '[]', '42', '"text"',
+    JSON.stringify({ ...valid, schemaVersion: 2 }),
+    JSON.stringify({ ...valid, manifestId: 'foreign' }),
+    JSON.stringify({ ...valid, unexpected: true }),
+    JSON.stringify({ ...valid, cleared: {} }),
+    JSON.stringify({ ...valid, cleared: [['first']] }),
+    JSON.stringify({ ...valid, cleared: [['first', null]] }),
+    JSON.stringify({ ...valid, cleared: [[{}, valid.cleared[0][1]]] }),
+    JSON.stringify({ ...valid, cleared: [null] }),
+    '{"schemaVersion":1,"manifestId":"stored-input","cleared":[],"__proto__":{"polluted":true}}',
+    { not: 'a localStorage string' }
+  ];
+  for (const raw of invalid) {
+    const storage = { getItem() { return raw; }, setItem() {} };
+    const queue = logic.exportQueue(data, storage);
+    assert.deepEqual(queueIds(queue, rows), ['first']);
+    assert.equal(queue.hasCleared(), false);
+    assert.deepEqual(plain(queue.clear(rows)), { count: 1, persisted: true });
+    assert.deepEqual(queueIds(queue, rows), []);
+  }
+  assert.equal({}.polluted, undefined);
+});
+
+test('null, throwing and quota-limited storage retain in-session clear and restore', () => {
+  const data = queueData('unavailable'), rows = [row('first', 1, 'rejected')];
+  const throwing = () => { throw new Error('Storage denied'); };
+  for (const storage of [null, undefined, {}, { getItem: throwing, setItem: throwing },
+    { get getItem() { throw new Error('Getter denied'); }, setItem: throwing },
+    { getItem() { return null; }, setItem: throwing }]) {
+    const queue = logic.exportQueue(data, storage);
+    assert.deepEqual(plain(queue.clear(rows)), { count: 1, persisted: false });
+    assert.deepEqual(queueIds(queue, rows), []);
+    assert.equal(queue.hasCleared(), true);
+    assert.deepEqual(plain(queue.restore()), { count: 1, persisted: false });
+    assert.deepEqual(queueIds(queue, rows), ['first']);
+    assert.equal(queue.hasCleared(), false);
+  }
+  const storage = memoryStorage();
+  logic.exportQueue(data, storage).clear(rows);
+  storage.setItem = throwing;
+  const reopened = logic.exportQueue(data, storage);
+  assert.deepEqual(queueIds(reopened, rows), []);
+  assert.deepEqual(plain(reopened.restore()), { count: 1, persisted: false });
+  assert.deepEqual(queueIds(reopened, rows), ['first']);
+  const noIdentity = logic.exportQueue({}, memoryStorage());
+  assert.deepEqual(plain(noIdentity.clear(rows)), { count: 1, persisted: false });
+  assert.deepEqual(queueIds(noIdentity, rows), []);
+});

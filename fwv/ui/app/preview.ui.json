@@ -36,7 +36,9 @@
       {"type":"text","testId":"capture-basic-info","text":{"$path":"basicInfo"},"tone":"muted"},
       {"type":"toolbar","children":[
         {"type":"button","text":"复制 JSON","testId":"copy-issue","on":{"click":"copyIssue"}},
-        {"type":"button","text":{"$path":"copyAllLabel"},"testId":"copy-all-issues","on":{"click":"copyAll"}}
+        {"type":"button","text":{"$path":"copyAllLabel"},"testId":"copy-all-issues","on":{"click":"copyAll"}},
+        {"type":"button","text":"清空 JSON","testId":"clear-issues","attrs":{"disabled":{"$path":"clearJsonDisabled"}},"on":{"click":"clearJSON"}},
+        {"type":"button","text":"恢复已清空","testId":"restore-issues","visible":{"$path":"restoreJsonVisible"},"on":{"click":"restoreJSON"}}
       ]},
       {"type":"text","testId":"copy-status","visible":{"$path":"copyNotice"},"text":{"$path":"copyNotice"},"attrs":{"role":"status"},"tone":"muted"},
       {"type":"field","ref":"copyFallback","visible":{"$path":"copyFallbackVisible"},"field":{"path":"copyFallback","type":"textarea","label":"JSON","rows":6},"value":{"$path":"copyFallback"}}

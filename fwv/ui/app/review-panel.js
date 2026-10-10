@@ -2,6 +2,7 @@
   'use strict';
   const API = '/api/fwv/ui-capture';
   const views = new Map();
+  const exportQueues = new Map();
   let configuration;
   const numbered = row => `#${String(row.number).padStart(3, '0')} · ${row.title}`;
   const logic = window.fwvUiReview;
@@ -49,10 +50,21 @@
 
   function mountPreview(context, createSurface) {
     const row = context.target;
+    const queueId = context.data.manifestId;
+    if (!exportQueues.has(queueId)) {
+      let storage = null;
+      try { storage = window.localStorage; } catch { /* This tab can still clear its queue. */ }
+      exportQueues.set(queueId, logic.exportQueue(context.data, storage));
+    }
+    const queue = exportQueues.get(queueId);
+    const queueState = () => {
+      const count = queue.pending(context.data.screenshots || []).length;
+      return { copyAllLabel: `复制所有 JSON (${count})`, clearJsonDisabled: count === 0, restoreJsonVisible: queue.hasCleared() };
+    };
     const rows = ordered(context), index = rows.findIndex(item => item.id === row.id);
     const view = { mode: 'fit', scale: 1, x: 0, y: 0, ...views.get(row.id) };
     const controller = new AbortController();
-    let image = null, metrics = null, disposed = false, drag = null;
+    let image = null, metrics = null, disposed = false, drag = null, copyVersion = 0;
     const surface = createSurface({
       data: {
         heading: numbered(row), number: row.number,
@@ -65,7 +77,7 @@
         checkTone: { safe: 'success', risk: 'warning', error: 'danger' }[row.autoCheck?.status] || 'warning',
         checkSummary: row.autoCheck?.summary || '未检查',
         basicInfo: `${row.width} × ${row.height}`,
-        copyAllLabel: `复制所有 JSON (${logic.issues(rows).length})`,
+        ...queueState(),
         copyNotice: '', copyFallbackVisible: false, copyFallback: ''
       },
       actions: {
@@ -76,9 +88,11 @@
         zoomIn: () => zoom(1.25), zoomOut: () => zoom(0.8),
         copyIssue: () => copyJSON(logic.issue(context.data, row), '已复制'),
         copyAll: () => {
-          const problems = logic.issues(context.data.screenshots || []);
+          const problems = queue.pending(context.data.screenshots || []);
           return copyJSON(problems.map(item => logic.issue(context.data, item)), `已复制 ${problems.length} 项`);
-        }
+        },
+        clearJSON: () => updateQueue(queue.clear(context.data.screenshots || []), '已清空待复制 JSON，审阅结论和备注保留'),
+        restoreJSON: () => updateQueue(queue.restore(), '已恢复清空的 JSON')
       }
     });
     const canvas = surface.refs.canvas;
@@ -88,14 +102,26 @@
     canvas.dataset.ready = 'false';
     canvas.style.touchAction = 'none';
 
+    function updateQueue(result, message) {
+      copyVersion += 1;
+      surface.update({ ...queueState(), copyNotice: message + (result.persisted ? '' : '（仅本次打开有效）'), copyFallbackVisible: false, copyFallback: '' });
+    }
+
+    // Native FWE fields commit without remounting this preview. Observe their
+    // completed input events without replacing the editor's edit/history flow.
+    const refreshQueue = () => queueMicrotask(() => { if (!disposed) surface.update(queueState()); });
+    document.addEventListener('input', refreshQueue, { signal: controller.signal });
+    document.addEventListener('change', refreshQueue, { signal: controller.signal });
+
     async function copyJSON(value, message) {
+      const version = ++copyVersion;
       const text = JSON.stringify(value, null, 2);
       try {
         await navigator.clipboard.writeText(text);
-        if (!disposed) surface.update({ copyNotice: message, copyFallbackVisible: false, copyFallback: '' });
+        if (!disposed && version === copyVersion) surface.update({ ...queueState(), copyNotice: message, copyFallbackVisible: false, copyFallback: '' });
       } catch {
-        if (disposed) return;
-        surface.update({ copyNotice: '复制失败，请手动复制', copyFallbackVisible: true, copyFallback: text });
+        if (disposed || version !== copyVersion) return;
+        surface.update({ ...queueState(), copyNotice: '复制失败，请手动复制', copyFallbackVisible: true, copyFallback: text });
         surface.refs.copyFallback.focus(); surface.refs.copyFallback.select();
       }
     }

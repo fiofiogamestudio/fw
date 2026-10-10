@@ -23,5 +23,46 @@
       evidence: row.evidence || '', notes: row.notes || '', state: row.state || {}
     };
   }
-  window.fwvUiReview = Object.freeze({ status, ordered, resolved, nextPending, issues, issue });
+  function exportQueue(data, storage) {
+    const manifestId = typeof data?.manifestId === 'string' ? data.manifestId : '';
+    const storageKey = `fwv-ui-export-queue:v1:${manifestId}`;
+    let cleared = new Map();
+    // This acknowledgement is independent of review decisions and immutable capture data.
+    try {
+      const raw = manifestId && storage?.getItem(storageKey);
+      if (typeof raw === 'string') {
+        const saved = JSON.parse(raw);
+        if (saved && Object.keys(saved).length === 3 && saved.schemaVersion === 1
+          && saved.manifestId === manifestId && Array.isArray(saved.cleared)
+          && saved.cleared.every(entry => Array.isArray(entry) && entry.length === 2
+            && typeof entry[0] === 'string' && typeof entry[1] === 'string')) {
+          cleared = new Map(saved.cleared);
+        }
+      }
+    } catch { /* Unavailable or malformed storage must not disable the session queue. */ }
+    const fingerprint = row => JSON.stringify(issue(data, row));
+    const pending = rows => issues(rows).filter(row => cleared.get(row.id) !== fingerprint(row));
+    function persist() {
+      try {
+        if (!manifestId || !storage) return false;
+        storage.setItem(storageKey, JSON.stringify({ schemaVersion: 1, manifestId, cleared: Array.from(cleared) }));
+        return true;
+      } catch { return false; }
+    }
+    return Object.freeze({
+      pending,
+      clear(rows) {
+        const problems = pending(rows);
+        for (const row of problems) cleared.set(row.id, fingerprint(row));
+        return { count: problems.length, persisted: persist() };
+      },
+      restore() {
+        const count = cleared.size;
+        cleared.clear();
+        return { count, persisted: persist() };
+      },
+      hasCleared: () => cleared.size > 0
+    });
+  }
+  window.fwvUiReview = Object.freeze({ status, ordered, resolved, nextPending, issues, issue, exportQueue });
 }());
